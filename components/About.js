@@ -1,21 +1,55 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useState } from "react";
+
+const SLIDES = [
+  { src: "/about-slide-2.jpg", alt: "Alfred 'Freddy' Mensah in the Freddy Nails studio" },
+  { src: "/about-slide-3.jpg", alt: "Alfred 'Freddy' Mensah, founder of Freddy Nails" },
+];
 
 export default function About() {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIndex((i) => (i + 1) % SLIDES.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <section id="about" className="max-w-[1180px] mx-auto px-5 py-22">
       <div className="grid gap-10 md:grid-cols-[0.9fr_1.1fr] md:items-start">
         <div className="relative aspect-[3/4] rounded overflow-hidden border border-line">
-          <Image
-            src="/about.jpg"
-            alt="Alfred Mensah, founder of Freddy Nails"
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, 40vw"
-          />
+          {SLIDES.map((slide, i) => (
+            <Image
+              key={slide.src}
+              src={slide.src}
+              alt={slide.alt}
+              fill
+              className={`object-cover transition-opacity duration-1000 ease-in-out ${
+                i === index ? "opacity-100" : "opacity-0"
+              }`}
+              sizes="(max-width: 768px) 100vw, 40vw"
+            />
+          ))}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           <span className="absolute bottom-5 left-5 font-serif italic text-nude text-lg">
-            — Freddy
+            — Alfred &quot;Freddy&quot; Mensah
           </span>
+          <div className="absolute right-4 top-4 flex gap-2">
+            {SLIDES.map((slide, i) => (
+              <button
+                key={slide.src}
+                aria-label={`Show slide ${i + 1}`}
+                onClick={() => setIndex(i)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === index ? "w-6 bg-gold-bright" : "w-1.5 bg-nude/50"
+                }`}
+              />
+            ))}
+          </div>
         </div>
 
         <div>
@@ -28,8 +62,8 @@ export default function About() {
           <div className="space-y-4 text-ink-soft leading-relaxed">
             <p>
               Freddy Nails is a professional nail-tech business based in East
-              London, Eastern Cape, run by nail artist Freddy.
-              The focus is quality nail services with
+              London, Eastern Cape, run by nail artist Alfred Mensah
+              (&quot;Freddy&quot;). The focus is quality nail services with
               clean, detailed work and personalised designs.
             </p>
             <p>
