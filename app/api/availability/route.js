@@ -4,7 +4,13 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
 );
 
 const OPEN_MINUTES = 9 * 60 + 30;
@@ -63,7 +69,7 @@ export async function GET(request) {
 
     const { data: appointments, error } = await supabase
       .from("appointments")
-      .select("start_time, end_time")
+      .select("start_time, end_time, booking_status")
       .eq("booking_date", date)
       .in("booking_status", ["pending", "confirmed"]);
 
@@ -76,6 +82,8 @@ export async function GET(request) {
       );
     }
 
+    console.log("Availability appointments:", appointments);
+
     const availableTimes = [];
 
     for (
@@ -87,11 +95,11 @@ export async function GET(request) {
 
       const overlaps = (appointments || []).some((appointment) => {
         const appointmentStart = timeToMinutes(
-          appointment.start_time
+          String(appointment.start_time).slice(0, 5)
         );
 
         const appointmentEnd = timeToMinutes(
-          appointment.end_time
+          String(appointment.end_time).slice(0, 5)
         );
 
         return (
