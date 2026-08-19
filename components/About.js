@@ -28,7 +28,7 @@ export default function About() {
           <div className="space-y-4 text-ink-soft leading-relaxed">
             <p>
               Freddy Nails is a professional nail-tech business based in East
-              London, Eastern Cape, run by nail artist Freddy
+              London, Eastern Cape, run by nail artist Freddy.
               The focus is quality nail services with
               clean, detailed work and personalised designs.
             </p>
