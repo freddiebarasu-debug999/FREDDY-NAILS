@@ -134,9 +134,9 @@ export default function ChatBot() {
       const galleryDesign = findGalleryDesign(data.message, messages);
 
       const inspirationQuery = `${data.message
-  .replace(/[#*_]/g, "")
-  .slice(0, 180)} nail design manicure`;
-      
+        .replace(/[#*_]/g, "")
+        .slice(0, 180)} nail design manicure`;
+
       const inspirationPhotos = await searchInspiration(inspirationQuery);
 
       setMessages([
@@ -223,9 +223,19 @@ export default function ChatBot() {
                     </div>
 
                     {message.imageName && (
-                      <p className="mt-3 text-xs font-bold tracking-wide text-gold">
-                        Freddy Nails Gallery: {message.imageName}
-                      </p>
+                      <div className="mt-3">
+                        <p className="text-xs font-bold tracking-wide text-gold">
+                          Freddy Nails Gallery: {message.imageName}
+                        </p>
+
+                        <a
+                          href="#booking"
+                          onClick={() => setOpen(false)}
+                          className="mt-3 inline-flex items-center justify-center rounded-full bg-ink px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-80"
+                        >
+                          Book this look
+                        </a>
+                      </div>
                     )}
 
                     {message.inspirationPhotos?.length > 0 && (
