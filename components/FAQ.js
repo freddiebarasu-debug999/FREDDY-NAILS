@@ -15,8 +15,8 @@ const FAQS = [
     a: "Standard manicures and pedicures require a R90 deposit. Extensions, parties and groups of three or more may require individual R90 deposits respectively to confirm.",
   },
   {
-    q: "How are your tools sterilised?",
-    a: "All metal tools are hospital-grade sterilised between every client, and all files and buffers are single-use.",
+    q: "What are your working hours?",
+    a: "We provide flexible hours for clients to choose from.",
   },
 ];
 
