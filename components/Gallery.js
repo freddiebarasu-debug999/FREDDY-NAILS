@@ -49,8 +49,7 @@ export default function Gallery() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
 
             {/* Transparent grey label */}
-            <span className="relative bg-gray-700/65 backdrop-blur-sm text-white text-[0.78rem] font-bold px-2.5 py-1.5 rounded-sm">
-              {t.label}
+            <span className="relative text-white text-[0.78rem] font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"> {t.label}
             </span>
           </button>
         ))}
