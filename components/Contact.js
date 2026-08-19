@@ -50,8 +50,18 @@ export default function Contact() {
           </div>
         </div>
 
-        <div className="aspect-[4/3] rounded-sm border border-line overflow-hidden bg-gradient-to-br from-[#e7dcc9] to-[#c9b696] flex items-center justify-center text-ink-soft text-[0.85rem] text-center px-4">
-          Map embed placeholder — add a Google Maps embed for 8 Rhodes, Quigney, East London
+        <div className="aspect-[4/3] rounded-sm border border-line overflow-hidden">
+  <iframe
+    src="https://www.google.com/maps/embed?pb=!1m23!1m12!1m3!1d13380.723483862104!2d27.9131828!3d-33.025365!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!4m8!3e6!4m0!4m5!1s0x1e66e184563d015d%3A0xcdcee218480d75c4!2sFreddy%20Nails%2C%208%20Rhodes%20St%2C%20Quigney%2C%20KuGompo%20City%2C%205201!3m2!1d-33.020050399999995!2d27.9157993!5e0!3m2!1sen!2sza!4v1787158534058!5m2!1sen!2sza"
+    width="600"
+    height="450"
+    style={{ border: 0, width: "100%", height: "100%" }}
+    allowFullScreen
+    loading="lazy"
+    referrerPolicy="strict-origin-when-cross-origin"
+    title="Freddy Nails location on Google Maps"
+  />
+</div>
         </div>
       </div>
     </section>
