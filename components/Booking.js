@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const SERVICE_OPTIONS = [
   {
@@ -91,6 +91,9 @@ export default function Booking() {
     notes: "",
   });
 
+  const [availableTimes, setAvailableTimes] = useState([]);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -115,10 +118,73 @@ export default function Booking() {
 
   const depositAmount = DEPOSIT_PER_CLIENT * clientCount;
 
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      time: "",
+    }));
+
+    if (!form.date) {
+      setAvailableTimes([]);
+      setAvailabilityError("");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadAvailability() {
+      setAvailabilityLoading(true);
+      setAvailabilityError("");
+
+      try {
+        const response = await fetch(
+          `/api/availability?date=${encodeURIComponent(
+            form.date
+          )}&duration=${totalDuration}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.error || "Unable to check availability."
+          );
+        }
+
+        if (!cancelled) {
+          setAvailableTimes(data.availableTimes || []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Availability error:", error);
+          setAvailableTimes([]);
+          setAvailabilityError(
+            "Unable to load available times. Please try again."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setAvailabilityLoading(false);
+        }
+      }
+    }
+
+    loadAvailability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form.date, totalDuration]);
+
   async function handleSubmit(e) {
     e.preventDefault();
 
     if (loading) return;
+
+    if (!form.time) {
+      setError("Please choose an available appointment time.");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -322,19 +388,41 @@ export default function Booking() {
 
             <div>
               <label className={labelClass} htmlFor="b-time">
-                Preferred time
+                Available time
               </label>
 
-              <input
+              <select
                 id="b-time"
-                type="time"
                 required
                 className={inputClass}
                 value={form.time}
                 onChange={update("time")}
-              />
+                disabled={!form.date || availabilityLoading}
+              >
+                <option value="">
+                  {!form.date
+                    ? "Select a date first"
+                    : availabilityLoading
+                    ? "Checking availability…"
+                    : availableTimes.length === 0
+                    ? "No times available"
+                    : "Select a time"}
+                </option>
+
+                {availableTimes.map((time) => (
+                  <option key={time} value={time}>
+                    {time}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+
+          {availabilityError && (
+            <div className="mb-4 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {availabilityError}
+            </div>
+          )}
 
           <label className={labelClass} htmlFor="b-notes">
             Notes
