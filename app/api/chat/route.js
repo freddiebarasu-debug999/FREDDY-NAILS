@@ -2,18 +2,20 @@ export async function POST(request) {
   try {
     const { messages } = await request.json();
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
-        messages: [
-          {
-            role: "system",
-            content: `
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b",
+          messages: [
+            {
+              role: "system",
+              content: `
 You are Freddy, the friendly AI nail assistant for Freddy Nails Studio.
 
 Your job is to help website visitors choose nail styles, colours and designs.
@@ -28,7 +30,7 @@ You can recommend:
 - ombré
 - floral designs
 - bridal nails
-- birthday/event nails
+- birthday and event nails
 - elegant everyday nails
 - bold and creative designs
 
@@ -45,14 +47,15 @@ If someone wants to book, direct them toward the booking/contact section of the 
 Do not give medical advice or make claims about treating nail or skin conditions.
 
 Keep responses friendly and relatively short.
-            `,
-          },
-          ...messages,
-        ],
-        temperature: 0.7,
-        max_tokens: 500,
-      }),
-    });
+              `,
+            },
+            ...messages,
+          ],
+          temperature: 0.7,
+          max_tokens: 500,
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -67,7 +70,9 @@ Keep responses friendly and relatively short.
     const data = await response.json();
 
     return Response.json({
-      message: data.choices?.[0]?.message?.content || "Sorry, I couldn't think of a nail idea right now.",
+      message:
+        data.choices?.[0]?.message?.content ||
+        "Sorry, I couldn't think of a nail idea right now.",
     });
   } catch (error) {
     console.error("Chat API error:", error);
