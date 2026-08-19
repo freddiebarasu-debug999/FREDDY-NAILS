@@ -4,8 +4,8 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 const SLIDES = [
-  { src: "/about-slide-2.jpg", alt: "Alfred 'Freddy' Mensah in the Freddy Nails studio" },
-  { src: "/about-slide-3.jpg", alt: "Alfred 'Freddy' Mensah, founder of Freddy Nails" },
+  { src: "/about-slide-2.jpg", alt: "Freddy in the Freddy Nails studio" },
+  { src: "/about-slide-3.jpg", alt: "Freddy, founder of Freddy Nails" },
 ];
 
 export default function About() {
