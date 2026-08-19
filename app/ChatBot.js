@@ -133,8 +133,10 @@ export default function ChatBot() {
 
       const galleryDesign = findGalleryDesign(data.message, messages);
 
-      const inspirationQuery = `${text} nail design nails manicure`;
-
+      const inspirationQuery = `${data.message
+  .replace(/[#*_]/g, "")
+  .slice(0, 180)} nail design manicure`;
+      
       const inspirationPhotos = await searchInspiration(inspirationQuery);
 
       setMessages([
