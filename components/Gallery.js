@@ -1,95 +1,136 @@
-"use client";
+export async function POST(request) {
+  try {
+    const { messages } = await request.json();
 
-import { useState } from "react";
-import Image from "next/image";
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b",
+          messages: [
+            {
+              role: "system",
+              content: `
+You are Freddy, the friendly AI nail assistant for Freddy Nails Studio.
 
-const TILES = [
-  { src: "/gallery/gallery-1.jpg", label: "Purple Chrome Ombré" },
-  { src: "/gallery/gallery-2.jpg", label: "Black & White French" },
-  { src: "/gallery/gallery-3.jpg", label: "Gold Outline & Pearls" },
-  { src: "/gallery/gallery-4.jpg", label: "Floral Stiletto Art" },
-  { src: "/gallery/gallery-5.jpg", label: "Classic Pink Square" },
-  { src: "/gallery/gallery-6.jpg", label: "Mauve French Square" },
-  { src: "/gallery/gallery-7.jpg", label: "Lilac Square Set" },
-  { src: "/gallery/gallery-8.jpg", label: "Leopard French Cherry" },
-];
+Your job is to help website visitors discover nail inspiration and choose a style they will love.
 
-export default function Gallery() {
-  const [selectedImage, setSelectedImage] = useState(null);
+Be warm, stylish, creative, helpful and concise.
 
-  return (
-    <section id="gallery" className="max-w-[1180px] mx-auto px-5 py-22">
-      <div className="max-w-[640px] mb-12">
-        <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
-          Recent work
-        </p>
+You can recommend nail ideas in general, including:
+- nail shapes
+- short, medium or long lengths
+- nude nails
+- pink nails
+- French designs
+- chrome
+- ombré
+- floral designs
+- pearls
+- glitter
+- bridal nails
+- birthday nails
+- event nails
+- elegant everyday nails
+- bold and creative designs
+- colour combinations
+- designs based on personality or outfit
 
-        <h2 className="font-serif font-medium text-[clamp(1.9rem,4vw,2.6rem)] mt-3.5">
-          Gallery
-        </h2>
-      </div>
+Ask simple questions when useful, such as:
+- What occasion are the nails for?
+- What nail length do you prefer?
+- What nail shape do you like?
+- What colours do you like?
+- Do you prefer something simple, elegant or bold?
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {TILES.map((t) => (
-          <button
-            key={t.label}
-            type="button"
-            onClick={() => setSelectedImage(t)}
-            className="relative aspect-square rounded-sm border border-line overflow-hidden flex items-end p-3.5 text-left cursor-pointer group"
-            aria-label={`View ${t.label}`}
-          >
-            <Image
-              src={t.src}
-              alt={t.label}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 768px) 50vw, 25vw"
-            />
+IMPORTANT:
+Freddy Nails Studio has real nail designs in its website gallery.
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+When a visitor's request matches one of these real designs, recommend the matching gallery design naturally.
 
-            {/* Transparent grey label */}
-            <span className="relative text-white text-[0.78rem] font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"> {t.label}
-            </span>
-          </button>
-        ))}
-      </div>
+REAL FREDDY NAILS GALLERY:
 
-      {/* Full-size image viewer */}
-      {selectedImage && (
-        <div
-          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-5"
-          onClick={() => setSelectedImage(null)}
-        >
-          <div
-            className="relative w-full max-w-4xl max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Image
-              src={selectedImage.src}
-              alt={selectedImage.label}
-              width={1200}
-              height={1200}
-              className="w-full max-h-[80vh] object-contain rounded-sm"
-            />
+1. Purple Chrome Ombré
+Image: /gallery/gallery-1.jpg
+Style: purple chrome, ombré, glossy, glamorous and eye-catching.
 
-            <div className="absolute left-4 bottom-4 bg-gray-700/70 backdrop-blur-sm text-white px-4 py-2 rounded-sm">
-              <p className="font-serif text-lg">
-                {selectedImage.label}
-              </p>
-            </div>
+2. Black & White French
+Image: /gallery/gallery-2.jpg
+Style: black and white French tips, elegant, modern and monochrome.
 
-            <button
-              type="button"
-              onClick={() => setSelectedImage(null)}
-              className="absolute top-3 right-3 w-10 h-10 rounded-full bg-black/60 text-white text-xl hover:bg-gold hover:text-ink transition-colors"
-              aria-label="Close image"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      )}
-    </section>
-  );
+3. Gold Outline & Pearls
+Image: /gallery/gallery-3.jpg
+Style: elegant nude tones with gold detailing and pearls, luxurious and sophisticated.
+
+4. Floral Stiletto Art
+Image: /gallery/gallery-4.jpg
+Style: long stiletto nails with floral nail art, feminine, artistic and bold.
+
+5. Classic Pink Square
+Image: /gallery/gallery-5.jpg
+Style: classic pink square nails, clean, feminine and versatile.
+
+6. Mauve French Square
+Image: /gallery/gallery-6.jpg
+Style: mauve French tips on a square shape, soft, elegant and modern.
+
+7. Lilac Square Set
+Image: /gallery/gallery-7.jpg
+Style: lilac/purple square nails, playful, feminine and stylish.
+
+8. Leopard French Cherry
+Image: /gallery/gallery-8.jpg
+Style: French-inspired nails with leopard print and cherry details, fun, playful and bold.
+
+When recommending a gallery design, mention its exact name so the website can show the visitor the matching image.
+
+Do NOT claim that a gallery design is available as a bookable service unless the website confirms it.
+
+You may also recommend completely new/general nail ideas that are NOT in the gallery. Clearly treat those as inspiration rather than existing Freddy Nails work.
+
+If someone wants to book, guide them toward the booking/contact section of the Freddy Nails website.
+
+Do not give medical advice or make claims about treating nail or skin conditions.
+
+Keep responses friendly, useful and relatively short.
+              `,
+            },
+            ...messages,
+          ],
+          temperature: 0.8,
+          max_tokens: 600,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Groq error:", errorText);
+
+      return Response.json(
+        { error: "The nail assistant is temporarily unavailable." },
+        { status: 500 }
+      );
+    }
+
+    const data = await response.json();
+
+    return Response.json({
+      message:
+        data.choices?.[0]?.message?.content ||
+        "Sorry, I couldn't think of a nail idea right now.",
+    });
+  } catch (error) {
+    console.error("Chat API error:", error);
+
+    return Response.json(
+      { error: "Something went wrong. Please try again." },
+      { status: 500 }
+    );
+  }
 }
