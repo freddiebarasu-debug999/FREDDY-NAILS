@@ -73,6 +73,25 @@ export default function ChatBot() {
     return matchingDesigns[0] || null;
   }
 
+  async function searchInspiration(query) {
+    try {
+      const response = await fetch(
+        `/api/inspiration?query=${encodeURIComponent(query)}`
+      );
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const data = await response.json();
+
+      return data.photos || [];
+    } catch (error) {
+      console.error("Inspiration search error:", error);
+      return [];
+    }
+  }
+
   async function sendMessage(e) {
     e.preventDefault();
 
@@ -114,6 +133,10 @@ export default function ChatBot() {
 
       const galleryDesign = findGalleryDesign(data.message, messages);
 
+      const inspirationQuery = `${text} nail design nails manicure`;
+
+      const inspirationPhotos = await searchInspiration(inspirationQuery);
+
       setMessages([
         ...newMessages,
         {
@@ -121,6 +144,7 @@ export default function ChatBot() {
           content: data.message,
           image: galleryDesign?.src || null,
           imageName: galleryDesign?.name || null,
+          inspirationPhotos,
         },
       ]);
     } catch (error) {
@@ -176,7 +200,7 @@ export default function ChatBot() {
                   }`}
                 >
                   <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                       message.role === "user"
                         ? "bg-ink text-white"
                         : "bg-white text-ink"
@@ -201,6 +225,38 @@ export default function ChatBot() {
                         Freddy Nails Gallery: {message.imageName}
                       </p>
                     )}
+
+                    {message.inspirationPhotos?.length > 0 && (
+                      <div className="mt-4">
+                        <p className="mb-2 text-[0.68rem] font-bold uppercase tracking-[0.15em] text-gold">
+                          More inspiration
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          {message.inspirationPhotos
+                            .slice(0, 4)
+                            .map((photo) => (
+                              <a
+                                key={photo.id}
+                                href={photo.pexelsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group overflow-hidden rounded-lg"
+                              >
+                                <img
+                                  src={photo.src}
+                                  alt={photo.alt}
+                                  className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                />
+                              </a>
+                            ))}
+                        </div>
+
+                        <p className="mt-2 text-[0.65rem] text-ink-soft">
+                          Inspiration images via Pexels
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -208,7 +264,7 @@ export default function ChatBot() {
               {loading && (
                 <div className="flex justify-start">
                   <div className="rounded-2xl bg-white px-4 py-3 text-sm text-ink-soft">
-                    Thinking of something gorgeous…
+                    Finding something gorgeous…
                   </div>
                 </div>
               )}
