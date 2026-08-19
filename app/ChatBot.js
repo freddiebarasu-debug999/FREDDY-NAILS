@@ -2,6 +2,41 @@
 
 import { useState } from "react";
 
+const GALLERY = [
+  {
+    name: "Purple Chrome Ombré",
+    src: "/gallery/gallery-1.jpg",
+  },
+  {
+    name: "Black & White French",
+    src: "/gallery/gallery-2.jpg",
+  },
+  {
+    name: "Gold Outline & Pearls",
+    src: "/gallery/gallery-3.jpg",
+  },
+  {
+    name: "Floral Stiletto Art",
+    src: "/gallery/gallery-4.jpg",
+  },
+  {
+    name: "Classic Pink Square",
+    src: "/gallery/gallery-5.jpg",
+  },
+  {
+    name: "Mauve French Square",
+    src: "/gallery/gallery-6.jpg",
+  },
+  {
+    name: "Lilac Square Set",
+    src: "/gallery/gallery-7.jpg",
+  },
+  {
+    name: "Leopard French Cherry",
+    src: "/gallery/gallery-8.jpg",
+  },
+];
+
 export default function ChatBot() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
@@ -13,6 +48,14 @@ export default function ChatBot() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+
+  function findGalleryDesign(text) {
+    const lowerText = text.toLowerCase();
+
+    return GALLERY.find((item) =>
+      lowerText.includes(item.name.toLowerCase())
+    );
+  }
 
   async function sendMessage(e) {
     e.preventDefault();
@@ -40,7 +83,10 @@ export default function ChatBot() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: newMessages,
+          messages: newMessages.map(({ role, content }) => ({
+            role,
+            content,
+          })),
         }),
       });
 
@@ -50,11 +96,15 @@ export default function ChatBot() {
         throw new Error(data.error || "Something went wrong");
       }
 
+      const galleryDesign = findGalleryDesign(data.message);
+
       setMessages([
         ...newMessages,
         {
           role: "assistant",
           content: data.message,
+          image: galleryDesign?.src || null,
+          imageName: galleryDesign?.name || null,
         },
       ]);
     } catch (error) {
@@ -81,6 +131,7 @@ export default function ChatBot() {
                 <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-gold">
                   Freddy Nails
                 </p>
+
                 <h3 className="mt-1 font-serif text-xl">
                   Nail Muse
                 </h3>
@@ -115,7 +166,23 @@ export default function ChatBot() {
                         : "bg-white text-ink"
                     }`}
                   >
+                    {message.image && (
+                      <div className="mb-3 overflow-hidden rounded-xl">
+                        <img
+                          src={message.image}
+                          alt={message.imageName || "Nail inspiration"}
+                          className="w-full aspect-square object-cover"
+                        />
+                      </div>
+                    )}
+
                     {message.content}
+
+                    {message.imageName && (
+                      <p className="mt-3 text-xs font-bold tracking-wide text-gold">
+                        Freddy Nails Gallery: {message.imageName}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}
