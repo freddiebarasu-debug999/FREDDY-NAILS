@@ -1,11 +1,10 @@
-import Image from "next/image";
-
 export default function Hero() {
   return (
     <div
       id="home"
       className="max-w-[1180px] mx-auto px-5 py-16 md:py-24 grid gap-9 md:grid-cols-[1.1fr_0.9fr] md:items-center"
     >
+      {/* Left side */}
       <div>
         <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
           Freddy Nails Studio
@@ -35,6 +34,7 @@ export default function Hero() {
               height="16"
               viewBox="0 0 24 24"
               fill="currentColor"
+              aria-hidden="true"
             >
               <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.28-1.38c1.45.79 3.08 1.21 4.71 1.21h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2z" />
             </svg>
@@ -50,24 +50,26 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* Hero image */}
-      <div className="relative aspect-[4/5] rounded overflow-hidden border border-line">
-        <Image
+      {/* Right side — Freddy Nails hero image */}
+      <div className="relative aspect-[4/5] rounded overflow-hidden border border-line bg-ink">
+        <img
           src="/hero.jpg"
           alt="Freddy Nails Studio"
-          fill
-          priority
-          className="object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
         />
 
-        {/* Gold border overlay */}
+        {/* Elegant gold frame */}
         <div className="absolute inset-3.5 border border-gold-bright/40 pointer-events-none" />
 
-        {/* Text overlay */}
+        {/* Image overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+
+        {/* Signature text */}
         <div className="absolute left-6 bottom-6 text-nude">
           <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold-bright">
             Signature finish
           </p>
+
           <p className="font-serif text-2xl mt-1.5">
             Gold Leaf Signature
           </p>
