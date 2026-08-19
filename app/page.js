@@ -10,6 +10,7 @@ import Reviews from "@/components/Reviews";
 import FAQ from "@/components/FAQ";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
+import ChatBot from "./ChatBot";
 
 export default function Home() {
   return (
@@ -33,6 +34,7 @@ export default function Home() {
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
       <Contact />
       <Footer />
+      <ChatBot />
     </>
   );
 }
