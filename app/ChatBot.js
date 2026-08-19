@@ -39,6 +39,7 @@ const GALLERY = [
 
 export default function ChatBot() {
   const [open, setOpen] = useState(false);
+
   const [messages, setMessages] = useState([
     {
       role: "assistant",
@@ -46,15 +47,30 @@ export default function ChatBot() {
         "Hi! 💅 I'm Freddy's Nail Muse. Tell me what kind of nails you're thinking about, and I'll help you find a style.",
     },
   ]);
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function findGalleryDesign(text) {
+  function findGalleryDesign(text, previousMessages) {
     const lowerText = text.toLowerCase();
 
-    return GALLERY.find((item) =>
+    const alreadyShown = previousMessages
+      .filter((message) => message.imageName)
+      .map((message) => message.imageName);
+
+    const matchingDesigns = GALLERY.filter((item) =>
       lowerText.includes(item.name.toLowerCase())
     );
+
+    const newDesign = matchingDesigns.find(
+      (item) => !alreadyShown.includes(item.name)
+    );
+
+    if (newDesign) {
+      return newDesign;
+    }
+
+    return matchingDesigns[0] || null;
   }
 
   async function sendMessage(e) {
@@ -96,7 +112,7 @@ export default function ChatBot() {
         throw new Error(data.error || "Something went wrong");
       }
 
-      const galleryDesign = findGalleryDesign(data.message);
+      const galleryDesign = findGalleryDesign(data.message, messages);
 
       setMessages([
         ...newMessages,
@@ -171,12 +187,14 @@ export default function ChatBot() {
                         <img
                           src={message.image}
                           alt={message.imageName || "Nail inspiration"}
-                          className="w-full aspect-square object-cover"
+                          className="aspect-square w-full object-cover"
                         />
                       </div>
                     )}
 
-                    {message.content}
+                    <div className="whitespace-pre-wrap">
+                      {message.content}
+                    </div>
 
                     {message.imageName && (
                       <p className="mt-3 text-xs font-bold tracking-wide text-gold">
