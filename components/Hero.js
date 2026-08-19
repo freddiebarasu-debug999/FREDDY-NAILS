@@ -43,7 +43,7 @@ export default function Hero() {
           <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold-bright">
             Signature finish
           </p>
-          <p className="font-serif text-2xl mt-1.5">Gold-foil French</p>
+          <p className="font-serif text-2xl mt-1.5">Gold Leaf Signature</p>
         </div>
       </div>
     </div>
