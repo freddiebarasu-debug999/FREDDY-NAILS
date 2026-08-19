@@ -36,7 +36,7 @@ export default function About() {
           ))}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           <span className="absolute bottom-5 left-5 font-serif italic text-nude text-lg">
-            Freddy;
+            FREDDY
           </span>
           <div className="absolute right-4 top-4 flex gap-2">
             {SLIDES.map((slide, i) => (
