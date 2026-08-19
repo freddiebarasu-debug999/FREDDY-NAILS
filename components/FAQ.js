@@ -12,7 +12,7 @@ const FAQS = [
   },
   {
     q: "Is a deposit required?",
-    a: "Standard manicures and pedicures don't need a deposit. Extensions, parties and groups of three or more may require a small deposit to confirm.",
+    a: "Standard manicures and pedicures require a R90 deposit. Extensions, parties and groups of three or more may require individual R90 deposits respectively to confirm.",
   },
   {
     q: "How are your tools sterilised?",
