@@ -1,9 +1,19 @@
+import Image from "next/image";
+
 export default function About() {
   return (
     <section id="about" className="max-w-[1180px] mx-auto px-5 py-22">
       <div className="grid gap-10 md:grid-cols-[0.9fr_1.1fr] md:items-start">
-        <div className="relative aspect-[3/4] rounded overflow-hidden border border-line bg-gradient-to-br from-[#DCC7A9] via-[#B99257] to-[#8B6B3D]">
-          <span className="absolute bottom-5 left-5 font-serif italic text-ink text-lg">
+        <div className="relative aspect-[3/4] rounded overflow-hidden border border-line">
+          <Image
+            src="/about.jpg"
+            alt="Alfred 'Freddy' Mensah, founder of Freddy Nails"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 40vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+          <span className="absolute bottom-5 left-5 font-serif italic text-nude text-lg">
             — Alfred &quot;Freddy&quot; Mensah
           </span>
         </div>
