@@ -99,8 +99,16 @@ export default function Booking() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          clientCount,
-        }),
+  name: form.name,
+  phone: form.phone,
+  service: form.service,
+  clientCount,
+  date: form.date,
+  startTime: form.time,
+  endTime: form.time,
+  durationMinutes: totalDuration,
+  notes: form.notes,
+}),
       });
       const data = await response.json();
       if (!response.ok) {
