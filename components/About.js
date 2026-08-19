@@ -7,7 +7,7 @@ export default function About() {
         <div className="relative aspect-[3/4] rounded overflow-hidden border border-line">
           <Image
             src="/about.jpg"
-            alt="Alfred 'Freddy' Mensah, founder of Freddy Nails"
+            alt="Alfred Mensah, founder of Freddy Nails"
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 40vw"
@@ -28,8 +28,8 @@ export default function About() {
           <div className="space-y-4 text-ink-soft leading-relaxed">
             <p>
               Freddy Nails is a professional nail-tech business based in East
-              London, Eastern Cape, run by nail artist Alfred Mensah
-              (&quot;Freddy&quot;). The focus is quality nail services with
+              London, Eastern Cape, run by nail artist Freddy
+              The focus is quality nail services with
               clean, detailed work and personalised designs.
             </p>
             <p>
