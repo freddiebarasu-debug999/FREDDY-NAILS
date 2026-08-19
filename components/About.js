@@ -14,7 +14,7 @@ export default function About() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           <span className="absolute bottom-5 left-5 font-serif italic text-nude text-lg">
-            — Alfred &quot;Freddy&quot; Mensah
+            — Freddy
           </span>
         </div>
 
