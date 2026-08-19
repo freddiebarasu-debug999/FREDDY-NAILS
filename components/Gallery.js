@@ -1,12 +1,14 @@
+import Image from "next/image";
+
 const TILES = [
-  { label: "Gold-foil French", gradient: "from-[#E9D4B4] to-[#B98A50]" },
-  { label: "Espresso chrome", gradient: "from-[#2b2621] to-[#5c4326]" },
-  { label: "Almond nude set", gradient: "from-[#e7c9a8] to-[#8f6a44]" },
-  { label: "Hand-painted florals", gradient: "from-[#3a2f22] to-[#a67c46]" },
-  { label: "Milky coffin BIAB", gradient: "from-[#d8b98d] to-[#7d5c34]" },
-  { label: "Cat-eye gel", gradient: "from-[#c9ab7c] to-[#433625]" },
-  { label: "Bridal chrome set", gradient: "from-[#211b16] to-[#8a6a3d]" },
-  { label: "Classic red square", gradient: "from-[#e3c9a5] to-[#c7a26a]" },
+  { src: "/gallery/gallery-1.jpg", label: "Purple Chrome Ombré" },
+  { src: "/gallery/gallery-2.jpg", label: "Black & White French" },
+  { src: "/gallery/gallery-3.jpg", label: "Gold Outline & Pearls" },
+  { src: "/gallery/gallery-4.jpg", label: "Floral Stiletto Art" },
+  { src: "/gallery/gallery-5.jpg", label: "Classic Pink Square" },
+  { src: "/gallery/gallery-6.jpg", label: "Mauve French Square" },
+  { src: "/gallery/gallery-7.jpg", label: "Lilac Square Set" },
+  { src: "/gallery/gallery-8.jpg", label: "Leopard French Cherry" },
 ];
 
 export default function Gallery() {
@@ -25,18 +27,22 @@ export default function Gallery() {
         {TILES.map((t) => (
           <div
             key={t.label}
-            className={`aspect-square rounded-sm border border-line flex items-end p-3.5 bg-gradient-to-br ${t.gradient}`}
+            className="relative aspect-square rounded-sm border border-line overflow-hidden flex items-end p-3.5"
           >
-            <span className="bg-nude/75 text-ink text-[0.78rem] font-bold px-2.5 py-1 rounded-sm">
+            <Image
+              src={t.src}
+              alt={t.label}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+            <span className="relative bg-nude/85 text-ink text-[0.78rem] font-bold px-2.5 py-1 rounded-sm">
               {t.label}
             </span>
           </div>
         ))}
       </div>
-      <p className="text-[0.85rem] text-ink-soft mt-4.5">
-        Placeholder gallery — swap these tiles for real client photography
-        (use next/image) before launch.
-      </p>
     </section>
   );
 }
