@@ -51,8 +51,6 @@ const SERVICE_OPTIONS = [
 
 const DEPOSIT_PER_CLIENT = 90;
 const CLIENT_GAP = 15;
-const MAX_CLIENTS = 4;
-const MAX_SERVICES_PER_CLIENT = 4;
 const WHATSAPP_NUMBER = "27710888897";
 
 function formatDuration(minutes) {
@@ -81,6 +79,20 @@ function calculateEndTime(startTime, durationMinutes) {
 
   return `${String(endHours).padStart(2, "0")}:${String(
     endMinutes
+  ).padStart(2, "0")}`;
+}
+
+function timeToMinutes(time) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function minutesToTime(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+
+  return `${String(hours).padStart(2, "0")}:${String(
+    mins
   ).padStart(2, "0")}`;
 }
 
@@ -119,19 +131,23 @@ function getTodayDate() {
   const now = new Date();
 
   const year = now.getFullYear();
-
   const month = String(now.getMonth() + 1).padStart(
     2,
     "0"
   );
-
   const day = String(now.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 }
 
-function createDefaultClient() {
-  return [SERVICE_OPTIONS[0].name];
+function getClientDuration(services) {
+  return services.reduce((total, serviceName) => {
+    const service = SERVICE_OPTIONS.find(
+      (item) => item.name === serviceName
+    );
+
+    return total + (service?.duration || 0);
+  }, 0);
 }
 
 export default function Booking() {
@@ -139,10 +155,12 @@ export default function Booking() {
     name: "",
     phone: "",
     email: "",
-    clientServices: [createDefaultClient()],
+    clientServices: [
+      [SERVICE_OPTIONS[0].name],
+    ],
     clients: "1",
     date: "",
-    time: "",
+    clientTimes: [""],
     notes: "",
   });
 
@@ -171,22 +189,22 @@ export default function Booking() {
   const [confirmationError, setConfirmationError] =
     useState("");
 
+  const update = (field) => (e) =>
+    setForm((current) => ({
+      ...current,
+      [field]: e.target.value,
+    }));
+
   const todayDate = getTodayDate();
 
-  const clientCount = Math.min(
-    MAX_CLIENTS,
-    Math.max(1, Number(form.clients) || 1)
+  const clientCount = Math.max(
+    1,
+    Number(form.clients) || 1
   );
 
   const clientDurations = useMemo(() => {
     return form.clientServices.map((services) =>
-      services.reduce((total, serviceName) => {
-        const service = SERVICE_OPTIONS.find(
-          (option) => option.name === serviceName
-        );
-
-        return total + (service?.duration || 0);
-      }, 0)
+      getClientDuration(services)
     );
   }, [form.clientServices]);
 
@@ -203,60 +221,43 @@ export default function Booking() {
   const depositAmount =
     DEPOSIT_PER_CLIENT * clientCount;
 
-  const totalSelectedServices =
-    form.clientServices.reduce(
-      (total, services) => total + services.length,
-      0
+  function updateClientCount(value) {
+    const newCount = Math.max(
+      1,
+      Math.min(4, Number(value) || 1)
     );
 
-  function update(field) {
-    return (e) =>
-      setForm((current) => ({
-        ...current,
-        [field]: e.target.value,
-      }));
-  }
-
-  function updateClientCount(value) {
-    const newClientCount = Number(value);
-
     setForm((current) => {
-      let clientServices = [
-        ...current.clientServices,
-      ];
+      const clientServices = [...current.clientServices];
+      const clientTimes = [...current.clientTimes];
 
-      if (
-        newClientCount >
-        clientServices.length
-      ) {
-        while (
-          clientServices.length <
-          newClientCount
-        ) {
-          clientServices.push(
-            createDefaultClient()
-          );
-        }
+      while (clientServices.length < newCount) {
+        clientServices.push([
+          SERVICE_OPTIONS[0].name,
+        ]);
       }
 
-      if (
-        newClientCount <
-        clientServices.length
-      ) {
-        clientServices =
-          clientServices.slice(
-            0,
-            newClientCount
-          );
+      while (clientServices.length > newCount) {
+        clientServices.pop();
+      }
+
+      while (clientTimes.length < newCount) {
+        clientTimes.push("");
+      }
+
+      while (clientTimes.length > newCount) {
+        clientTimes.pop();
       }
 
       return {
         ...current,
-        clients: String(newClientCount),
+        clients: String(newCount),
         clientServices,
-        time: "",
+        clientTimes,
       };
     });
+
+    setError("");
   }
 
   function updateClientService(
@@ -265,68 +266,64 @@ export default function Booking() {
     value
   ) {
     setForm((current) => {
-      const clientServices =
-        current.clientServices.map(
-          (services, index) => {
-            if (index !== clientIndex) {
-              return services;
-            }
-
-            const updatedServices = [
-              ...services,
-            ];
-
-            updatedServices[serviceIndex] =
-              value;
-
-            return updatedServices;
-          }
-        );
+      const clientServices = current.clientServices.map(
+        (services, index) =>
+          index === clientIndex
+            ? services.map(
+                (serviceName, currentServiceIndex) =>
+                  currentServiceIndex === serviceIndex
+                    ? value
+                    : serviceName
+              )
+            : services
+      );
 
       return {
         ...current,
         clientServices,
-        time: "",
+        clientTimes: current.clientTimes.map(
+          (time, index) =>
+            index === clientIndex ? "" : time
+        ),
       };
     });
   }
 
   function addClientService(clientIndex) {
     setForm((current) => {
-      const clientServices =
-        current.clientServices.map(
-          (services, index) => {
-            if (
-              index !== clientIndex ||
-              services.length >=
-                MAX_SERVICES_PER_CLIENT
-            ) {
-              return services;
-            }
-
-            const nextAvailableService =
-              SERVICE_OPTIONS.find(
-                (service) =>
-                  !services.includes(
-                    service.name
-                  )
-              );
-
-            if (!nextAvailableService) {
-              return services;
-            }
-
-            return [
-              ...services,
-              nextAvailableService.name,
-            ];
+      const clientServices = current.clientServices.map(
+        (services, index) => {
+          if (index !== clientIndex) {
+            return services;
           }
-        );
+
+          if (services.length >= 4) {
+            return services;
+          }
+
+          const nextService = SERVICE_OPTIONS.find(
+            (service) =>
+              !services.includes(service.name)
+          );
+
+          if (!nextService) {
+            return services;
+          }
+
+          return [
+            ...services,
+            nextService.name,
+          ];
+        }
+      );
 
       return {
         ...current,
         clientServices,
-        time: "",
+        clientTimes: current.clientTimes.map(
+          (time, index) =>
+            index === clientIndex ? "" : time
+        ),
       };
     });
   }
@@ -336,33 +333,49 @@ export default function Booking() {
     serviceIndex
   ) {
     setForm((current) => {
-      const clientServices =
-        current.clientServices.map(
-          (services, index) => {
-            if (
-              index !== clientIndex
-            ) {
-              return services;
-            }
-
-            if (services.length === 1) {
-              return services;
-            }
-
-            return services.filter(
-              (_, indexToRemove) =>
-                indexToRemove !==
-                serviceIndex
-            );
+      const clientServices = current.clientServices.map(
+        (services, index) => {
+          if (index !== clientIndex) {
+            return services;
           }
-        );
+
+          if (services.length === 1) {
+            return services;
+          }
+
+          return services.filter(
+            (_, currentServiceIndex) =>
+              currentServiceIndex !== serviceIndex
+          );
+        }
+      );
 
       return {
         ...current,
         clientServices,
-        time: "",
+        clientTimes: current.clientTimes.map(
+          (time, index) =>
+            index === clientIndex ? "" : time
+        ),
       };
     });
+  }
+
+  function updateClientTime(
+    clientIndex,
+    value
+  ) {
+    setForm((current) => ({
+      ...current,
+      clientTimes: current.clientTimes.map(
+        (time, index) =>
+          index === clientIndex
+            ? value
+            : time
+      ),
+    }));
+
+    setError("");
   }
 
   useEffect(() => {
@@ -392,8 +405,7 @@ export default function Booking() {
             )}`
           );
 
-          const data =
-            await response.json();
+          const data = await response.json();
 
           if (!response.ok) {
             throw new Error(
@@ -431,11 +443,6 @@ export default function Booking() {
   }, []);
 
   useEffect(() => {
-    setForm((current) => ({
-      ...current,
-      time: "",
-    }));
-
     if (!form.date) {
       setAvailableTimes([]);
       setAvailabilityError("");
@@ -449,14 +456,21 @@ export default function Booking() {
       setAvailabilityError("");
 
       try {
+        /*
+         * We initially load the normal available starting
+         * times for the full booking duration.
+         *
+         * The individual client selectors then narrow
+         * these times based on the selected client before
+         * them.
+         */
         const response = await fetch(
           `/api/availability?date=${encodeURIComponent(
             form.date
           )}&duration=${totalDuration}`
         );
 
-        const data =
-          await response.json();
+        const data = await response.json();
 
         if (!response.ok) {
           throw new Error(
@@ -497,36 +511,90 @@ export default function Booking() {
     };
   }, [form.date, totalDuration]);
 
+  /*
+   * Build the selectable time range for each client.
+   *
+   * Client 1 uses the normal available booking starts.
+   *
+   * Client 2+ is placed after the previous client's
+   * service duration plus the 15-minute gap.
+   */
+  function getClientAvailableTimes(clientIndex) {
+    if (!form.date) {
+      return [];
+    }
+
+    if (clientIndex === 0) {
+      return availableTimes;
+    }
+
+    const previousTime =
+      form.clientTimes[clientIndex - 1];
+
+    if (!previousTime) {
+      return [];
+    }
+
+    const previousDuration =
+      clientDurations[clientIndex - 1];
+
+    const earliestNextTime =
+      timeToMinutes(previousTime) +
+      previousDuration +
+      CLIENT_GAP;
+
+    return availableTimes.filter((time) => {
+      return (
+        timeToMinutes(time) >=
+        earliestNextTime
+      );
+    });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
 
     if (loading) return;
 
     if (
-      form.clientServices.length !==
-      clientCount
+      form.clientServices.length !== clientCount
     ) {
       setError(
-        "Please make sure every client has at least one service selected."
+        "Please choose services for every client."
       );
       return;
     }
 
-    if (
-      form.clientServices.some(
-        (services) =>
-          services.length === 0
-      )
+    for (
+      let clientIndex = 0;
+      clientIndex < clientCount;
+      clientIndex++
     ) {
-      setError(
-        "Please choose at least one service for every client."
-      );
-      return;
+      if (
+        !form.clientServices[clientIndex] ||
+        form.clientServices[clientIndex].length === 0
+      ) {
+        setError(
+          `Please choose at least one service for Client ${
+            clientIndex + 1
+          }.`
+        );
+        return;
+      }
+
+      if (!form.clientTimes[clientIndex]) {
+        setError(
+          `Please choose an available time for Client ${
+            clientIndex + 1
+          }.`
+        );
+        return;
+      }
     }
 
-    if (!form.time) {
+    if (!form.date) {
       setError(
-        "Please choose an available appointment time."
+        "Please choose a preferred date."
       );
       return;
     }
@@ -542,57 +610,49 @@ export default function Booking() {
     setError("");
 
     try {
-      const endTime =
-        calculateEndTime(
-          form.time,
-          totalDuration
-        );
+      /*
+       * The server will perform the final duration,
+       * availability and double-booking checks.
+       *
+       * Client start times are sent separately so the
+       * backend can reserve each client's actual slot.
+       */
+      const clientStartTimes =
+        form.clientTimes;
 
-      const serviceSummary =
-        form.clientServices
-          .map(
-            (services, index) =>
-              `Client ${index + 1}: ${services.join(
-                " + "
-              )}`
-          )
-          .join(" | ");
+      const clientEndTimes =
+        clientStartTimes.map(
+          (startTime, clientIndex) =>
+            calculateEndTime(
+              startTime,
+              clientDurations[clientIndex]
+            )
+        );
 
       const response = await fetch(
         "/api/checkout",
         {
           method: "POST",
           headers: {
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             name: form.name,
             phone: form.phone,
             email: form.email,
-
-            service: serviceSummary,
-
             clientServices:
               form.clientServices,
-
-            services:
-              form.clientServices.flat(),
-
             clientCount,
-
             date: form.date,
-            startTime: form.time,
-            endTime,
-            durationMinutes:
-              totalDuration,
+            clientStartTimes,
+            clientEndTimes,
+            durationMinutes: totalDuration,
             notes: form.notes,
           }),
         }
       );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -634,7 +694,11 @@ export default function Booking() {
     const whatsappMessage =
       confirmedBooking
         ? encodeURIComponent(
-            `Hi Freddy Nails! 💅 My booking is confirmed.\n\nName: ${confirmedBooking.customerName}\nEmail: ${confirmedBooking.customerEmail}\nServices: ${confirmedBooking.service}\nDate: ${formatBookingDate(confirmedBooking.bookingDate)}\nTime: ${formatBookingTime(confirmedBooking.startTime)}\nClients: ${confirmedBooking.clientCount}\nDeposit: R${confirmedBooking.depositAmount}`
+            `Hi Freddy Nails! 💅 My booking is confirmed.\n\nName: ${confirmedBooking.customerName}\nEmail: ${confirmedBooking.customerEmail}\nServices: ${confirmedBooking.service}\nDate: ${formatBookingDate(
+              confirmedBooking.bookingDate
+            )}\nTime: ${formatBookingTime(
+              confirmedBooking.startTime
+            )}\nClients: ${confirmedBooking.clientCount}\nDeposit: R${confirmedBooking.depositAmount}`
           )
         : "";
 
@@ -719,7 +783,7 @@ export default function Booking() {
                       Services
                     </span>
 
-                    <span className="font-bold text-right whitespace-pre-line">
+                    <span className="font-bold text-right">
                       {confirmedBooking.service}
                     </span>
                   </div>
@@ -826,14 +890,15 @@ export default function Booking() {
           </p>
 
           <h3 className="font-serif text-[1.4rem] font-medium mt-3 mb-4">
-            Choose each client's services, date and time.
+            Choose your services, date and time.
           </h3>
 
           <p className="text-ink-soft leading-relaxed text-[0.94rem]">
-            Each client can choose their own services.
-            You can book up to 4 clients together, with
-            up to 4 services per client. A R90 deposit is
-            required for each client.
+            Select services for each client, then choose
+            a preferred date and an available time for
+            every client. A R90 deposit is required for
+            each client. A 15-minute gap is included
+            between consecutive appointments.
           </p>
 
           <div className="mt-7 border border-line bg-nude p-5 rounded-sm">
@@ -849,16 +914,6 @@ export default function Booking() {
 
                 <span className="font-bold">
                   {clientCount}
-                </span>
-              </div>
-
-              <div className="flex justify-between gap-4">
-                <span className="text-ink-soft">
-                  Services selected
-                </span>
-
-                <span className="font-bold">
-                  {totalSelectedServices}
                 </span>
               </div>
 
@@ -960,9 +1015,7 @@ export default function Booking() {
             className={inputClass}
             value={form.clients}
             onChange={(e) =>
-              updateClientCount(
-                e.target.value
-              )
+              updateClientCount(e.target.value)
             }
           >
             <option value="1">
@@ -982,35 +1035,61 @@ export default function Booking() {
             </option>
           </select>
 
-          <div className="mb-5">
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <label className={`${labelClass} mb-0`}>
-                Services for each client
-              </label>
+          <div className="mb-6">
+            <label
+              className={labelClass}
+              htmlFor="b-date"
+            >
+              Preferred date
+            </label>
 
-              <span className="text-xs text-ink-soft">
-                Up to 4 per client
-              </span>
-            </div>
+            <input
+              id="b-date"
+              type="date"
+              required
+              min={todayDate}
+              className={inputClass}
+              value={form.date}
+              onChange={update("date")}
+            />
+          </div>
 
-            <div className="space-y-6">
-              {form.clientServices.map(
-                (services, clientIndex) => (
-                  <div
-                    key={`client-${clientIndex}`}
-                    className="border border-line bg-nude p-4 rounded-sm"
-                  >
-                    <div className="flex items-center justify-between gap-4 mb-3">
-                      <p className="text-xs font-bold uppercase tracking-wide text-gold">
+          {form.clientServices.map(
+            (services, clientIndex) => {
+              const clientAvailableTimes =
+                getClientAvailableTimes(
+                  clientIndex
+                );
+
+              return (
+                <div
+                  key={`client-${clientIndex}`}
+                  className="mb-7 border border-line bg-nude p-5 rounded-sm"
+                >
+                  <div className="flex items-center justify-between gap-4 mb-5">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-gold">
                         Client {clientIndex + 1}
                       </p>
 
-                      <span className="text-xs text-ink-soft">
+                      <p className="text-sm text-ink-soft mt-1">
                         {formatDuration(
                           clientDurations[
                             clientIndex
-                          ] || 0
+                          ]
                         )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between gap-4 mb-2">
+                      <label className={`${labelClass} mb-0`}>
+                        Services
+                      </label>
+
+                      <span className="text-xs text-ink-soft">
+                        {services.length}/4
                       </span>
                     </div>
 
@@ -1024,38 +1103,31 @@ export default function Booking() {
                             services.filter(
                               (
                                 _,
-                                index
+                                currentServiceIndex
                               ) =>
-                                index !==
+                                currentServiceIndex !==
                                 serviceIndex
                             );
 
                           return (
                             <div
-                              key={`${clientIndex}-${serviceName}-${serviceIndex}`}
+                              key={`${serviceName}-${clientIndex}-${serviceIndex}`}
                               className="flex items-center gap-2"
                             >
                               <select
                                 id={`b-client-${clientIndex}-service-${serviceIndex}`}
                                 className={`${inputClass} flex-1 mb-0`}
-                                value={
-                                  serviceName
-                                }
-                                onChange={(
-                                  e
-                                ) =>
+                                value={serviceName}
+                                onChange={(e) =>
                                   updateClientService(
                                     clientIndex,
                                     serviceIndex,
-                                    e.target
-                                      .value
+                                    e.target.value
                                   )
                                 }
                               >
                                 {SERVICE_OPTIONS.map(
-                                  (
-                                    service
-                                  ) => (
+                                  (service) => (
                                     <option
                                       key={
                                         service.name
@@ -1086,10 +1158,6 @@ export default function Booking() {
                                     )
                                   }
                                   className="shrink-0 h-[46px] px-3 border border-line rounded-sm text-xs font-bold uppercase tracking-wide text-ink-soft hover:border-gold hover:text-ink transition-colors"
-                                  aria-label={`Remove ${serviceName} from client ${
-                                    clientIndex +
-                                    1
-                                  }`}
                                 >
                                   Remove
                                 </button>
@@ -1100,8 +1168,7 @@ export default function Booking() {
                       )}
                     </div>
 
-                    {services.length <
-                      MAX_SERVICES_PER_CLIENT && (
+                    {services.length < 4 && (
                       <button
                         type="button"
                         onClick={() =>
@@ -1114,88 +1181,83 @@ export default function Booking() {
                         + Add another service
                       </button>
                     )}
-
-                    <p className="mt-2 text-xs text-ink-soft">
-                      This client's services take
-                      approximately{" "}
-                      <strong>
-                        {formatDuration(
-                          clientDurations[
-                            clientIndex
-                          ] || 0
-                        )}
-                      </strong>
-                      .
-                    </p>
                   </div>
-                )
-              )}
-            </div>
-          </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label
-                className={labelClass}
-                htmlFor="b-date"
-              >
-                Preferred date
-              </label>
+                  <label
+                    className={labelClass}
+                    htmlFor={`b-client-${clientIndex}-time`}
+                  >
+                    Available time
+                  </label>
 
-              <input
-                id="b-date"
-                type="date"
-                required
-                min={todayDate}
-                className={inputClass}
-                value={form.date}
-                onChange={update("date")}
-              />
-            </div>
-
-            <div>
-              <label
-                className={labelClass}
-                htmlFor="b-time"
-              >
-                Available time
-              </label>
-
-              <select
-                id="b-time"
-                required
-                className={inputClass}
-                value={form.time}
-                onChange={update("time")}
-                disabled={
-                  !form.date ||
-                  availabilityLoading
-                }
-              >
-                <option value="">
-                  {!form.date
-                    ? "Select a date first"
-                    : availabilityLoading
-                    ? "Checking availability…"
-                    : availableTimes.length ===
-                      0
-                    ? "No times available"
-                    : "Select a time"}
-                </option>
-
-                {availableTimes.map(
-                  (time) => (
-                    <option
-                      key={time}
-                      value={time}
-                    >
-                      {time}
+                  <select
+                    id={`b-client-${clientIndex}-time`}
+                    required
+                    className={inputClass}
+                    value={
+                      form.clientTimes[
+                        clientIndex
+                      ] || ""
+                    }
+                    onChange={(e) =>
+                      updateClientTime(
+                        clientIndex,
+                        e.target.value
+                      )
+                    }
+                    disabled={
+                      !form.date ||
+                      availabilityLoading ||
+                      (clientIndex > 0 &&
+                        !form.clientTimes[
+                          clientIndex - 1
+                        ])
+                    }
+                  >
+                    <option value="">
+                      {!form.date
+                        ? "Select a date first"
+                        : availabilityLoading
+                        ? "Checking availability…"
+                        : clientIndex > 0 &&
+                          !form.clientTimes[
+                            clientIndex - 1
+                          ]
+                        ? `Choose Client ${
+                            clientIndex
+                          }'s time first`
+                        : clientAvailableTimes.length ===
+                          0
+                        ? "No times available"
+                        : "Select a time"}
                     </option>
-                  )
-                )}
-              </select>
-            </div>
-          </div>
+
+                    {clientAvailableTimes.map(
+                      (time) => (
+                        <option
+                          key={time}
+                          value={time}
+                        >
+                          {formatBookingTime(time)}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  {clientIndex > 0 &&
+                    form.clientTimes[
+                      clientIndex - 1
+                    ] && (
+                      <p className="mt-1 text-xs text-ink-soft">
+                        Available times begin after Client{" "}
+                        {clientIndex}'s service and the
+                        15-minute gap.
+                      </p>
+                    )}
+                </div>
+              );
+            }
+          )}
 
           {availabilityError && (
             <div className="mb-4 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
