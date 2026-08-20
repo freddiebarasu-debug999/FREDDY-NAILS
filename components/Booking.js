@@ -113,6 +113,19 @@ function formatBookingTime(timeString) {
   });
 }
 
+function getTodayDate() {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(
+    2,
+    "0"
+  );
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function Booking() {
   const [form, setForm] = useState({
     name: "",
@@ -166,6 +179,8 @@ export default function Booking() {
 
   const depositAmount =
     DEPOSIT_PER_CLIENT * clientCount;
+
+  const todayDate = getTodayDate();
 
   useEffect(() => {
     const params = new URLSearchParams(
@@ -749,6 +764,7 @@ export default function Booking() {
                 id="b-date"
                 type="date"
                 required
+                min={todayDate}
                 className={inputClass}
                 value={form.date}
                 onChange={update("date")}
