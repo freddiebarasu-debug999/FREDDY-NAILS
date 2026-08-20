@@ -17,10 +17,9 @@ export default function Reveal({
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setVisible(true);
-            observer.unobserve(node);
-          }
+          // Toggle both ways, so the animation replays every time
+          // the section scrolls into or out of view — not just once.
+          setVisible(entry.isIntersecting);
         });
       },
       { threshold: 0.15, rootMargin: "0px 0px -60px 0px" }
