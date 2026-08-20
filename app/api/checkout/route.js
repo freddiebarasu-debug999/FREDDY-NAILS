@@ -56,6 +56,21 @@ export async function POST(request) {
     const depositAmount = DEPOSIT_PER_CLIENT * numberOfClients;
     const amountInCents = depositAmount * 100;
 
+    // Release pending bookings whose 15-minute payment window has expired.
+    // This must happen before inserting the new booking so an expired
+    // unpaid booking does not continue blocking the requested time.
+    const { error: expiryError } = await supabase
+      .from("appointments")
+      .update({
+        booking_status: "cancelled",
+      })
+      .eq("booking_status", "pending")
+      .lt("expires_at", new Date().toISOString());
+
+    if (expiryError) {
+      console.error("Pending booking expiry error:", expiryError);
+    }
+
     // Pending bookings are held for 15 minutes while the customer completes payment.
     const expiresAt = new Date(
       Date.now() + 15 * 60 * 1000
