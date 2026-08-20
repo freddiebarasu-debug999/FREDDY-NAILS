@@ -62,6 +62,81 @@ function verifySignature(rawBody, headers) {
     );
   });
 }
+
+function formatBookingDate(dateStr) {
+  try {
+    const d = new Date(`${dateStr}T00:00:00`);
+    return d.toLocaleDateString("en-ZA", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatTime(timeStr) {
+  if (!timeStr) return "";
+  const [h, m] = timeStr.split(":");
+  const hour = Number(h);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${m} ${suffix}`;
+}
+
+async function sendOwnerNotification(appointment) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error("RESEND_API_KEY is not set; skipping owner notification email.");
+    return;
+  }
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1B1714;">
+      <h2 style="color: #AD8A4E; margin-bottom: 4px;">New paid booking 💅</h2>
+      <p style="margin-top: 0; color: #555;">A deposit has been confirmed on Freddy Nails.</p>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+        <tr><td style="padding: 6px 0; color: #888;">Client</td><td style="padding: 6px 0; font-weight: bold;">${appointment.customer_name}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Phone</td><td style="padding: 6px 0;">${appointment.customer_phone}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Service</td><td style="padding: 6px 0;">${appointment.service_name}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Clients</td><td style="padding: 6px 0;">${appointment.client_count}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Date</td><td style="padding: 6px 0;">${formatBookingDate(appointment.booking_date)}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Time</td><td style="padding: 6px 0;">${formatTime(appointment.start_time)}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Deposit paid</td><td style="padding: 6px 0; font-weight: bold;">R${appointment.deposit_amount}</td></tr>
+        ${appointment.notes ? `<tr><td style="padding: 6px 0; color: #888;">Notes</td><td style="padding: 6px 0;">${appointment.notes}</td></tr>` : ""}
+      </table>
+      <p style="margin-top: 20px; font-size: 13px; color: #999;">Freddy Nails booking system</p>
+    </div>
+  `;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Freddy Nails <onboarding@resend.dev>",
+        to: ["freddiebarasu@gmail.com"],
+        subject: `New paid booking — ${appointment.customer_name} (${formatBookingDate(appointment.booking_date)})`,
+        html,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Resend owner notification failed:", res.status, errText);
+    } else {
+      console.log("Owner notification email sent.");
+    }
+  } catch (err) {
+    console.error("Error sending owner notification email:", err);
+  }
+}
+
 export async function POST(request) {
   try {
     // IMPORTANT:
@@ -99,7 +174,7 @@ export async function POST(request) {
       await supabase
         .from("appointments")
         .select(
-          "id, deposit_amount, payment_status, booking_status"
+          "id, customer_name, customer_phone, service_name, client_count, booking_date, start_time, notes, deposit_amount, payment_status, booking_status"
         )
         .eq("yoco_checkout_id", checkoutId)
         .maybeSingle();
@@ -159,6 +234,12 @@ export async function POST(request) {
       "Appointment confirmed after successful Yoco payment:",
       appointment.id
     );
+
+    // Notify the business owner by email. This runs after the
+    // booking is already confirmed, so a failure here never
+    // blocks or reverses the confirmation itself.
+    await sendOwnerNotification(appointment);
+
     return Response.json({ received: true });
   } catch (error) {
     console.error(
