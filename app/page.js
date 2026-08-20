@@ -11,28 +11,49 @@ import FAQ from "@/components/FAQ";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 import ChatBot from "./ChatBot";
+import Reveal from "@/components/Reveal";
+import WelcomePopup from "@/components/WelcomePopup";
 
 export default function Home() {
   return (
     <>
+      <WelcomePopup />
       <Header />
       <Hero />
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
-      <About />
+      <Reveal>
+        <About />
+      </Reveal>
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
-      <Services />
-      <ShapeGuide />
-      <Gallery />
+      <Reveal>
+        <Services />
+      </Reveal>
+      <Reveal delay={100}>
+        <ShapeGuide />
+      </Reveal>
+      <Reveal>
+        <Gallery />
+      </Reveal>
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
-      <Booking />
+      <Reveal>
+        <Booking />
+      </Reveal>
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
-      <Offers />
+      <Reveal>
+        <Offers />
+      </Reveal>
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
-      <Reviews />
+      <Reveal>
+        <Reviews />
+      </Reveal>
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
-      <FAQ />
+      <Reveal>
+        <FAQ />
+      </Reveal>
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
-      <Contact />
+      <Reveal>
+        <Contact />
+      </Reveal>
       <Footer />
       <ChatBot />
     </>
