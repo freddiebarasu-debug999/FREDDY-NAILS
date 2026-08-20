@@ -644,6 +644,10 @@ export async function POST(request) {
 
     /*
      * Create Yoco checkout.
+     *
+     * IMPORTANT: Yoco's Checkout API expects the field
+     * to be named "amount", not "amountInCents". The
+     * value itself is still in cents.
      */
     const yocoResponse =
       await fetch(
@@ -658,7 +662,7 @@ export async function POST(request) {
           },
 
           body: JSON.stringify({
-            amountInCents:
+            amount:
               depositAmount * 100,
 
             currency: "ZAR",
