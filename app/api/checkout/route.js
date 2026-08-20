@@ -56,6 +56,11 @@ export async function POST(request) {
     const depositAmount = DEPOSIT_PER_CLIENT * numberOfClients;
     const amountInCents = depositAmount * 100;
 
+    // Pending bookings are held for 15 minutes while the customer completes payment.
+    const expiresAt = new Date(
+      Date.now() + 15 * 60 * 1000
+    ).toISOString();
+
     // Create the appointment first as pending.
     // The database exclusion constraint protects against double-booking.
     const { data: appointment, error: appointmentError } =
@@ -76,6 +81,7 @@ export async function POST(request) {
           payment_status: "pending",
           booking_status: "pending",
           notes: notes || null,
+          expires_at: expiresAt,
         })
         .select()
         .single();
