@@ -20,6 +20,20 @@ module.exports = {
         serif: ["var(--font-fraunces)", "serif"],
         sans: ["var(--font-manrope)", "sans-serif"],
       },
+      keyframes: {
+        "ping-slow": {
+          "0%": { transform: "scale(1)", opacity: "0.6" },
+          "100%": { transform: "scale(1.6)", opacity: "0" },
+        },
+        "ping-slower": {
+          "0%": { transform: "scale(1)", opacity: "0.4" },
+          "100%": { transform: "scale(2)", opacity: "0" },
+        },
+      },
+      animation: {
+        "ping-slow": "ping-slow 2.2s cubic-bezier(0, 0, 0.2, 1) infinite",
+        "ping-slower": "ping-slower 2.2s cubic-bezier(0, 0, 0.2, 1) infinite 0.4s",
+      },
     },
   },
   plugins: [],
