@@ -7,6 +7,31 @@ const supabase = createClient(
 
 const DEPOSIT_PER_CLIENT = 90;
 
+const OPEN_MINUTES = 9 * 60 + 30;
+const CLOSE_MINUTES = 17 * 60 + 30;
+
+function timeToMinutes(time) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function isValidTime(time) {
+  return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time);
+}
+
+function isValidDate(date) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(date);
+}
+
+function getSouthAfricaDate() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Johannesburg",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -41,7 +66,9 @@ export async function POST(request) {
     }
 
     const numberOfClients = Number(clientCount);
+    const duration = Number(durationMinutes);
 
+    // Validate number of clients.
     if (
       !Number.isInteger(numberOfClients) ||
       numberOfClients < 1 ||
@@ -49,6 +76,83 @@ export async function POST(request) {
     ) {
       return Response.json(
         { error: "Invalid number of clients." },
+        { status: 400 }
+      );
+    }
+
+    // Validate booking date format.
+    if (!isValidDate(date)) {
+      return Response.json(
+        { error: "Please provide a valid booking date." },
+        { status: 400 }
+      );
+    }
+
+    // Prevent bookings for dates that have already passed.
+    const todayInSouthAfrica = getSouthAfricaDate();
+
+    if (date < todayInSouthAfrica) {
+      return Response.json(
+        { error: "You cannot book a date that has already passed." },
+        { status: 400 }
+      );
+    }
+
+    // Sunday is closed.
+    const selectedDate = new Date(`${date}T12:00:00`);
+
+    if (selectedDate.getDay() === 0) {
+      return Response.json(
+        { error: "Freddy Nails is closed on Sundays." },
+        { status: 400 }
+      );
+    }
+
+    // Validate time formats.
+    if (!isValidTime(startTime) || !isValidTime(endTime)) {
+      return Response.json(
+        { error: "Please provide valid booking times." },
+        { status: 400 }
+      );
+    }
+
+    // Validate duration.
+    if (!Number.isInteger(duration) || duration <= 0) {
+      return Response.json(
+        { error: "Invalid booking duration." },
+        { status: 400 }
+      );
+    }
+
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+
+    // Make sure the end time is actually after the start time.
+    if (endMinutes <= startMinutes) {
+      return Response.json(
+        { error: "The booking end time must be after the start time." },
+        { status: 400 }
+      );
+    }
+
+    // Make sure the supplied duration matches the selected times.
+    if (endMinutes - startMinutes !== duration) {
+      return Response.json(
+        { error: "The booking duration does not match the selected times." },
+        { status: 400 }
+      );
+    }
+
+    // Enforce Freddy Nails business hours.
+    if (
+      startMinutes < OPEN_MINUTES ||
+      endMinutes > CLOSE_MINUTES
+    ) {
+      return Response.json(
+        {
+          error:
+            "Bookings are available between 09:30 and 17:30.",
+        },
         { status: 400 }
       );
     }
@@ -90,7 +194,7 @@ export async function POST(request) {
           booking_date: date,
           start_time: startTime,
           end_time: endTime,
-          duration_minutes: Number(durationMinutes),
+          duration_minutes: duration,
           deposit_per_client: DEPOSIT_PER_CLIENT,
           deposit_amount: depositAmount,
           payment_status: "pending",
