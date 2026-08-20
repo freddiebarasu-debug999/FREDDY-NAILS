@@ -14,7 +14,6 @@ const supabase = createClient(
 );
 
 const DEPOSIT_PER_CLIENT = 90;
-const CLIENT_GAP = 15;
 const MAX_CLIENTS = 4;
 const MAX_SERVICES_PER_CLIENT = 4;
 
@@ -37,6 +36,7 @@ const SERVICE_OPTIONS = {
 
 function timeToMinutes(time) {
   const [hours, minutes] = time.split(":").map(Number);
+
   return hours * 60 + minutes;
 }
 
@@ -69,7 +69,14 @@ function calculateClientDuration(services) {
   );
 }
 
+function datesAreSame(dateA, dateB) {
+  return dateA === dateB;
+}
+
 export async function POST(request) {
+  let appointmentId = null;
+  let insertedClientIds = [];
+
   try {
     const body = await request.json();
 
@@ -79,22 +86,20 @@ export async function POST(request) {
       email,
       clientServices,
       clientCount,
-      date,
+      clientDates,
       clientStartTimes,
-      clientEndTimes,
       notes,
     } = body;
 
     if (
       !name ||
       !phone ||
-      !email ||
-      !date
+      !email
     ) {
       return Response.json(
         {
           error:
-            "Please complete all required booking details.",
+            "Please complete all required customer details.",
         },
         { status: 400 }
       );
@@ -138,42 +143,41 @@ export async function POST(request) {
     }
 
     if (
+      !Array.isArray(clientDates) ||
+      clientDates.length !== clientCount
+    ) {
+      return Response.json(
+        {
+          error:
+            "Please choose a preferred date for every client.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
       !Array.isArray(clientStartTimes) ||
       clientStartTimes.length !== clientCount
     ) {
       return Response.json(
         {
           error:
-            "Please select a time for every client.",
+            "Please choose an available time for every client.",
         },
         { status: 400 }
       );
     }
 
     /*
-     * End times are optional from the browser.
-     * We calculate them securely on the server.
+     * Validate every client's services.
      */
-    if (
-      clientEndTimes &&
-      (!Array.isArray(clientEndTimes) ||
-        clientEndTimes.length !== clientCount)
-    ) {
-      return Response.json(
-        {
-          error:
-            "Invalid client appointment times.",
-        },
-        { status: 400 }
-      );
-    }
-
     for (
       let clientIndex = 0;
-      clientIndex < clientServices.length;
+      clientIndex < clientCount;
       clientIndex++
     ) {
-      const services = clientServices[clientIndex];
+      const services =
+        clientServices[clientIndex];
 
       if (
         !Array.isArray(services) ||
@@ -190,9 +194,13 @@ export async function POST(request) {
         );
       }
 
-      const uniqueServices = new Set(services);
+      const uniqueServices =
+        new Set(services);
 
-      if (uniqueServices.size !== services.length) {
+      if (
+        uniqueServices.size !==
+        services.length
+      ) {
         return Response.json(
           {
             error: `Client ${
@@ -221,58 +229,94 @@ export async function POST(request) {
       }
     }
 
-    if (!isValidDate(date)) {
-      return Response.json(
-        {
-          error:
-            "Please provide a valid booking date.",
-        },
-        { status: 400 }
-      );
-    }
+    /*
+     * Validate every client's date and time.
+     */
+    for (
+      let clientIndex = 0;
+      clientIndex < clientCount;
+      clientIndex++
+    ) {
+      const clientDate =
+        clientDates[clientIndex];
 
-    const selectedDate = new Date(`${date}T12:00:00`);
+      const clientTime =
+        clientStartTimes[clientIndex];
 
-    if (Number.isNaN(selectedDate.getTime())) {
-      return Response.json(
-        {
-          error:
-            "Please provide a valid booking date.",
-        },
-        { status: 400 }
-      );
-    }
+      if (!isValidDate(clientDate)) {
+        return Response.json(
+          {
+            error: `Please choose a valid date for Client ${
+              clientIndex + 1
+            }.`,
+          },
+          { status: 400 }
+        );
+      }
 
-    const today = new Date();
+      if (!isValidTime(clientTime)) {
+        return Response.json(
+          {
+            error: `Please choose a valid time for Client ${
+              clientIndex + 1
+            }.`,
+          },
+          { status: 400 }
+        );
+      }
 
-    today.setHours(0, 0, 0, 0);
+      const selectedDate =
+        new Date(`${clientDate}T12:00:00`);
 
-    const bookingDate = new Date(
-      `${date}T00:00:00`
-    );
+      if (
+        Number.isNaN(
+          selectedDate.getTime()
+        )
+      ) {
+        return Response.json(
+          {
+            error: `Please choose a valid date for Client ${
+              clientIndex + 1
+            }.`,
+          },
+          { status: 400 }
+        );
+      }
 
-    if (bookingDate < today) {
-      return Response.json(
-        {
-          error:
-            "You cannot book a date in the past.",
-        },
-        { status: 400 }
-      );
-    }
+      const today = new Date();
 
-    if (selectedDate.getDay() === 0) {
-      return Response.json(
-        {
-          error:
-            "Freddy Nails is closed on Sundays.",
-        },
-        { status: 400 }
-      );
+      today.setHours(0, 0, 0, 0);
+
+      const bookingDate =
+        new Date(`${clientDate}T00:00:00`);
+
+      if (bookingDate < today) {
+        return Response.json(
+          {
+            error: `Client ${
+              clientIndex + 1
+            } cannot be booked for a date in the past.`,
+          },
+          { status: 400 }
+        );
+      }
+
+      if (
+        selectedDate.getDay() === 0
+      ) {
+        return Response.json(
+          {
+            error: `Client ${
+              clientIndex + 1
+            } cannot be booked on Sunday because Freddy Nails is closed.`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     /*
-     * Calculate every client's actual duration.
+     * Calculate each client's duration.
      */
     const clientDurations =
       clientServices.map(
@@ -280,72 +324,83 @@ export async function POST(request) {
       );
 
     /*
-     * Validate every client's selected time.
+     * Validate each client's time against
+     * business hours.
      */
-    const clientStartMinutes =
-      clientStartTimes.map((time, index) => {
-        if (!isValidTime(time)) {
-          throw new Error(
-            `Invalid time for Client ${
-              index + 1
-            }.`
+    const clientEndTimes =
+      clientStartTimes.map(
+        (startTime, clientIndex) => {
+          const startMinutes =
+            timeToMinutes(startTime);
+
+          const endMinutes =
+            startMinutes +
+            clientDurations[clientIndex];
+
+          if (
+            startMinutes < OPEN_MINUTES ||
+            endMinutes > CLOSE_MINUTES
+          ) {
+            throw new Error(
+              `Client ${
+                clientIndex + 1
+              }'s appointment is outside business hours.`
+            );
+          }
+
+          return minutesToTime(
+            endMinutes
           );
         }
-
-        return timeToMinutes(time);
-      });
+      );
 
     /*
-     * Clients must be scheduled in order.
+     * If multiple clients chose the same date,
+     * they can be scheduled consecutively.
      *
-     * Client 2 cannot start before Client 1 has
-     * finished plus the required 15-minute gap.
-     *
-     * The same rule applies to Clients 3 and 4.
+     * If they chose different dates, there is no
+     * consecutive-time requirement between them.
      */
     for (
       let clientIndex = 0;
       clientIndex < clientCount;
       clientIndex++
     ) {
-      const startMinutes =
-        clientStartMinutes[clientIndex];
-
-      const duration =
-        clientDurations[clientIndex];
-
-      const endMinutes =
-        startMinutes + duration;
-
-      if (
-        startMinutes < OPEN_MINUTES ||
-        endMinutes > CLOSE_MINUTES
-      ) {
-        return Response.json(
-          {
-            error: `Client ${
-              clientIndex + 1
-            }'s appointment is outside business hours.`,
-          },
-          { status: 400 }
-        );
+      if (clientIndex === 0) {
+        continue;
       }
 
-      if (clientIndex > 0) {
-        const previousEndMinutes =
-          clientStartMinutes[
-            clientIndex - 1
-          ] +
-          clientDurations[
-            clientIndex - 1
-          ];
+      const currentDate =
+        clientDates[clientIndex];
 
-        const earliestAllowedStart =
-          previousEndMinutes + CLIENT_GAP;
+      const previousDate =
+        clientDates[
+          clientIndex - 1
+        ];
+
+      if (
+        datesAreSame(
+          currentDate,
+          previousDate
+        )
+      ) {
+        const previousEnd =
+          timeToMinutes(
+            clientEndTimes[
+              clientIndex - 1
+            ]
+          );
+
+        const currentStart =
+          timeToMinutes(
+            clientStartTimes[
+              clientIndex
+            ]
+          );
 
         if (
-          startMinutes <
-          earliestAllowedStart
+          currentStart <
+          previousEnd + 15
         ) {
           return Response.json(
             {
@@ -353,7 +408,7 @@ export async function POST(request) {
                 clientIndex + 1
               } must start at least 15 minutes after Client ${
                 clientIndex
-              } finishes.`,
+              } finishes when they are booked on the same date.`,
             },
             { status: 400 }
           );
@@ -362,41 +417,7 @@ export async function POST(request) {
     }
 
     /*
-     * The complete booking occupies the time from
-     * Client 1's start until the final client's end.
-     *
-     * This means any gap between clients is also
-     * protected against another booking.
-     */
-    const overallStartMinutes =
-      clientStartMinutes[0];
-
-    const finalClientIndex =
-      clientCount - 1;
-
-    const overallEndMinutes =
-      clientStartMinutes[
-        finalClientIndex
-      ] +
-      clientDurations[
-        finalClientIndex
-      ];
-
-    const overallDuration =
-      overallEndMinutes -
-      overallStartMinutes;
-
-    const startTime = minutesToTime(
-      overallStartMinutes
-    );
-
-    const endTime = minutesToTime(
-      overallEndMinutes
-    );
-
-    /*
-     * Clean up expired pending bookings before
-     * attempting the new reservation.
+     * Clean up expired pending parent bookings.
      */
     const { error: expiryError } =
       await supabase
@@ -418,36 +439,50 @@ export async function POST(request) {
     }
 
     const depositAmount =
-      DEPOSIT_PER_CLIENT * clientCount;
+      DEPOSIT_PER_CLIENT *
+      clientCount;
 
     /*
-     * Store each client's services in the existing
-     * service_name column so the existing webhook,
-     * confirmation API and emails continue working.
+     * Store a readable summary in the existing
+     * appointments table.
      */
     const serviceSummary =
       clientServices
         .map(
           (services, index) =>
-            `Client ${index + 1}: ${services.join(
+            `Client ${
+              index + 1
+            }: ${services.join(
               " + "
-            )} (${minutesToTime(
-              clientStartMinutes[index]
-            )}–${minutesToTime(
-              clientStartMinutes[index] +
-                clientDurations[index]
-            )})`
+            )} — ${
+              clientDates[index]
+            } ${clientStartTimes[index]}–${clientEndTimes[index]}`
         )
         .join(" | ");
+
+    /*
+     * The existing appointments table still needs
+     * a booking date/time.
+     *
+     * We use Client 1's date/time for the parent
+     * payment record. The real individual schedules
+     * are stored in appointment_clients below.
+     */
+    const parentStartTime =
+      clientStartTimes[0];
+
+    const parentEndTime =
+      clientEndTimes[0];
+
+    const parentDuration =
+      clientDurations[0];
 
     const expiresAt = new Date(
       Date.now() + 15 * 60 * 1000
     ).toISOString();
 
     /*
-     * The database exclusion constraint provides the
-     * final race-condition protection against two
-     * people booking overlapping times.
+     * Create the main payment/booking record.
      */
     const {
       data: appointment,
@@ -460,10 +495,10 @@ export async function POST(request) {
         customer_email: email,
         service_name: serviceSummary,
         client_count: clientCount,
-        booking_date: date,
-        start_time: startTime,
-        end_time: endTime,
-        duration_minutes: overallDuration,
+        booking_date: clientDates[0],
+        start_time: parentStartTime,
+        end_time: parentEndTime,
+        duration_minutes: parentDuration,
         deposit_per_client:
           DEPOSIT_PER_CLIENT,
         deposit_amount: depositAmount,
@@ -482,7 +517,8 @@ export async function POST(request) {
       );
 
       if (
-        appointmentError.code === "23P01"
+        appointmentError.code ===
+        "23P01"
       ) {
         return Response.json(
           {
@@ -496,14 +532,103 @@ export async function POST(request) {
       return Response.json(
         {
           error:
-            "Unable to reserve that appointment time.",
+            "Unable to reserve the booking.",
         },
         { status: 500 }
       );
     }
 
-    const appointmentId =
+    appointmentId =
       appointment.id;
+
+    /*
+     * Create the individual client appointments.
+     *
+     * The database exclusion constraint on
+     * appointment_clients provides the final
+     * race-condition protection.
+     */
+    const clientRows =
+      clientServices.map(
+        (services, index) => ({
+          appointment_id:
+            appointmentId,
+
+          client_number:
+            index + 1,
+
+          service_name:
+            services.join(" + "),
+
+          booking_date:
+            clientDates[index],
+
+          start_time:
+            clientStartTimes[index],
+
+          end_time:
+            clientEndTimes[index],
+
+          duration_minutes:
+            clientDurations[index],
+
+          booking_status:
+            "pending",
+        })
+      );
+
+    const {
+      data: insertedClients,
+      error: clientInsertError,
+    } = await supabase
+      .from("appointment_clients")
+      .insert(clientRows)
+      .select("id");
+
+    if (clientInsertError) {
+      console.error(
+        "Client appointment insert error:",
+        clientInsertError
+      );
+
+      /*
+       * Cancel the parent booking because the
+       * individual appointment slots could not
+       * all be reserved.
+       */
+      await supabase
+        .from("appointments")
+        .update({
+          booking_status: "cancelled",
+        })
+        .eq("id", appointmentId);
+
+      if (
+        clientInsertError.code ===
+        "23P01"
+      ) {
+        return Response.json(
+          {
+            error:
+              "One of the selected client times was just booked by someone else. Please choose another available time.",
+          },
+          { status: 409 }
+        );
+      }
+
+      return Response.json(
+        {
+          error:
+            "Unable to reserve all client appointment times.",
+        },
+        { status: 500 }
+      );
+    }
+
+    insertedClientIds =
+      (insertedClients || []).map(
+        (client) => client.id
+      );
 
     const baseUrl =
       "https://freddy-nails.vercel.app";
@@ -518,26 +643,34 @@ export async function POST(request) {
       `${baseUrl}/?booking=failed&appointment=${appointmentId}`;
 
     /*
-     * Create the Yoco payment checkout.
+     * Create Yoco checkout.
      */
-    const yocoResponse = await fetch(
-      "https://payments.yoco.com/api/checkouts",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.YOCO_SECRET_KEY}`,
-        },
-        body: JSON.stringify({
-          amountInCents:
-            depositAmount * 100,
-          currency: "ZAR",
-          successUrl,
-          cancelUrl,
-          failureUrl,
-        }),
-      }
-    );
+    const yocoResponse =
+      await fetch(
+        "https://payments.yoco.com/api/checkouts",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization: `Bearer ${process.env.YOCO_SECRET_KEY}`,
+          },
+
+          body: JSON.stringify({
+            amountInCents:
+              depositAmount * 100,
+
+            currency: "ZAR",
+
+            successUrl,
+
+            cancelUrl,
+
+            failureUrl,
+          }),
+        }
+      );
 
     const yocoData =
       await yocoResponse.json();
@@ -549,11 +682,23 @@ export async function POST(request) {
       );
 
       await supabase
+        .from("appointment_clients")
+        .delete()
+        .eq(
+          "appointment_id",
+          appointmentId
+        );
+
+      await supabase
         .from("appointments")
         .update({
-          booking_status: "cancelled",
+          booking_status:
+            "cancelled",
         })
-        .eq("id", appointmentId);
+        .eq(
+          "id",
+          appointmentId
+        );
 
       return Response.json(
         {
@@ -580,11 +725,23 @@ export async function POST(request) {
       );
 
       await supabase
+        .from("appointment_clients")
+        .delete()
+        .eq(
+          "appointment_id",
+          appointmentId
+        );
+
+      await supabase
         .from("appointments")
         .update({
-          booking_status: "cancelled",
+          booking_status:
+            "cancelled",
         })
-        .eq("id", appointmentId);
+        .eq(
+          "id",
+          appointmentId
+        );
 
       return Response.json(
         {
@@ -602,7 +759,10 @@ export async function POST(request) {
           yoco_checkout_id:
             checkoutId,
         })
-        .eq("id", appointmentId);
+        .eq(
+          "id",
+          appointmentId
+        );
 
     if (updateError) {
       console.error(
@@ -619,6 +779,33 @@ export async function POST(request) {
       "Checkout API error:",
       error
     );
+
+    /*
+     * If something failed after the parent
+     * appointment was created, clean up the
+     * individual client rows and cancel the
+     * parent booking.
+     */
+    if (appointmentId) {
+      await supabase
+        .from("appointment_clients")
+        .delete()
+        .eq(
+          "appointment_id",
+          appointmentId
+        );
+
+      await supabase
+        .from("appointments")
+        .update({
+          booking_status:
+            "cancelled",
+        })
+        .eq(
+          "id",
+          appointmentId
+        );
+    }
 
     return Response.json(
       {
