@@ -630,8 +630,12 @@ export async function POST(request) {
         (client) => client.id
       );
 
+    /*
+     * Use the live Freddy Nails domain from Vercel.
+     */
     const baseUrl =
-      "https://freddynails.co.za";
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      new URL(request.url).origin;
 
     const successUrl =
       `${baseUrl}/?booking=success&appointment=${appointmentId}`;
