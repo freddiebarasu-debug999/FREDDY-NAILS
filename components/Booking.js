@@ -97,6 +97,7 @@ export default function Booking() {
   const [form, setForm] = useState({
     name: "",
     phone: "",
+    email: "",
     service: SERVICE_OPTIONS[0].name,
     clients: "1",
     date: "",
