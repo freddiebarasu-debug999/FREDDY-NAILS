@@ -2,6 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+const DEPOSIT_PER_CLIENT = 90;
+const CLIENT_GAP = 15;
+const MAX_CLIENTS = 4;
+const WHATSAPP_NUMBER = "27710888897";
+
 const SERVICE_OPTIONS = [
   {
     name: "Acrylic Manicure — Plain",
@@ -49,41 +54,13 @@ const SERVICE_OPTIONS = [
   },
 ];
 
-const DEPOSIT_PER_CLIENT = 90;
-const CLIENT_GAP = 15;
-const WHATSAPP_NUMBER = "27710888897";
-
-function formatDuration(minutes) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-
-  if (hours === 0) {
-    return `${mins} minutes`;
-  }
-
-  if (mins === 0) {
-    return `${hours} hour${hours === 1 ? "" : "s"}`;
-  }
-
-  return `${hours}h ${mins}min`;
-}
-
-function calculateEndTime(startTime, durationMinutes) {
-  const [hours, minutes] = startTime.split(":").map(Number);
-
-  const totalMinutes =
-    hours * 60 + minutes + durationMinutes;
-
-  const endHours = Math.floor(totalMinutes / 60);
-  const endMinutes = totalMinutes % 60;
-
-  return `${String(endHours).padStart(2, "0")}:${String(
-    endMinutes
-  ).padStart(2, "0")}`;
-}
-
 function timeToMinutes(time) {
-  const [hours, minutes] = time.split(":").map(Number);
+  if (!time) return null;
+
+  const [hours, minutes] = time
+    .split(":")
+    .map(Number);
+
   return hours * 60 + minutes;
 }
 
@@ -96,58 +73,88 @@ function minutesToTime(minutes) {
   ).padStart(2, "0")}`;
 }
 
-function formatBookingDate(dateString) {
+function formatDate(dateString) {
   if (!dateString) return "";
 
-  const date = new Date(`${dateString}T12:00:00`);
+  const date = new Date(
+    `${dateString}T12:00:00`
+  );
 
-  return date.toLocaleDateString("en-ZA", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
+  return date.toLocaleDateString(
+    "en-ZA",
+    {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }
+  );
 }
 
-function formatBookingTime(timeString) {
-  if (!timeString) return "";
+function formatTime(time) {
+  if (!time) return "";
 
-  const [hours, minutes] = timeString
-    .slice(0, 5)
+  const [hours, minutes] = time
     .split(":")
     .map(Number);
 
   const date = new Date();
 
-  date.setHours(hours, minutes, 0, 0);
+  date.setHours(
+    hours,
+    minutes,
+    0,
+    0
+  );
 
-  return date.toLocaleTimeString("en-ZA", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return date.toLocaleTimeString(
+    "en-ZA",
+    {
+      hour: "numeric",
+      minute: "2-digit",
+    }
+  );
 }
 
-function getTodayDate() {
-  const now = new Date();
+function getTodayString() {
+  const today = new Date();
 
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(
-    2,
-    "0"
-  );
-  const day = String(now.getDate()).padStart(2, "0");
+  const year =
+    today.getFullYear();
+
+  const month = String(
+    today.getMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    today.getDate()
+  ).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 }
 
-function getClientDuration(services) {
-  return services.reduce((total, serviceName) => {
-    const service = SERVICE_OPTIONS.find(
-      (item) => item.name === serviceName
-    );
+function calculateServicesDuration(
+  services
+) {
+  return services.reduce(
+    (total, serviceName) => {
+      const service =
+        SERVICE_OPTIONS.find(
+          (option) =>
+            option.name === serviceName
+        );
 
-    return total + (service?.duration || 0);
-  }, 0);
+      return (
+        total +
+        (service?.duration || 0)
+      );
+    },
+    0
+  );
 }
 
 export default function Booking() {
@@ -159,348 +166,402 @@ export default function Booking() {
       [SERVICE_OPTIONS[0].name],
     ],
     clients: "1",
-    date: "",
+    clientDates: [""],
     clientTimes: [""],
     notes: "",
   });
 
   const [availableTimes, setAvailableTimes] =
-    useState([]);
+    useState([[]]);
 
-  const [availabilityLoading, setAvailabilityLoading] =
+  const [loadingAvailability, setLoadingAvailability] =
+    useState([false]);
+
+  const [availabilityErrors, setAvailabilityErrors] =
+    useState([""]);
+
+  const [submitting, setSubmitting] =
     useState(false);
 
-  const [availabilityError, setAvailabilityError] =
+  const [error, setError] =
     useState("");
-
-  const [loading, setLoading] = useState(false);
-
-  const [error, setError] = useState("");
-
-  const [bookingSuccess, setBookingSuccess] =
-    useState(false);
 
   const [confirmedBooking, setConfirmedBooking] =
     useState(null);
 
-  const [confirmationLoading, setConfirmationLoading] =
-    useState(false);
+  const clientCount =
+    Number(form.clients);
 
-  const [confirmationError, setConfirmationError] =
-    useState("");
+  const todayString =
+    getTodayString();
 
-  const update = (field) => (e) =>
-    setForm((current) => ({
-      ...current,
-      [field]: e.target.value,
-    }));
-
-  const todayDate = getTodayDate();
-
-  const clientCount = Math.max(
-    1,
-    Number(form.clients) || 1
+  const clientDurations = useMemo(
+    () =>
+      form.clientServices.map(
+        calculateServicesDuration
+      ),
+    [form.clientServices]
   );
 
-  const clientDurations = useMemo(() => {
-    return form.clientServices.map((services) =>
-      getClientDuration(services)
-    );
-  }, [form.clientServices]);
+  const totalDeposit =
+    clientCount *
+    DEPOSIT_PER_CLIENT;
 
-  const totalServiceDuration =
-    clientDurations.reduce(
-      (total, duration) => total + duration,
-      0
-    );
-
-  const totalDuration =
-    totalServiceDuration +
-    CLIENT_GAP * Math.max(0, clientCount - 1);
-
-  const depositAmount =
-    DEPOSIT_PER_CLIENT * clientCount;
-
-  function updateClientCount(value) {
-    const newCount = Math.max(
-      1,
-      Math.min(4, Number(value) || 1)
-    );
-
+  function updateClientServices(
+    clientIndex,
+    services
+  ) {
     setForm((current) => {
-      const clientServices = [...current.clientServices];
-      const clientTimes = [...current.clientTimes];
+      const updated = [
+        ...current.clientServices,
+      ];
 
-      while (clientServices.length < newCount) {
-        clientServices.push([
-          SERVICE_OPTIONS[0].name,
-        ]);
-      }
-
-      while (clientServices.length > newCount) {
-        clientServices.pop();
-      }
-
-      while (clientTimes.length < newCount) {
-        clientTimes.push("");
-      }
-
-      while (clientTimes.length > newCount) {
-        clientTimes.pop();
-      }
+      updated[clientIndex] =
+        services;
 
       return {
         ...current,
-        clients: String(newCount),
-        clientServices,
-        clientTimes,
+        clientServices:
+          updated,
       };
     });
 
     setError("");
   }
 
-  function updateClientService(
-    clientIndex,
-    serviceIndex,
-    value
-  ) {
+  function addService(clientIndex) {
     setForm((current) => {
-      const clientServices = current.clientServices.map(
-        (services, index) =>
-          index === clientIndex
-            ? services.map(
-                (serviceName, currentServiceIndex) =>
-                  currentServiceIndex === serviceIndex
-                    ? value
-                    : serviceName
-              )
-            : services
-      );
+      const updated = [
+        ...current.clientServices,
+      ];
+
+      if (
+        updated[clientIndex].length >= 4
+      ) {
+        return current;
+      }
+
+      const unused =
+        SERVICE_OPTIONS.find(
+          (option) =>
+            !updated[
+              clientIndex
+            ].includes(option.name)
+        );
+
+      if (!unused) {
+        return current;
+      }
+
+      updated[clientIndex] = [
+        ...updated[clientIndex],
+        unused.name,
+      ];
 
       return {
         ...current,
-        clientServices,
-        clientTimes: current.clientTimes.map(
-          (time, index) =>
-            index === clientIndex ? "" : time
-        ),
+        clientServices:
+          updated,
       };
     });
+
+    setError("");
   }
 
-  function addClientService(clientIndex) {
-    setForm((current) => {
-      const clientServices = current.clientServices.map(
-        (services, index) => {
-          if (index !== clientIndex) {
-            return services;
-          }
-
-          if (services.length >= 4) {
-            return services;
-          }
-
-          const nextService = SERVICE_OPTIONS.find(
-            (service) =>
-              !services.includes(service.name)
-          );
-
-          if (!nextService) {
-            return services;
-          }
-
-          return [
-            ...services,
-            nextService.name,
-          ];
-        }
-      );
-
-      return {
-        ...current,
-        clientServices,
-        clientTimes: current.clientTimes.map(
-          (time, index) =>
-            index === clientIndex ? "" : time
-        ),
-      };
-    });
-  }
-
-  function removeClientService(
+  function removeService(
     clientIndex,
     serviceIndex
   ) {
     setForm((current) => {
-      const clientServices = current.clientServices.map(
-        (services, index) => {
-          if (index !== clientIndex) {
-            return services;
-          }
+      const updated = [
+        ...current.clientServices,
+      ];
 
-          if (services.length === 1) {
-            return services;
-          }
+      if (
+        updated[clientIndex].length <= 1
+      ) {
+        return current;
+      }
 
-          return services.filter(
-            (_, currentServiceIndex) =>
-              currentServiceIndex !== serviceIndex
-          );
-        }
-      );
+      updated[clientIndex] =
+        updated[clientIndex].filter(
+          (_, index) =>
+            index !== serviceIndex
+        );
 
       return {
         ...current,
-        clientServices,
-        clientTimes: current.clientTimes.map(
-          (time, index) =>
-            index === clientIndex ? "" : time
-        ),
+        clientServices:
+          updated,
       };
     });
-  }
-
-  function updateClientTime(
-    clientIndex,
-    value
-  ) {
-    setForm((current) => ({
-      ...current,
-      clientTimes: current.clientTimes.map(
-        (time, index) =>
-          index === clientIndex
-            ? value
-            : time
-      ),
-    }));
 
     setError("");
   }
 
-  useEffect(() => {
-    const params = new URLSearchParams(
-      window.location.search
-    );
+  function changeClientCount(
+    value
+  ) {
+    const nextCount = Number(value);
 
-    const bookingStatus =
-      params.get("booking");
+    setForm((current) => {
+      const services = [
+        ...current.clientServices,
+      ];
 
-    const appointmentId =
-      params.get("appointment");
+      const dates = [
+        ...current.clientDates,
+      ];
 
-    if (
-      bookingStatus === "success" &&
-      appointmentId
-    ) {
-      setBookingSuccess(true);
-      setConfirmationLoading(true);
-      setConfirmationError("");
+      const times = [
+        ...current.clientTimes,
+      ];
 
-      async function loadConfirmedBooking() {
-        try {
-          const response = await fetch(
-            `/api/booking?id=${encodeURIComponent(
-              appointmentId
-            )}`
-          );
+      while (
+        services.length <
+        nextCount
+      ) {
+        services.push([
+          SERVICE_OPTIONS[0].name,
+        ]);
 
-          const data = await response.json();
+        dates.push("");
 
-          if (!response.ok) {
-            throw new Error(
-              data.error ||
-                "Unable to load your booking details."
-            );
-          }
-
-          setConfirmedBooking({
-            appointmentId,
-            ...data.appointment,
-          });
-        } catch (error) {
-          console.error(
-            "Confirmation booking error:",
-            error
-          );
-
-          setConfirmationError(
-            "Your payment was successful, but we couldn't load the booking details. Please contact Freddy Nails on WhatsApp."
-          );
-        } finally {
-          setConfirmationLoading(false);
-        }
+        times.push("");
       }
 
-      loadConfirmedBooking();
+      services.length =
+        nextCount;
 
-      window.history.replaceState(
-        {},
-        document.title,
-        window.location.pathname
-      );
-    }
-  }, []);
+      dates.length =
+        nextCount;
 
+      times.length =
+        nextCount;
+
+      return {
+        ...current,
+        clients: String(
+          nextCount
+        ),
+        clientServices:
+          services,
+        clientDates:
+          dates,
+        clientTimes:
+          times,
+      };
+    });
+
+    setAvailableTimes(
+      Array.from(
+        { length: nextCount },
+        () => []
+      )
+    );
+
+    setLoadingAvailability(
+      Array.from(
+        { length: nextCount },
+        () => false
+      )
+    );
+
+    setAvailabilityErrors(
+      Array.from(
+        { length: nextCount },
+        () => ""
+      )
+    );
+
+    setError("");
+  }
+
+  function updateClientDate(
+    clientIndex,
+    date
+  ) {
+    setForm((current) => {
+      const dates = [
+        ...current.clientDates,
+      ];
+
+      const times = [
+        ...current.clientTimes,
+      ];
+
+      dates[clientIndex] =
+        date;
+
+      times[clientIndex] =
+        "";
+
+      return {
+        ...current,
+        clientDates:
+          dates,
+        clientTimes:
+          times,
+      };
+    });
+
+    setError("");
+  }
+
+  function updateClientTime(
+    clientIndex,
+    time
+  ) {
+    setForm((current) => {
+      const times = [
+        ...current.clientTimes,
+      ];
+
+      times[clientIndex] =
+        time;
+
+      return {
+        ...current,
+        clientTimes:
+          times,
+      };
+    });
+
+    setError("");
+  }
+
+  /*
+   * Fetch availability independently
+   * for every client's chosen date.
+   */
   useEffect(() => {
-    if (!form.date) {
-      setAvailableTimes([]);
-      setAvailabilityError("");
-      return;
-    }
-
     let cancelled = false;
 
     async function loadAvailability() {
-      setAvailabilityLoading(true);
-      setAvailabilityError("");
-
-      try {
-        /*
-         * We initially load the normal available starting
-         * times for the full booking duration.
-         *
-         * The individual client selectors then narrow
-         * these times based on the selected client before
-         * them.
-         */
-        const response = await fetch(
-          `/api/availability?date=${encodeURIComponent(
-            form.date
-          )}&duration=${totalDuration}`
+      const results =
+        Array.from(
+          { length: clientCount },
+          () => []
         );
 
-        const data = await response.json();
+      const loading =
+        Array.from(
+          { length: clientCount },
+          () => false
+        );
 
-        if (!response.ok) {
-          throw new Error(
-            data.error ||
-              "Unable to check availability."
-          );
+      const errors =
+        Array.from(
+          { length: clientCount },
+          () => ""
+        );
+
+      for (
+        let clientIndex = 0;
+        clientIndex < clientCount;
+        clientIndex++
+      ) {
+        const date =
+          form.clientDates[
+            clientIndex
+          ];
+
+        const duration =
+          clientDurations[
+            clientIndex
+          ];
+
+        if (!date || !duration) {
+          continue;
         }
 
-        if (!cancelled) {
-          setAvailableTimes(
-            data.availableTimes || []
-          );
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error(
-            "Availability error:",
-            error
-          );
+        loading[clientIndex] =
+          true;
+      }
 
-          setAvailableTimes([]);
+      if (!cancelled) {
+        setLoadingAvailability(
+          loading
+        );
+        setAvailabilityErrors(
+          errors
+        );
+      }
 
-          setAvailabilityError(
-            "Unable to load available times. Please try again."
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setAvailabilityLoading(false);
-        }
+      await Promise.all(
+        Array.from(
+          { length: clientCount },
+          async (_, clientIndex) => {
+            const date =
+              form.clientDates[
+                clientIndex
+              ];
+
+            const duration =
+              clientDurations[
+                clientIndex
+              ];
+
+            if (
+              !date ||
+              !duration
+            ) {
+              return;
+            }
+
+            try {
+              const response =
+                await fetch(
+                  `/api/availability?date=${encodeURIComponent(
+                    date
+                  )}&duration=${duration}`,
+                  {
+                    cache: "no-store",
+                  }
+                );
+
+              const data =
+                await response.json();
+
+              if (!response.ok) {
+                throw new Error(
+                  data.error ||
+                    "Unable to load availability."
+                );
+              }
+
+              results[
+                clientIndex
+              ] =
+                data.availableTimes ||
+                [];
+            } catch (requestError) {
+              errors[
+                clientIndex
+              ] =
+                requestError.message ||
+                "Unable to load availability.";
+            } finally {
+              loading[
+                clientIndex
+              ] = false;
+            }
+          }
+        )
+      );
+
+      if (!cancelled) {
+        setAvailableTimes(
+          results
+        );
+
+        setLoadingAvailability(
+          loading
+        );
+
+        setAvailabilityErrors(
+          errors
+        );
       }
     }
 
@@ -509,58 +570,92 @@ export default function Booking() {
     return () => {
       cancelled = true;
     };
-  }, [form.date, totalDuration]);
+  }, [
+    clientCount,
+    form.clientDates,
+    clientDurations,
+  ]);
 
-  /*
-   * Build the selectable time range for each client.
-   *
-   * Client 1 uses the normal available booking starts.
-   *
-   * Client 2+ is placed after the previous client's
-   * service duration plus the 15-minute gap.
-   */
-  function getClientAvailableTimes(clientIndex) {
-    if (!form.date) {
-      return [];
+  function getClientAvailableTimes(
+    clientIndex
+  ) {
+    let times =
+      availableTimes[
+        clientIndex
+      ] || [];
+
+    /*
+     * If this client and the previous client
+     * have the same date, enforce the 15-minute
+     * gap.
+     */
+    if (
+      clientIndex > 0 &&
+      form.clientDates[
+        clientIndex
+      ] &&
+      form.clientDates[
+        clientIndex - 1
+      ] ===
+        form.clientDates[
+          clientIndex
+        ] &&
+      form.clientTimes[
+        clientIndex - 1
+      ]
+    ) {
+      const previousStart =
+        timeToMinutes(
+          form.clientTimes[
+            clientIndex - 1
+          ]
+        );
+
+      const previousDuration =
+        clientDurations[
+          clientIndex - 1
+        ];
+
+      const earliestStart =
+        previousStart +
+        previousDuration +
+        CLIENT_GAP;
+
+      times =
+        times.filter(
+          (time) =>
+            timeToMinutes(time) >=
+            earliestStart
+        );
     }
 
-    if (clientIndex === 0) {
-      return availableTimes;
-    }
-
-    const previousTime =
-      form.clientTimes[clientIndex - 1];
-
-    if (!previousTime) {
-      return [];
-    }
-
-    const previousDuration =
-      clientDurations[clientIndex - 1];
-
-    const earliestNextTime =
-      timeToMinutes(previousTime) +
-      previousDuration +
-      CLIENT_GAP;
-
-    return availableTimes.filter((time) => {
-      return (
-        timeToMinutes(time) >=
-        earliestNextTime
-      );
-    });
+    return times;
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(
+    event
+  ) {
+    event.preventDefault();
 
-    if (loading) return;
+    setError("");
 
-    if (
-      form.clientServices.length !== clientCount
-    ) {
+    if (!form.name.trim()) {
       setError(
-        "Please choose services for every client."
+        "Please enter your name."
+      );
+      return;
+    }
+
+    if (!form.phone.trim()) {
+      setError(
+        "Please enter your phone number."
+      );
+      return;
+    }
+
+    if (!form.email.trim()) {
+      setError(
+        "Please enter your email address."
       );
       return;
     }
@@ -571,18 +666,23 @@ export default function Booking() {
       clientIndex++
     ) {
       if (
-        !form.clientServices[clientIndex] ||
-        form.clientServices[clientIndex].length === 0
+        !form.clientDates[
+          clientIndex
+        ]
       ) {
         setError(
-          `Please choose at least one service for Client ${
+          `Please choose a preferred date for Client ${
             clientIndex + 1
           }.`
         );
         return;
       }
 
-      if (!form.clientTimes[clientIndex]) {
+      if (
+        !form.clientTimes[
+          clientIndex
+        ]
+      ) {
         setError(
           `Please choose an available time for Client ${
             clientIndex + 1
@@ -592,277 +692,343 @@ export default function Booking() {
       }
     }
 
-    if (!form.date) {
-      setError(
-        "Please choose a preferred date."
-      );
-      return;
+    /*
+     * Make sure same-day clients are scheduled
+     * with the required gap.
+     */
+    for (
+      let clientIndex = 1;
+      clientIndex < clientCount;
+      clientIndex++
+    ) {
+      if (
+        form.clientDates[
+          clientIndex
+        ] ===
+          form.clientDates[
+            clientIndex - 1
+          ]
+      ) {
+        const previousStart =
+          timeToMinutes(
+            form.clientTimes[
+              clientIndex - 1
+            ]
+          );
+
+        const previousEnd =
+          previousStart +
+          clientDurations[
+            clientIndex - 1
+          ];
+
+        const currentStart =
+          timeToMinutes(
+            form.clientTimes[
+              clientIndex
+            ]
+          );
+
+        if (
+          currentStart <
+          previousEnd + CLIENT_GAP
+        ) {
+          setError(
+            `Client ${
+              clientIndex + 1
+            } needs to start at least 15 minutes after Client ${
+              clientIndex
+            } finishes when booked on the same date.`
+          );
+          return;
+        }
+      }
     }
 
-    if (!form.email) {
-      setError(
-        "Please enter your email address so we can send your confirmation."
-      );
-      return;
-    }
-
-    setLoading(true);
-    setError("");
+    setSubmitting(true);
 
     try {
-      /*
-       * The server will perform the final duration,
-       * availability and double-booking checks.
-       *
-       * Client start times are sent separately so the
-       * backend can reserve each client's actual slot.
-       */
-      const clientStartTimes =
-        form.clientTimes;
-
       const clientEndTimes =
-        clientStartTimes.map(
-          (startTime, clientIndex) =>
-            calculateEndTime(
-              startTime,
-              clientDurations[clientIndex]
+        form.clientTimes.map(
+          (startTime, index) =>
+            minutesToTime(
+              timeToMinutes(
+                startTime
+              ) +
+                clientDurations[
+                  index
+                ]
             )
         );
 
-      const response = await fetch(
-        "/api/checkout",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: form.name,
-            phone: form.phone,
-            email: form.email,
-            clientServices:
-              form.clientServices,
-            clientCount,
-            date: form.date,
-            clientStartTimes,
-            clientEndTimes,
-            durationMinutes: totalDuration,
-            notes: form.notes,
-          }),
-        }
-      );
+      const response =
+        await fetch(
+          "/api/checkout",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              name: form.name.trim(),
+              phone: form.phone.trim(),
+              email: form.email.trim(),
+              clientServices:
+                form.clientServices,
+              clientCount,
+              clientDates:
+                form.clientDates,
+              clientStartTimes:
+                form.clientTimes,
+              clientEndTimes,
+              notes:
+                form.notes.trim(),
+            }),
+          }
+        );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
           data.error ||
-            "Unable to start the payment."
+            "Unable to start checkout."
         );
       }
 
       if (!data.redirectUrl) {
         throw new Error(
-          "Yoco did not return a checkout link."
+          "No payment link was returned."
         );
       }
 
       window.location.href =
         data.redirectUrl;
-    } catch (error) {
-      console.error(
-        "Payment error:",
-        error
-      );
-
+    } catch (submitError) {
       setError(
-        error.message ||
+        submitError.message ||
           "Something went wrong. Please try again."
       );
 
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
-  const inputClass =
-    "w-full px-3.5 py-3 border border-line rounded-sm bg-nude text-[0.92rem] text-ink mb-4.5";
+  /*
+   * Check for a successful booking
+   * after returning from Yoco.
+   */
+  useEffect(() => {
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
 
-  const labelClass =
-    "block text-xs font-bold tracking-wide uppercase mb-1.5 text-ink-soft";
+    if (
+      params.get("booking") !==
+        "success" ||
+      !params.get("appointment")
+    ) {
+      return;
+    }
 
-  if (bookingSuccess) {
+    const appointmentId =
+      params.get("appointment");
+
+    async function loadConfirmedBooking() {
+      try {
+        const response =
+          await fetch(
+            `/api/booking?id=${encodeURIComponent(
+              appointmentId
+            )}`,
+            {
+              cache: "no-store",
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.error ||
+              "Unable to load booking."
+          );
+        }
+
+        setConfirmedBooking(
+          data.appointment
+        );
+
+        window.history.replaceState(
+          {},
+          "",
+          window.location.pathname
+        );
+      } catch (bookingError) {
+        console.error(
+          "Confirmation lookup error:",
+          bookingError
+        );
+      }
+    }
+
+    loadConfirmedBooking();
+  }, []);
+
+  if (confirmedBooking) {
     const whatsappMessage =
-      confirmedBooking
-        ? encodeURIComponent(
-            `Hi Freddy Nails! 💅 My booking is confirmed.\n\nName: ${confirmedBooking.customerName}\nEmail: ${confirmedBooking.customerEmail}\nServices: ${confirmedBooking.service}\nDate: ${formatBookingDate(
-              confirmedBooking.bookingDate
-            )}\nTime: ${formatBookingTime(
-              confirmedBooking.startTime
-            )}\nClients: ${confirmedBooking.clientCount}\nDeposit: R${confirmedBooking.depositAmount}`
-          )
-        : "";
+      encodeURIComponent(
+        `Hi Freddy Nails! 💅 My booking is confirmed.\n\nName: ${
+          confirmedBooking.customerName
+        }\nEmail: ${
+          confirmedBooking.customerEmail
+        }\n\n${
+          confirmedBooking.clients
+            ? confirmedBooking.clients
+                .map(
+                  (client, index) =>
+                    `Client ${
+                      index + 1
+                    }:\nServices: ${
+                      client.service
+                    }\nDate: ${formatDate(
+                      client.bookingDate
+                    )}\nTime: ${formatTime(
+                      client.startTime
+                    )}`
+                )
+                .join(
+                  "\n\n"
+                )
+            : `Services: ${
+                confirmedBooking.service
+              }\nDate: ${formatDate(
+                confirmedBooking.bookingDate
+              )}\nTime: ${formatTime(
+                confirmedBooking.startTime
+              )}`
+        }\n\nClients: ${
+          confirmedBooking.clientCount
+        }\nDeposit: R${
+          confirmedBooking.depositAmount
+        }`
+      );
 
     return (
       <section
         id="booking"
-        className="max-w-[1180px] mx-auto px-5 py-22"
+        className="booking-section"
       >
-        <div className="max-w-[720px] mx-auto">
-          <div className="bg-nude-deep border border-line rounded p-7 md:p-13 text-center">
-            <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
-              Booking confirmed
-            </p>
-
-            <div className="mx-auto mt-6 flex h-16 w-16 items-center justify-center rounded-full bg-ink text-2xl text-white">
-              ✓
-            </div>
-
-            <h2 className="font-serif font-medium text-[clamp(2rem,4vw,3rem)] mt-6">
-              You're booked! 💅
-            </h2>
-
-            <p className="text-ink-soft leading-relaxed mt-4 max-w-[52ch] mx-auto">
-              Your payment has been received and your
-              appointment is confirmed.
-            </p>
-
-            <div className="mt-8 border border-line bg-nude p-5 rounded-sm text-left">
-              <p className="text-xs font-bold uppercase tracking-wide text-gold">
-                What happens next
-              </p>
-
-              <div className="mt-4 space-y-3 text-sm text-ink-soft">
-                <p>
-                  ✓ Your R90-per-client deposit has been
-                  received.
-                </p>
-
-                <p>
-                  ✓ A confirmation email has been sent
-                  to you.
-                </p>
-
-                <p>
-                  ✓ Freddy Nails has also received your
-                  booking notification.
-                </p>
-              </div>
-            </div>
-
-            {confirmationLoading && (
-              <p className="mt-6 text-sm text-ink-soft">
-                Loading your booking details…
-              </p>
-            )}
-
-            {confirmationError && (
-              <div className="mt-6 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {confirmationError}
-              </div>
-            )}
-
-            {confirmedBooking && (
-              <div className="mt-7 border border-line bg-nude p-5 rounded-sm text-left">
-                <p className="text-xs font-bold uppercase tracking-wide text-gold">
-                  Your appointment
-                </p>
-
-                <div className="mt-4 space-y-2 text-sm">
-                  <div className="flex justify-between gap-4">
-                    <span className="text-ink-soft">
-                      Name
-                    </span>
-
-                    <span className="font-bold text-right">
-                      {confirmedBooking.customerName}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4">
-                    <span className="text-ink-soft">
-                      Services
-                    </span>
-
-                    <span className="font-bold text-right">
-                      {confirmedBooking.service}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4">
-                    <span className="text-ink-soft">
-                      Date
-                    </span>
-
-                    <span className="font-bold text-right">
-                      {formatBookingDate(
-                        confirmedBooking.bookingDate
-                      )}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4">
-                    <span className="text-ink-soft">
-                      Time
-                    </span>
-
-                    <span className="font-bold text-right">
-                      {formatBookingTime(
-                        confirmedBooking.startTime
-                      )}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4">
-                    <span className="text-ink-soft">
-                      Clients
-                    </span>
-
-                    <span className="font-bold">
-                      {confirmedBooking.clientCount}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between gap-4 pt-2 border-t border-line">
-                    <span className="text-ink-soft">
-                      Deposit paid
-                    </span>
-
-                    <span className="font-bold text-gold">
-                      R{confirmedBooking.depositAmount}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-7">
-              <p className="text-sm text-ink-soft mb-4">
-                Need to contact us about your appointment?
-              </p>
-
-              <a
-                href={
-                  whatsappMessage
-                    ? `https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`
-                    : "#"
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => {
-                  if (!whatsappMessage) {
-                    e.preventDefault();
-                  }
-                }}
-                className={`inline-flex items-center justify-center rounded-sm px-6 py-3.5 text-sm font-bold uppercase tracking-wide transition-colors ${
-                  whatsappMessage
-                    ? "bg-ink text-white hover:bg-gold hover:text-ink"
-                    : "bg-ink/40 text-white cursor-not-allowed"
-                }`}
-              >
-                Message us on WhatsApp
-              </a>
-            </div>
+        <div className="booking-card confirmation-card">
+          <div className="confirmation-icon">
+            ✓
           </div>
+
+          <p className="section-kicker">
+            Freddy Nails Studio
+          </p>
+
+          <h2>
+            Booking confirmed
+          </h2>
+
+          <p className="confirmation-lead">
+            You're booked! 💅
+          </p>
+
+          <p>
+            Your payment has been received
+            and your appointment is confirmed.
+          </p>
+
+          <p>
+            Your R
+            {confirmedBooking.depositAmount}
+            deposit has been received.
+          </p>
+
+          <p>
+            A confirmation email has been
+            sent to{" "}
+            <strong>
+              {
+                confirmedBooking.customerEmail
+              }
+            </strong>
+            .
+          </p>
+
+          <p>
+            Freddy Nails has also received
+            your booking notification.
+          </p>
+
+          {confirmedBooking.clients &&
+            confirmedBooking.clients.length >
+              0 && (
+              <div className="confirmed-client-list">
+                {confirmedBooking.clients.map(
+                  (
+                    client,
+                    index
+                  ) => (
+                    <div
+                      key={
+                        client.id ||
+                        index
+                      }
+                      className="confirmed-client"
+                    >
+                      <strong>
+                        Client{" "}
+                        {index + 1}
+                      </strong>
+
+                      <span>
+                        {
+                          client.service
+                        }
+                      </span>
+
+                      <span>
+                        {formatDate(
+                          client.bookingDate
+                        )}
+                      </span>
+
+                      <span>
+                        {formatTime(
+                          client.startTime
+                        )}{" "}
+                        –{" "}
+                        {formatTime(
+                          client.endTime
+                        )}
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+
+          <a
+            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`}
+            target="_blank"
+            rel="noreferrer"
+            className="booking-whatsapp-button"
+          >
+            Message Freddy Nails on WhatsApp
+          </a>
+
+          <p className="booking-id">
+            Booking ID:{" "}
+            {confirmedBooking.id ||
+              "Confirmed"}
+          </p>
         </div>
       </section>
     );
@@ -871,430 +1037,463 @@ export default function Booking() {
   return (
     <section
       id="booking"
-      className="max-w-[1180px] mx-auto px-5 py-22"
+      className="booking-section"
     >
-      <div className="max-w-[640px] mb-12">
-        <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
-          Reserve your chair
+      <div className="booking-card">
+        <p className="section-kicker">
+          Book your appointment
         </p>
 
-        <h2 className="font-serif font-medium text-[clamp(1.9rem,4vw,2.6rem)] mt-3.5">
-          Book an appointment
+        <h2>
+          Reserve your nail
+          appointment
         </h2>
-      </div>
 
-      <div className="grid gap-9 bg-nude-deep border border-line rounded p-7 md:p-13 md:grid-cols-[0.9fr_1.1fr]">
-        <div>
-          <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
-            How it works
-          </p>
+        <p className="booking-intro">
+          Choose the services, preferred
+          date and available time for
+          each client.
+        </p>
 
-          <h3 className="font-serif text-[1.4rem] font-medium mt-3 mb-4">
-            Choose your services, date and time.
-          </h3>
-
-          <p className="text-ink-soft leading-relaxed text-[0.94rem]">
-            Select services for each client, then choose
-            a preferred date and an available time for
-            every client. A R90 deposit is required for
-            each client. A 15-minute gap is included
-            between consecutive appointments.
-          </p>
-
-          <div className="mt-7 border border-line bg-nude p-5 rounded-sm">
-            <p className="text-xs font-bold uppercase tracking-wide text-gold">
-              Your booking
-            </p>
-
-            <div className="mt-3 space-y-2 text-sm">
-              <div className="flex justify-between gap-4">
-                <span className="text-ink-soft">
-                  Clients
-                </span>
-
-                <span className="font-bold">
-                  {clientCount}
-                </span>
-              </div>
-
-              <div className="flex justify-between gap-4">
-                <span className="text-ink-soft">
-                  Estimated time
-                </span>
-
-                <span className="font-bold">
-                  {formatDuration(totalDuration)}
-                </span>
-              </div>
-
-              <div className="flex justify-between gap-4 pt-2 border-t border-line">
-                <span className="text-ink-soft">
-                  Deposit
-                </span>
-
-                <span className="font-bold text-gold">
-                  R{depositAmount}
-                </span>
-              </div>
-            </div>
-
-            <p className="mt-4 text-xs text-ink-soft leading-relaxed">
-              R90 deposit per client. A 15-minute gap is
-              included between clients.
-            </p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label
-                className={labelClass}
-                htmlFor="b-name"
-              >
-                Name
-              </label>
-
+        <form
+          onSubmit={handleSubmit}
+          className="booking-form"
+        >
+          <div className="booking-field-grid">
+            <label>
+              Full name
               <input
-                id="b-name"
                 type="text"
-                required
-                placeholder="Your name"
-                className={inputClass}
                 value={form.name}
-                onChange={update("name")}
-              />
-            </div>
-
-            <div>
-              <label
-                className={labelClass}
-                htmlFor="b-phone"
-              >
-                Phone
-              </label>
-
-              <input
-                id="b-phone"
-                type="tel"
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    name:
+                      event.target.value,
+                  })
+                }
+                placeholder="Your full name"
                 required
-                placeholder="07…"
-                className={inputClass}
-                value={form.phone}
-                onChange={update("phone")}
               />
-            </div>
-          </div>
-
-          <label
-            className={labelClass}
-            htmlFor="b-email"
-          >
-            Email
-          </label>
-
-          <input
-            id="b-email"
-            type="email"
-            required
-            placeholder="you@example.com"
-            className={inputClass}
-            value={form.email}
-            onChange={update("email")}
-          />
-
-          <label
-            className={labelClass}
-            htmlFor="b-clients"
-          >
-            Number of clients
-          </label>
-
-          <select
-            id="b-clients"
-            className={inputClass}
-            value={form.clients}
-            onChange={(e) =>
-              updateClientCount(e.target.value)
-            }
-          >
-            <option value="1">
-              1 client — R90 deposit
-            </option>
-
-            <option value="2">
-              2 clients — R180 deposit
-            </option>
-
-            <option value="3">
-              3 clients — R270 deposit
-            </option>
-
-            <option value="4">
-              4 clients — R360 deposit
-            </option>
-          </select>
-
-          <div className="mb-6">
-            <label
-              className={labelClass}
-              htmlFor="b-date"
-            >
-              Preferred date
             </label>
 
-            <input
-              id="b-date"
-              type="date"
-              required
-              min={todayDate}
-              className={inputClass}
-              value={form.date}
-              onChange={update("date")}
-            />
+            <label>
+              Phone number
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    phone:
+                      event.target.value,
+                  })
+                }
+                placeholder="e.g. 071 234 5678"
+                required
+              />
+            </label>
+
+            <label>
+              Email address
+              <input
+                type="email"
+                value={form.email}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    email:
+                      event.target.value,
+                  })
+                }
+                placeholder="you@example.com"
+                required
+              />
+            </label>
+
+            <label>
+              Number of clients
+              <select
+                value={form.clients}
+                onChange={(event) =>
+                  changeClientCount(
+                    event.target.value
+                  )
+                }
+              >
+                {Array.from(
+                  {
+                    length:
+                      MAX_CLIENTS,
+                  },
+                  (_, index) => (
+                    <option
+                      key={
+                        index + 1
+                      }
+                      value={
+                        index + 1
+                      }
+                    >
+                      {index + 1}{" "}
+                      {index === 0
+                        ? "client"
+                        : "clients"}
+                    </option>
+                  )
+                )}
+              </select>
+            </label>
           </div>
 
-          {form.clientServices.map(
-            (services, clientIndex) => {
-              const clientAvailableTimes =
-                getClientAvailableTimes(
-                  clientIndex
-                );
+          <div className="booking-client-list">
+            {Array.from(
+              {
+                length:
+                  clientCount,
+              },
+              (_, clientIndex) => {
+                const services =
+                  form.clientServices[
+                    clientIndex
+                  ] || [];
 
-              return (
-                <div
-                  key={`client-${clientIndex}`}
-                  className="mb-7 border border-line bg-nude p-5 rounded-sm"
-                >
-                  <div className="flex items-center justify-between gap-4 mb-5">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-gold">
-                        Client {clientIndex + 1}
-                      </p>
+                const times =
+                  getClientAvailableTimes(
+                    clientIndex
+                  );
 
-                      <p className="text-sm text-ink-soft mt-1">
-                        {formatDuration(
-                          clientDurations[
-                            clientIndex
-                          ]
-                        )}
-                      </p>
-                    </div>
-                  </div>
+                return (
+                  <div
+                    key={
+                      clientIndex
+                    }
+                    className="booking-client-card"
+                  >
+                    <div className="booking-client-heading">
+                      <div>
+                        <span className="client-number">
+                          Client{" "}
+                          {clientIndex +
+                            1}
+                        </span>
 
-                  <div className="mb-5">
-                    <div className="flex items-center justify-between gap-4 mb-2">
-                      <label className={`${labelClass} mb-0`}>
-                        Services
-                      </label>
+                        <h3>
+                          Choose services &
+                          appointment time
+                        </h3>
+                      </div>
 
-                      <span className="text-xs text-ink-soft">
-                        {services.length}/4
+                      <span className="client-duration">
+                        {clientDurations[
+                          clientIndex
+                        ]}{" "}
+                        min
                       </span>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="client-services">
                       {services.map(
                         (
                           serviceName,
                           serviceIndex
-                        ) => {
-                          const selectedNames =
-                            services.filter(
-                              (
-                                _,
-                                currentServiceIndex
-                              ) =>
-                                currentServiceIndex !==
-                                serviceIndex
-                            );
+                        ) => (
+                          <div
+                            key={
+                              `${clientIndex}-${serviceIndex}`
+                            }
+                            className="service-row"
+                          >
+                            <select
+                              value={
+                                serviceName
+                              }
+                              onChange={(
+                                event
+                              ) => {
+                                const updated =
+                                  [
+                                    ...services,
+                                  ];
 
-                          return (
-                            <div
-                              key={`${serviceName}-${clientIndex}-${serviceIndex}`}
-                              className="flex items-center gap-2"
+                                updated[
+                                  serviceIndex
+                                ] =
+                                  event.target.value;
+
+                                updateClientServices(
+                                  clientIndex,
+                                  updated
+                                );
+                              }}
                             >
-                              <select
-                                id={`b-client-${clientIndex}-service-${serviceIndex}`}
-                                className={`${inputClass} flex-1 mb-0`}
-                                value={serviceName}
-                                onChange={(e) =>
-                                  updateClientService(
+                              {SERVICE_OPTIONS.map(
+                                (
+                                  option
+                                ) => (
+                                  <option
+                                    key={
+                                      option.name
+                                    }
+                                    value={
+                                      option.name
+                                    }
+                                  >
+                                    {
+                                      option.name
+                                    }{" "}
+                                    — R
+                                    {
+                                      option.duration
+                                    }
+                                  </option>
+                                )
+                              )}
+                            </select>
+
+                            {services.length >
+                              1 && (
+                              <button
+                                type="button"
+                                className="remove-service-button"
+                                onClick={() =>
+                                  removeService(
                                     clientIndex,
-                                    serviceIndex,
-                                    e.target.value
+                                    serviceIndex
                                   )
                                 }
                               >
-                                {SERVICE_OPTIONS.map(
-                                  (service) => (
-                                    <option
-                                      key={
-                                        service.name
-                                      }
-                                      value={
-                                        service.name
-                                      }
-                                      disabled={selectedNames.includes(
-                                        service.name
-                                      )}
-                                    >
-                                      {
-                                        service.name
-                                      }
-                                    </option>
-                                  )
-                                )}
-                              </select>
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        )
+                      )}
 
-                              {services.length >
-                                1 && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    removeClientService(
-                                      clientIndex,
-                                      serviceIndex
-                                    )
-                                  }
-                                  className="shrink-0 h-[46px] px-3 border border-line rounded-sm text-xs font-bold uppercase tracking-wide text-ink-soft hover:border-gold hover:text-ink transition-colors"
-                                >
-                                  Remove
-                                </button>
-                              )}
-                            </div>
-                          );
-                        }
+                      {services.length <
+                        4 && (
+                        <button
+                          type="button"
+                          className="add-service-button"
+                          onClick={() =>
+                            addService(
+                              clientIndex
+                            )
+                          }
+                        >
+                          + Add another service
+                        </button>
                       )}
                     </div>
 
-                    {services.length < 4 && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          addClientService(
-                            clientIndex
-                          )
-                        }
-                        className="mt-3 inline-flex items-center justify-center border border-line rounded-sm px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-ink hover:border-gold hover:bg-gold hover:text-ink transition-colors"
-                      >
-                        + Add another service
-                      </button>
-                    )}
-                  </div>
+                    <div className="booking-field-grid client-date-time-grid">
+                      <label>
+                        Preferred date
+                        <input
+                          type="date"
+                          min={
+                            todayString
+                          }
+                          value={
+                            form.clientDates[
+                              clientIndex
+                            ] || ""
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            updateClientDate(
+                              clientIndex,
+                              event.target
+                                .value
+                            )
+                          }
+                          required
+                        />
+                      </label>
 
-                  <label
-                    className={labelClass}
-                    htmlFor={`b-client-${clientIndex}-time`}
-                  >
-                    Available time
-                  </label>
-
-                  <select
-                    id={`b-client-${clientIndex}-time`}
-                    required
-                    className={inputClass}
-                    value={
-                      form.clientTimes[
-                        clientIndex
-                      ] || ""
-                    }
-                    onChange={(e) =>
-                      updateClientTime(
-                        clientIndex,
-                        e.target.value
-                      )
-                    }
-                    disabled={
-                      !form.date ||
-                      availabilityLoading ||
-                      (clientIndex > 0 &&
-                        !form.clientTimes[
-                          clientIndex - 1
-                        ])
-                    }
-                  >
-                    <option value="">
-                      {!form.date
-                        ? "Select a date first"
-                        : availabilityLoading
-                        ? "Checking availability…"
-                        : clientIndex > 0 &&
-                          !form.clientTimes[
-                            clientIndex - 1
-                          ]
-                        ? `Choose Client ${
-                            clientIndex
-                          }'s time first`
-                        : clientAvailableTimes.length ===
-                          0
-                        ? "No times available"
-                        : "Select a time"}
-                    </option>
-
-                    {clientAvailableTimes.map(
-                      (time) => (
-                        <option
-                          key={time}
-                          value={time}
+                      <label>
+                        Available time
+                        <select
+                          value={
+                            form.clientTimes[
+                              clientIndex
+                            ] || ""
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            updateClientTime(
+                              clientIndex,
+                              event.target
+                                .value
+                            )
+                          }
+                          disabled={
+                            !form.clientDates[
+                              clientIndex
+                            ] ||
+                            loadingAvailability[
+                              clientIndex
+                            ]
+                          }
+                          required
                         >
-                          {formatBookingTime(time)}
-                        </option>
-                      )
-                    )}
-                  </select>
+                          <option value="">
+                            {loadingAvailability[
+                              clientIndex
+                            ]
+                              ? "Checking availability..."
+                              : !form.clientDates[
+                                  clientIndex
+                                ]
+                              ? "Choose a date first"
+                              : times.length ===
+                                0
+                              ? "No times available"
+                              : "Choose a time"}
+                          </option>
 
-                  {clientIndex > 0 &&
-                    form.clientTimes[
-                      clientIndex - 1
+                          {times.map(
+                            (
+                              time
+                            ) => (
+                              <option
+                                key={
+                                  time
+                                }
+                                value={
+                                  time
+                                }
+                              >
+                                {formatTime(
+                                  time
+                                )}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
+                    </div>
+
+                    {availabilityErrors[
+                      clientIndex
                     ] && (
-                      <p className="mt-1 text-xs text-ink-soft">
-                        Available times begin after Client{" "}
-                        {clientIndex}'s service and the
-                        15-minute gap.
+                      <p className="booking-error">
+                        {
+                          availabilityErrors[
+                            clientIndex
+                          ]
+                        }
                       </p>
                     )}
-                </div>
-              );
-            }
-          )}
 
-          {availabilityError && (
-            <div className="mb-4 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {availabilityError}
-            </div>
-          )}
+                    {form.clientDates[
+                      clientIndex
+                    ] &&
+                      times.length ===
+                        0 &&
+                      !loadingAvailability[
+                        clientIndex
+                      ] &&
+                      !availabilityErrors[
+                        clientIndex
+                      ] && (
+                        <p className="booking-note">
+                          No appointment times
+                          are currently
+                          available for this
+                          date. Please choose
+                          another date.
+                        </p>
+                      )}
 
-          <label
-            className={labelClass}
-            htmlFor="b-notes"
-          >
+                    {clientIndex >
+                      0 &&
+                      form.clientDates[
+                        clientIndex
+                      ] ===
+                        form.clientDates[
+                          clientIndex -
+                            1
+                        ] &&
+                      form.clientTimes[
+                        clientIndex -
+                          1
+                      ] && (
+                        <p className="booking-note">
+                          Same-day clients
+                          are automatically
+                          scheduled with a
+                          15-minute gap between
+                          appointments.
+                        </p>
+                      )}
+                  </div>
+                );
+              }
+            )}
+          </div>
+
+          <label className="booking-notes">
             Notes
+            <textarea
+              value={form.notes}
+              onChange={(event) =>
+                setForm({
+                  ...form,
+                  notes:
+                    event.target.value,
+                })
+              }
+              placeholder="Anything Freddy Nails should know?"
+              rows={4}
+            />
           </label>
 
-          <textarea
-            id="b-notes"
-            placeholder="e.g. Almond shape, nude with gold foil tips"
-            className={`${inputClass} min-h-[80px] resize-y`}
-            value={form.notes}
-            onChange={update("notes")}
-          />
-
           {error && (
-            <div className="mb-4 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="booking-error">
               {error}
-            </div>
+            </p>
           )}
+
+          <div className="booking-summary">
+            <div>
+              <span>
+                Clients
+              </span>
+
+              <strong>
+                {clientCount}
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                Deposit
+              </span>
+
+              <strong>
+                R{totalDeposit}
+              </strong>
+            </div>
+          </div>
 
           <button
             type="submit"
-            disabled={loading}
-            className="flex items-center justify-center gap-2.5 w-full bg-ink text-nude py-4 rounded-sm font-bold uppercase tracking-wide text-[0.85rem] hover:bg-gold hover:text-ink transition-colors disabled:opacity-50"
+            className="booking-submit-button"
+            disabled={submitting}
           >
-            {loading
-              ? "Opening secure payment…"
-              : `Continue to deposit — R${depositAmount}`}
+            {submitting
+              ? "Preparing secure payment..."
+              : `Pay R${totalDeposit} deposit`}
           </button>
+
+          <p className="booking-payment-note">
+            You'll be securely redirected to
+            Yoco to complete your deposit
+            payment.
+          </p>
         </form>
       </div>
     </section>
