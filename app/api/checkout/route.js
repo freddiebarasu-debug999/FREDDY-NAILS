@@ -631,7 +631,7 @@ export async function POST(request) {
       );
 
     const baseUrl =
-      "https://freddy-nails.vercel.app";
+      "https://freddynails.co.za";
 
     const successUrl =
       `${baseUrl}/?booking=success&appointment=${appointmentId}`;
