@@ -9,6 +9,61 @@ const DEPOSIT_PER_CLIENT = 90;
 
 const OPEN_MINUTES = 9 * 60 + 30;
 const CLOSE_MINUTES = 17 * 60 + 30;
+const CLIENT_GAP = 15;
+
+const SERVICE_OPTIONS = [
+  {
+    name: "Acrylic Manicure — Plain",
+    duration: 90,
+  },
+  {
+    name: "Acrylic Manicure — French",
+    duration: 90,
+  },
+  {
+    name: "Acrylic Manicure — Ombré",
+    duration: 150,
+  },
+  {
+    name: "Gel Manicure — Overlay",
+    duration: 90,
+  },
+  {
+    name: "Gel Manicure — Plain",
+    duration: 90,
+  },
+  {
+    name: "Gel Manicure — French",
+    duration: 90,
+  },
+  {
+    name: "Pedicure Set — Gel",
+    duration: 45,
+  },
+  {
+    name: "Pedicure Set — Acrylic",
+    duration: 45,
+  },
+  {
+    name: "Fill-in",
+    duration: 90,
+  },
+  {
+    name: "Nail Art / Rhinestones / 3D Art",
+    duration: 150,
+  },
+  {
+    name: "Repair / Soak Off",
+    duration: 30,
+  },
+];
+
+const SERVICE_DURATIONS = Object.fromEntries(
+  SERVICE_OPTIONS.map((service) => [
+    service.name,
+    service.duration,
+  ])
+);
 
 function timeToMinutes(time) {
   const [hours, minutes] = time.split(":").map(Number);
@@ -41,6 +96,7 @@ export async function POST(request) {
       phone,
       email,
       service,
+      services,
       clientCount,
       date,
       startTime,
@@ -52,6 +108,7 @@ export async function POST(request) {
     if (
       !name ||
       !phone ||
+      !email ||
       !service ||
       !clientCount ||
       !date ||
@@ -60,13 +117,16 @@ export async function POST(request) {
       !durationMinutes
     ) {
       return Response.json(
-        { error: "Please complete all required booking details." },
+        {
+          error:
+            "Please complete all required booking details.",
+        },
         { status: 400 }
       );
     }
 
     const numberOfClients = Number(clientCount);
-    const duration = Number(durationMinutes);
+    const requestedDuration = Number(durationMinutes);
 
     // Validate number of clients.
     if (
@@ -93,7 +153,10 @@ export async function POST(request) {
 
     if (date < todayInSouthAfrica) {
       return Response.json(
-        { error: "You cannot book a date that has already passed." },
+        {
+          error:
+            "You cannot book a date that has already passed.",
+        },
         { status: 400 }
       );
     }
@@ -103,7 +166,9 @@ export async function POST(request) {
 
     if (selectedDate.getDay() === 0) {
       return Response.json(
-        { error: "Freddy Nails is closed on Sundays." },
+        {
+          error: "Freddy Nails is closed on Sundays.",
+        },
         { status: 400 }
       );
     }
@@ -116,29 +181,121 @@ export async function POST(request) {
       );
     }
 
-    // Validate duration.
-    if (!Number.isInteger(duration) || duration <= 0) {
-      return Response.json(
-        { error: "Invalid booking duration." },
-        { status: 400 }
-      );
-    }
-
     const startMinutes = timeToMinutes(startTime);
     const endMinutes = timeToMinutes(endTime);
 
-    // Make sure the end time is actually after the start time.
     if (endMinutes <= startMinutes) {
       return Response.json(
-        { error: "The booking end time must be after the start time." },
+        {
+          error:
+            "The booking end time must be after the start time.",
+        },
         { status: 400 }
       );
     }
 
-    // Make sure the supplied duration matches the selected times.
-    if (endMinutes - startMinutes !== duration) {
+    /*
+      Validate services.
+
+      The frontend sends an array such as:
+      [
+        "Acrylic Manicure — Plain",
+        "Pedicure Set — Gel"
+      ]
+    */
+
+    if (!Array.isArray(services)) {
       return Response.json(
-        { error: "The booking duration does not match the selected times." },
+        {
+          error:
+            "Please select at least one valid service.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (services.length < 1 || services.length > 4) {
+      return Response.json(
+        {
+          error:
+            "You can select between 1 and 4 services.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Make sure every service is recognised.
+    const invalidServices = services.filter(
+      (serviceName) =>
+        typeof serviceName !== "string" ||
+        !SERVICE_DURATIONS[serviceName]
+    );
+
+    if (invalidServices.length > 0) {
+      return Response.json(
+        {
+          error:
+            "One or more selected services are invalid.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Prevent duplicate services in one booking.
+    const uniqueServices = new Set(services);
+
+    if (uniqueServices.size !== services.length) {
+      return Response.json(
+        {
+          error:
+            "Please choose each service only once.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Calculate the real service duration on the server.
+    const singleClientServiceDuration =
+      services.reduce(
+        (total, serviceName) =>
+          total + SERVICE_DURATIONS[serviceName],
+        0
+      );
+
+    /*
+      Multiple clients are scheduled consecutively.
+
+      Example:
+      1 service × 2 clients
+      = service duration × 2
+      + one 15-minute client gap.
+    */
+    const calculatedDuration =
+      singleClientServiceDuration * numberOfClients +
+      CLIENT_GAP *
+        Math.max(0, numberOfClients - 1);
+
+    // Make sure the browser's duration matches our server calculation.
+    if (requestedDuration !== calculatedDuration) {
+      return Response.json(
+        {
+          error:
+            "The booking duration does not match the selected services and number of clients.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Make sure the selected end time matches the real duration.
+    if (
+      endMinutes - startMinutes !==
+      calculatedDuration
+    ) {
+      return Response.json(
+        {
+          error:
+            "The booking end time does not match the selected services.",
+        },
         { status: 400 }
       );
     }
@@ -157,12 +314,12 @@ export async function POST(request) {
       );
     }
 
-    const depositAmount = DEPOSIT_PER_CLIENT * numberOfClients;
+    const depositAmount =
+      DEPOSIT_PER_CLIENT * numberOfClients;
+
     const amountInCents = depositAmount * 100;
 
-    // Release pending bookings whose 15-minute payment window has expired.
-    // This must happen before inserting the new booking so an expired
-    // unpaid booking does not continue blocking the requested time.
+    // Release expired unpaid bookings.
     const { error: expiryError } = await supabase
       .from("appointments")
       .update({
@@ -172,38 +329,45 @@ export async function POST(request) {
       .lt("expires_at", new Date().toISOString());
 
     if (expiryError) {
-      console.error("Pending booking expiry error:", expiryError);
+      console.error(
+        "Pending booking expiry error:",
+        expiryError
+      );
     }
 
-    // Pending bookings are held for 15 minutes while the customer completes payment.
+    // Hold the booking for 15 minutes while payment is completed.
     const expiresAt = new Date(
       Date.now() + 15 * 60 * 1000
     ).toISOString();
 
-    // Create the appointment first as pending.
-    // The database exclusion constraint protects against double-booking.
-    const { data: appointment, error: appointmentError } =
-      await supabase
-        .from("appointments")
-        .insert({
-          customer_name: name,
-          customer_phone: phone,
-          customer_email: email || null,
-          service_name: service,
-          client_count: numberOfClients,
-          booking_date: date,
-          start_time: startTime,
-          end_time: endTime,
-          duration_minutes: duration,
-          deposit_per_client: DEPOSIT_PER_CLIENT,
-          deposit_amount: depositAmount,
-          payment_status: "pending",
-          booking_status: "pending",
-          notes: notes || null,
-          expires_at: expiresAt,
-        })
-        .select()
-        .single();
+    // Store the selected services together in the existing service_name column.
+    const serviceSummary = services.join(" + ");
+
+    // Create the appointment as pending.
+    const {
+      data: appointment,
+      error: appointmentError,
+    } = await supabase
+      .from("appointments")
+      .insert({
+        customer_name: name,
+        customer_phone: phone,
+        customer_email: email,
+        service_name: serviceSummary,
+        client_count: numberOfClients,
+        booking_date: date,
+        start_time: startTime,
+        end_time: endTime,
+        duration_minutes: calculatedDuration,
+        deposit_per_client: DEPOSIT_PER_CLIENT,
+        deposit_amount: depositAmount,
+        payment_status: "pending",
+        booking_status: "pending",
+        notes: notes || null,
+        expires_at: expiresAt,
+      })
+      .select()
+      .single();
 
     if (appointmentError) {
       console.error(
@@ -212,7 +376,6 @@ export async function POST(request) {
       );
 
       // PostgreSQL exclusion constraint violation.
-      // This means somebody else booked the same time first.
       if (appointmentError.code === "23P01") {
         return Response.json(
           {
@@ -253,7 +416,6 @@ export async function POST(request) {
     if (!response.ok) {
       console.error("Yoco checkout error:", data);
 
-      // Payment checkout failed, so mark the appointment as cancelled.
       await supabase
         .from("appointments")
         .update({
@@ -262,12 +424,14 @@ export async function POST(request) {
         .eq("id", appointment.id);
 
       return Response.json(
-        { error: "Unable to create Yoco checkout." },
+        {
+          error: "Unable to create Yoco checkout.",
+        },
         { status: 500 }
       );
     }
 
-    // Save the Yoco checkout ID against the appointment.
+    // Save the Yoco checkout ID.
     const { error: updateError } = await supabase
       .from("appointments")
       .update({
@@ -290,10 +454,16 @@ export async function POST(request) {
       amount: depositAmount,
     });
   } catch (error) {
-    console.error("Checkout API error:", error);
+    console.error(
+      "Checkout API error:",
+      error
+    );
 
     return Response.json(
-      { error: "Something went wrong creating the payment." },
+      {
+        error:
+          "Something went wrong creating the payment.",
+      },
       { status: 500 }
     );
   }
