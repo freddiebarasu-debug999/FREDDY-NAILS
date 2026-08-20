@@ -1,8 +1,5 @@
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
-
-export const dynamic = "force-dynamic";
-
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -13,35 +10,11 @@ const supabase = createClient(
     },
   }
 );
-
-const RESEND_API_URL =
-  "https://api.resend.com/emails";
-
-const FROM_EMAIL =
-  "Freddy Nails <bookings@freddynails.co.za>";
-
-const OWNER_EMAIL =
-  "freddiebarasu@gmail.com";
-
-const REPLY_TO_EMAIL =
-  "freddiebarasu@gmail.com";
-
-function verifySignature(
-  rawBody,
-  headers
-) {
-  const webhookId =
-    headers.get("webhook-id");
-
-  const webhookTimestamp =
-    headers.get("webhook-timestamp");
-
-  const webhookSignature =
-    headers.get("webhook-signature");
-
-  const secret =
-    process.env.YOCO_WEBHOOK_SECRET;
-
+function verifySignature(rawBody, headers) {
+  const webhookId = headers.get("webhook-id");
+  const webhookTimestamp = headers.get("webhook-timestamp");
+  const webhookSignature = headers.get("webhook-signature");
+  const secret = process.env.YOCO_WEBHOOK_SECRET;
   if (
     !webhookId ||
     !webhookTimestamp ||
@@ -50,907 +23,294 @@ function verifySignature(
   ) {
     return false;
   }
-
-  const timestamp = Number(
-    webhookTimestamp
-  );
-
-  const currentTime =
-    Math.floor(Date.now() / 1000);
-
+  // Reject old webhook requests to reduce replay attacks.
+  const timestamp = Number(webhookTimestamp);
+  const currentTime = Math.floor(Date.now() / 1000);
   if (
     !Number.isInteger(timestamp) ||
-    Math.abs(
-      currentTime - timestamp
-    ) > 180
+    Math.abs(currentTime - timestamp) > 180
   ) {
-    console.error(
-      "Yoco webhook timestamp is too old or invalid."
-    );
-
+    console.error("Yoco webhook timestamp is too old or invalid.");
     return false;
   }
-
-  const signedContent =
-    `${webhookId}.${webhookTimestamp}.${rawBody}`;
-
-  const secretValue =
-    secret.startsWith("whsec_")
-      ? secret.slice(6)
-      : secret;
-
-  const secretBytes =
-    Buffer.from(
-      secretValue,
-      "base64"
-    );
-
-  const expectedSignature =
-    crypto
-      .createHmac(
-        "sha256",
-        secretBytes
-      )
-      .update(signedContent)
-      .digest("base64");
-
-  const providedSignatures =
-    webhookSignature
-      .split(" ")
-      .map((value) => {
-        const parts =
-          value.split(",");
-
-        return parts.length > 1
-          ? parts[1]
-          : null;
-      })
-      .filter(Boolean);
-
-  return providedSignatures.some(
-    (signature) => {
-      const expectedBuffer =
-        Buffer.from(
-          expectedSignature
-        );
-
-      const receivedBuffer =
-        Buffer.from(signature);
-
-      if (
-        expectedBuffer.length !==
-        receivedBuffer.length
-      ) {
-        return false;
-      }
-
-      return crypto.timingSafeEqual(
-        expectedBuffer,
-        receivedBuffer
-      );
+  // Yoco signs: webhook-id.webhook-timestamp.rawBody
+  const signedContent = `${webhookId}.${webhookTimestamp}.${rawBody}`;
+  // Remove the whsec_ prefix and Base64-decode the secret.
+  const secretBytes = Buffer.from(
+    secret.split("_")[1],
+    "base64"
+  );
+  // Generate the expected HMAC-SHA256 signature.
+  const expectedSignature = crypto
+    .createHmac("sha256", secretBytes)
+    .update(signedContent)
+    .digest("base64");
+  // Yoco can send multiple signatures separated by spaces.
+  const providedSignatures = webhookSignature
+    .split(" ")
+    .map((item) => item.split(",")[1])
+    .filter(Boolean);
+  return providedSignatures.some((signature) => {
+    const expectedBuffer = Buffer.from(expectedSignature);
+    const receivedBuffer = Buffer.from(signature);
+    if (expectedBuffer.length !== receivedBuffer.length) {
+      return false;
     }
-  );
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(
-      /&/g,
-      "&amp;"
-    )
-    .replace(
-      /</g,
-      "&lt;"
-    )
-    .replace(
-      />/g,
-      "&gt;"
-    )
-    .replace(
-      /"/g,
-      "&quot;"
-    )
-    .replace(
-      /'/g,
-      "&#039;"
+    return crypto.timingSafeEqual(
+      expectedBuffer,
+      receivedBuffer
     );
+  });
 }
 
-function formatDate(
-  dateString
-) {
-  if (!dateString) return "";
-
-  const date =
-    new Date(
-      `${dateString}T12:00:00`
-    );
-
-  return date.toLocaleDateString(
-    "en-ZA",
-    {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }
-  );
-}
-
-function formatTime(
-  timeString
-) {
-  if (!timeString) return "";
-
-  const [hours, minutes] =
-    String(timeString)
-      .slice(0, 5)
-      .split(":")
-      .map(Number);
-
-  const date =
-    new Date();
-
-  date.setHours(
-    hours,
-    minutes,
-    0,
-    0
-  );
-
-  return date.toLocaleTimeString(
-    "en-ZA",
-    {
-      hour: "numeric",
-      minute: "2-digit",
-    }
-  );
-}
-
-async function sendEmail({
-  to,
-  subject,
-  html,
-  idempotencyKey,
-}) {
-  const response =
-    await fetch(
-      RESEND_API_URL,
-      {
-        method: "POST",
-        headers: {
-          Authorization:
-            `Bearer ${process.env.RESEND_API_KEY}`,
-
-          "Content-Type":
-            "application/json",
-
-          "Idempotency-Key":
-            idempotencyKey,
-        },
-
-        body: JSON.stringify({
-          from: FROM_EMAIL,
-          to: [to],
-          reply_to: REPLY_TO_EMAIL,
-          subject,
-          html,
-        }),
-      }
-    );
-
-  const data =
-    await response.json();
-
-  if (!response.ok) {
-    console.error(
-      "Resend email error:",
-      data
-    );
-
-    throw new Error(
-      data?.message ||
-        data?.error ||
-        "Unable to send email."
-    );
-  }
-
-  return data;
-}
-
-function buildClientHtml(
-  clients
-) {
-  if (
-    !clients ||
-    clients.length === 0
-  ) {
-    return "";
-  }
-
-  return clients
-    .map(
-      (client, index) => `
-        <div style="background: #f5efe8; padding: 18px; margin: 12px 0;">
-          <p style="margin-top: 0;">
-            <strong>Client ${index + 1}</strong>
-          </p>
-
-          <p>
-            <strong>Services:</strong>
-            ${escapeHtml(
-              client.service_name
-            )}
-          </p>
-
-          <p>
-            <strong>Date:</strong>
-            ${escapeHtml(
-              formatDate(
-                client.booking_date
-              )
-            )}
-          </p>
-
-          <p>
-            <strong>Time:</strong>
-            ${escapeHtml(
-              formatTime(
-                client.start_time
-              )
-            )}
-            –
-            ${escapeHtml(
-              formatTime(
-                client.end_time
-              )
-            )}
-          </p>
-        </div>
-      `
-    )
-    .join("");
-}
-
-function buildClientText(
-  clients
-) {
-  if (
-    !clients ||
-    clients.length === 0
-  ) {
-    return "";
-  }
-
-  return clients
-    .map(
-      (client, index) =>
-        `Client ${index + 1}: ${
-          client.service_name
-        } — ${formatDate(
-          client.booking_date
-        )} ${formatTime(
-          client.start_time
-        )} – ${formatTime(
-          client.end_time
-        )}`
-    )
-    .join("\n");
-}
-
-export async function POST(
-  request
-) {
+function formatBookingDate(dateStr) {
   try {
-    const rawBody =
-      await request.text();
+    const d = new Date(`${dateStr}T00:00:00`);
+    return d.toLocaleDateString("en-ZA", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
-    const isValid =
-      verifySignature(
-        rawBody,
-        request.headers
-      );
+function formatTime(timeStr) {
+  if (!timeStr) return "";
+  const [h, m] = timeStr.split(":");
+  const hour = Number(h);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${m} ${suffix}`;
+}
 
+const EMAIL_FROM = "Freddy Nails <bookings@freddynails.co.za>";
+
+async function sendEmail({ to, subject, html }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error("RESEND_API_KEY is not set; skipping email send.");
+    return;
+  }
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: EMAIL_FROM,
+        to: [to],
+        subject,
+        html,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Resend send failed:", to, res.status, errText);
+    } else {
+      console.log("Email sent to", to);
+    }
+  } catch (err) {
+    console.error("Error sending email to", to, err);
+  }
+}
+
+async function sendOwnerNotification(appointment) {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1B1714;">
+      <h2 style="color: #AD8A4E; margin-bottom: 4px;">New paid booking 💅</h2>
+      <p style="margin-top: 0; color: #555;">A deposit has been confirmed on Freddy Nails.</p>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+        <tr><td style="padding: 6px 0; color: #888;">Client</td><td style="padding: 6px 0; font-weight: bold;">${appointment.customer_name}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Phone</td><td style="padding: 6px 0;">${appointment.customer_phone}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Email</td><td style="padding: 6px 0;">${appointment.customer_email || "—"}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Booking summary</td><td style="padding: 6px 0;">${appointment.service_name}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Clients</td><td style="padding: 6px 0;">${appointment.client_count}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Deposit paid</td><td style="padding: 6px 0; font-weight: bold;">R${appointment.deposit_amount}</td></tr>
+        ${appointment.notes ? `<tr><td style="padding: 6px 0; color: #888;">Notes</td><td style="padding: 6px 0;">${appointment.notes}</td></tr>` : ""}
+      </table>
+      <p style="margin-top: 20px; font-size: 13px; color: #999;">Freddy Nails booking system</p>
+    </div>
+  `;
+
+  await sendEmail({
+    to: "freddiebarasu@gmail.com",
+    subject: `New paid booking — ${appointment.customer_name}`,
+    html,
+  });
+}
+
+async function sendCustomerConfirmation(appointment) {
+  if (!appointment.customer_email) {
+    console.log("No customer email on file; skipping customer confirmation.");
+    return;
+  }
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1B1714;">
+      <h2 style="color: #AD8A4E; margin-bottom: 4px;">You're booked! 💅</h2>
+      <p style="margin-top: 0; color: #555;">Hi ${appointment.customer_name}, your deposit has been received and your appointment with Freddy Nails is confirmed.</p>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+        <tr><td style="padding: 6px 0; color: #888;">Booking summary</td><td style="padding: 6px 0; font-weight: bold;">${appointment.service_name}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Clients</td><td style="padding: 6px 0;">${appointment.client_count}</td></tr>
+        <tr><td style="padding: 6px 0; color: #888;">Deposit paid</td><td style="padding: 6px 0; font-weight: bold;">R${appointment.deposit_amount}</td></tr>
+        ${appointment.notes ? `<tr><td style="padding: 6px 0; color: #888;">Your notes</td><td style="padding: 6px 0;">${appointment.notes}</td></tr>` : ""}
+      </table>
+      <p style="margin-top: 20px; color: #555;">
+        Address: 8 Rhodes, Quigney, East London, Eastern Cape<br/>
+        WhatsApp: <a href="https://wa.me/27710888897" style="color: #AD8A4E;">+27 71 088 8897</a>
+      </p>
+      <p style="margin-top: 20px; font-size: 13px; color: #999;">Please arrive a few minutes early. If you need to reschedule, message us on WhatsApp at least 24 hours ahead.</p>
+      <p style="margin-top: 16px; font-size: 13px; color: #999;">Freddy Nails · @nailsby_freddy</p>
+    </div>
+  `;
+
+  await sendEmail({
+    to: appointment.customer_email,
+    subject: "Booking confirmed — Freddy Nails",
+    html,
+  });
+}
+
+export async function POST(request) {
+  try {
+    // IMPORTANT:
+    // Read the raw body before parsing JSON.
+    const rawBody = await request.text();
+    const isValid = verifySignature(
+      rawBody,
+      request.headers
+    );
     if (!isValid) {
-      console.error(
-        "Invalid Yoco webhook signature."
-      );
-
+      console.error("Invalid Yoco webhook signature.");
       return Response.json(
-        {
-          error:
-            "Invalid webhook signature.",
-        },
+        { error: "Invalid webhook signature." },
         { status: 401 }
       );
     }
-
-    const event =
-      JSON.parse(rawBody);
-
-    console.log(
-      "Verified Yoco webhook:",
-      event.type
-    );
-
-    if (
-      event.type !==
-      "payment.succeeded"
-    ) {
-      return Response.json({
-        received: true,
-      });
+    const event = JSON.parse(rawBody);
+    console.log("Verified Yoco webhook:", event.type);
+    // We only need successful payments for now.
+    if (event.type !== "payment.succeeded") {
+      return Response.json({ received: true });
     }
-
-    const payment =
-      event.payload;
-
-    const checkoutId =
-      payment?.metadata?.checkoutId;
-
+    const payment = event.payload;
+    const checkoutId = payment?.metadata?.checkoutId;
     if (!checkoutId) {
-      console.error(
-        "Yoco payment has no checkoutId."
-      );
-
+      console.error("Yoco payment has no checkoutId.");
       return Response.json(
-        {
-          error:
-            "Missing checkout ID.",
-        },
+        { error: "Missing checkout ID." },
         { status: 400 }
       );
     }
-
-    const {
-      data: appointment,
-      error: findError,
-    } = await supabase
-      .from("appointments")
-      .select(`
-        id,
-        customer_name,
-        customer_phone,
-        customer_email,
-        service_name,
-        client_count,
-        booking_date,
-        start_time,
-        end_time,
-        duration_minutes,
-        deposit_amount,
-        payment_status,
-        booking_status,
-        notes,
-        customer_email_sent_at,
-        owner_email_sent_at
-      `)
-      .eq(
-        "yoco_checkout_id",
-        checkoutId
-      )
-      .maybeSingle();
-
+    // Find the appointment created before the customer
+    // was redirected to Yoco.
+    const { data: appointment, error: findError } =
+      await supabase
+        .from("appointments")
+        .select(
+          "id, customer_name, customer_phone, customer_email, service_name, client_count, booking_date, start_time, notes, deposit_amount, payment_status, booking_status"
+        )
+        .eq("yoco_checkout_id", checkoutId)
+        .maybeSingle();
     if (findError) {
-      console.error(
-        "Supabase lookup error:",
-        findError
-      );
-
+      console.error("Supabase lookup error:", findError);
       return Response.json(
-        {
-          error:
-            "Unable to find appointment.",
-        },
+        { error: "Unable to find appointment." },
         { status: 500 }
       );
     }
-
     if (!appointment) {
       console.error(
         "No appointment found for Yoco checkout:",
         checkoutId
       );
-
       return Response.json(
-        {
-          error:
-            "Appointment not found.",
-        },
+        { error: "Appointment not found." },
         { status: 404 }
       );
     }
-
-    const paidAmount =
-      Number(payment.amount);
-
+    // Verify that the amount Yoco says was paid matches
+    // the deposit we expected.
+    const paidAmount = Number(payment.amount);
     const expectedAmount =
-      Number(
-        appointment.deposit_amount
-      ) * 100;
-
-    if (
-      paidAmount !==
-      expectedAmount
-    ) {
-      console.error(
-        "Yoco payment amount mismatch.",
-        {
-          appointmentId:
-            appointment.id,
-          expectedAmount,
-          paidAmount,
-        }
-      );
-
+      Number(appointment.deposit_amount) * 100;
+    if (paidAmount !== expectedAmount) {
+      console.error("Yoco payment amount mismatch.", {
+        appointmentId: appointment.id,
+        expectedAmount,
+        paidAmount,
+      });
       return Response.json(
-        {
-          error:
-            "Payment amount mismatch.",
-        },
+        { error: "Payment amount mismatch." },
         { status: 400 }
       );
     }
-
-    /*
-     * Load the individual client appointments.
-     */
-    const {
-      data: clients,
-      error: clientsLookupError,
-    } = await supabase
-      .from("appointment_clients")
-      .select(`
-        id,
-        client_number,
-        service_name,
-        booking_date,
-        start_time,
-        end_time,
-        duration_minutes,
-        booking_status
-      `)
-      .eq(
-        "appointment_id",
-        appointment.id
-      )
-      .order(
-        "client_number",
-        {
-          ascending: true,
-        }
-      );
-
-    if (clientsLookupError) {
+    // Confirm the parent appointment record.
+    const { error: updateError } = await supabase
+      .from("appointments")
+      .update({
+        payment_status: "paid",
+        booking_status: "confirmed",
+        yoco_payment_id: payment.id,
+      })
+      .eq("id", appointment.id);
+    if (updateError) {
       console.error(
-        "Client appointments lookup error:",
-        clientsLookupError
+        "Supabase payment update error:",
+        updateError
       );
-
       return Response.json(
-        {
-          error:
-            "Unable to load client appointments.",
-        },
+        { error: "Unable to confirm appointment." },
         { status: 500 }
       );
     }
 
-    /*
-     * Confirm the parent appointment.
-     */
-    if (
-      appointment.payment_status !==
-        "paid" ||
-      appointment.booking_status !==
-        "confirmed"
-    ) {
-      const {
-        error: updateError,
-      } = await supabase
-        .from("appointments")
-        .update({
-          payment_status: "paid",
-          booking_status:
-            "confirmed",
-          yoco_payment_id:
-            payment.id,
-        })
-        .eq(
-          "id",
-          appointment.id
-        );
-
-      if (updateError) {
-        console.error(
-          "Supabase payment update error:",
-          updateError
-        );
-
-        return Response.json(
-          {
-            error:
-              "Unable to confirm appointment.",
-          },
-          { status: 500 }
-        );
-      }
-    }
-
-    /*
-     * Confirm every individual client appointment.
-     */
-    const {
-      error: clientUpdateError,
-    } = await supabase
+    // Also confirm every individual client appointment
+    // tied to this booking, so the confirmation screen
+    // and future availability checks see them as booked.
+    const { error: clientsUpdateError } = await supabase
       .from("appointment_clients")
       .update({
-        booking_status:
-          "confirmed",
+        booking_status: "confirmed",
       })
-      .eq(
-        "appointment_id",
-        appointment.id
-      )
-      .in(
-        "booking_status",
-        ["pending", "confirmed"]
-      );
+      .eq("appointment_id", appointment.id);
 
-    if (clientUpdateError) {
+    if (clientsUpdateError) {
       console.error(
-        "Client appointment confirmation error:",
-        clientUpdateError
+        "Supabase client appointments update error:",
+        clientsUpdateError
       );
-
-      return Response.json(
-        {
-          error:
-            "Payment succeeded, but client appointments could not be confirmed.",
-        },
-        { status: 500 }
-      );
+      // Don't fail the whole webhook over this — the parent
+      // booking is already correctly marked paid/confirmed,
+      // which is the critical part.
     }
 
     console.log(
-      "Appointment and client appointments confirmed:",
+      "Appointment confirmed after successful Yoco payment:",
       appointment.id
     );
 
-    const formattedDate =
-      formatDate(
-        appointment.booking_date
-      );
+    // Notify the business owner and the customer by email. These
+    // run after the booking is already confirmed, so a failure
+    // here never blocks or reverses the confirmation itself.
+    await sendOwnerNotification(appointment);
+    await sendCustomerConfirmation(appointment);
 
-    const formattedStartTime =
-      formatTime(
-        appointment.start_time
-      );
-
-    const formattedEndTime =
-      formatTime(
-        appointment.end_time
-      );
-
-    const safeName =
-      escapeHtml(
-        appointment.customer_name
-      );
-
-    const safeService =
-      escapeHtml(
-        appointment.service_name
-      );
-
-    const safeDate =
-      escapeHtml(
-        formattedDate
-      );
-
-    const safeStartTime =
-      escapeHtml(
-        formattedStartTime
-      );
-
-    const safeEndTime =
-      escapeHtml(
-        formattedEndTime
-      );
-
-    const safeNotes =
-      escapeHtml(
-        appointment.notes ||
-          "No additional notes."
-      );
-
-    const clientHtml =
-      buildClientHtml(
-        clients
-      );
-
-    const clientText =
-      buildClientText(
-        clients
-      );
-
-    /*
-     * CUSTOMER CONFIRMATION EMAIL
-     */
-    if (
-      appointment.customer_email &&
-      !appointment.customer_email_sent_at
-    ) {
-      try {
-        await sendEmail({
-          to:
-            appointment.customer_email,
-
-          subject:
-            "Freddy Nails — Your appointment is confirmed 💅",
-
-          idempotencyKey:
-            `booking-confirmation-customer/${appointment.id}`,
-
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; color: #1d1a17; line-height: 1.6;">
-
-              <h1 style="font-family: Georgia, serif; font-weight: 500;">
-                Your appointment is confirmed
-              </h1>
-
-              <p>
-                Hi ${safeName},
-              </p>
-
-              <p>
-                Thank you for booking with Freddy Nails Studio.
-                Your deposit has been received and your appointment
-                is confirmed.
-              </p>
-
-              ${
-                clientHtml
-                  ? `
-                    <h2 style="font-family: Georgia, serif; font-weight: 500;">
-                      Your appointments
-                    </h2>
-
-                    ${clientHtml}
-                  `
-                  : `
-                    <div style="background: #f5efe8; padding: 20px; margin: 24px 0;">
-                      <p>
-                        <strong>Service:</strong>
-                        ${safeService}
-                      </p>
-
-                      <p>
-                        <strong>Clients:</strong>
-                        ${appointment.client_count}
-                      </p>
-
-                      <p>
-                        <strong>Date:</strong>
-                        ${safeDate}
-                      </p>
-
-                      <p>
-                        <strong>Time:</strong>
-                        ${safeStartTime} –
-                        ${safeEndTime}
-                      </p>
-                    </div>
-                  `
-              }
-
-              <div style="background: #f5efe8; padding: 20px; margin: 24px 0;">
-                <p>
-                  <strong>Deposit paid:</strong>
-                  R${appointment.deposit_amount}
-                </p>
-              </div>
-
-              ${
-                appointment.notes
-                  ? `
-                    <p>
-                      <strong>Your notes:</strong><br />
-                      ${safeNotes}
-                    </p>
-                  `
-                  : ""
-              }
-
-              <p>
-                We look forward to seeing you at Freddy Nails Studio. 💅
-              </p>
-
-              <p>
-                If you need to contact us about your appointment,
-                simply reply to this email.
-              </p>
-
-              <p>
-                Love,<br />
-                <strong>Freddy Nails Studio</strong>
-              </p>
-
-            </div>
-          `,
-        });
-
-        await supabase
-          .from("appointments")
-          .update({
-            customer_email_sent_at:
-              new Date().toISOString(),
-          })
-          .eq(
-            "id",
-            appointment.id
-          );
-
-        console.log(
-          "Customer confirmation email sent:",
-          appointment.id
-        );
-      } catch (emailError) {
-        console.error(
-          "Customer confirmation email failed:",
-          emailError
-        );
-      }
-    }
-
-    /*
-     * OWNER NOTIFICATION EMAIL
-     */
-    if (
-      !appointment.owner_email_sent_at
-    ) {
-      try {
-        await sendEmail({
-          to: OWNER_EMAIL,
-
-          subject:
-            `New paid booking — ${appointment.customer_name}`,
-
-          idempotencyKey:
-            `booking-confirmation-owner/${appointment.id}`,
-
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; color: #1d1a17; line-height: 1.6;">
-
-              <h1 style="font-family: Georgia, serif; font-weight: 500;">
-                New paid booking
-              </h1>
-
-              <p>
-                A new Freddy Nails appointment has been paid and confirmed.
-              </p>
-
-              <div style="background: #f5efe8; padding: 20px; margin: 24px 0;">
-
-                <p>
-                  <strong>Customer:</strong>
-                  ${safeName}
-                </p>
-
-                <p>
-                  <strong>Phone:</strong>
-                  ${escapeHtml(
-                    appointment.customer_phone
-                  )}
-                </p>
-
-                <p>
-                  <strong>Email:</strong>
-                  ${escapeHtml(
-                    appointment.customer_email ||
-                      "Not provided"
-                  )}
-                </p>
-
-                <p>
-                  <strong>Clients:</strong>
-                  ${appointment.client_count}
-                </p>
-
-                <p>
-                  <strong>Deposit paid:</strong>
-                  R${appointment.deposit_amount}
-                </p>
-
-              </div>
-
-              ${
-                clientHtml
-                  ? `
-                    <h2 style="font-family: Georgia, serif; font-weight: 500;">
-                      Individual appointments
-                    </h2>
-
-                    ${clientHtml}
-                  `
-                  : `
-                    <div style="background: #f5efe8; padding: 20px; margin: 24px 0;">
-                      <p>
-                        <strong>Service:</strong>
-                        ${safeService}
-                      </p>
-
-                      <p>
-                        <strong>Date:</strong>
-                        ${safeDate}
-                      </p>
-
-                      <p>
-                        <strong>Time:</strong>
-                        ${safeStartTime} –
-                        ${safeEndTime}
-                      </p>
-                    </div>
-                  `
-              }
-
-              <p>
-                <strong>Customer notes:</strong><br />
-                ${safeNotes}
-              </p>
-
-              <p>
-                Booking ID:
-                ${escapeHtml(
-                  appointment.id
-                )}
-              </p>
-
-            </div>
-          `,
-        });
-
-        await supabase
-          .from("appointments")
-          .update({
-            owner_email_sent_at:
-              new Date().toISOString(),
-          })
-          .eq(
-            "id",
-            appointment.id
-          );
-
-        console.log(
-          "Owner notification email sent:",
-          appointment.id
-        );
-      } catch (emailError) {
-        console.error(
-          "Owner notification email failed:",
-          emailError
-        );
-      }
-    }
-
-    return Response.json({
-      received: true,
-      appointmentId:
-        appointment.id,
-      paymentStatus: "paid",
-      bookingStatus:
-        "confirmed",
-    });
+    return Response.json({ received: true });
   } catch (error) {
     console.error(
       "Yoco webhook processing error:",
       error
     );
-
     return Response.json(
-      {
-        error:
-          "Webhook processing failed.",
-      },
+      { error: "Webhook processing failed." },
       { status: 500 }
     );
   }
