@@ -38,6 +38,19 @@ function isValidDate(date) {
 
 export async function GET(request) {
   try {
+    // Release pending bookings whose 15-minute payment window has expired.
+    const { error: expiryError } = await supabase
+      .from("appointments")
+      .update({
+        booking_status: "cancelled",
+      })
+      .eq("booking_status", "pending")
+      .lt("expires_at", new Date().toISOString());
+
+    if (expiryError) {
+      console.error("Pending booking expiry error:", expiryError);
+    }
+
     const url = new URL(request.url);
 
     const date = url.searchParams.get("date");
