@@ -84,6 +84,7 @@ export default function Booking() {
   const [form, setForm] = useState({
     name: "",
     phone: "",
+    email: "",
     service: SERVICE_OPTIONS[0].name,
     clients: "1",
     date: "",
@@ -200,6 +201,7 @@ export default function Booking() {
         body: JSON.stringify({
           name: form.name,
           phone: form.phone,
+          email: form.email,
           service: form.service,
           clientCount,
           date: form.date,
@@ -336,6 +338,20 @@ export default function Booking() {
               />
             </div>
           </div>
+
+          <label className={labelClass} htmlFor="b-email">
+            Email
+          </label>
+
+          <input
+            id="b-email"
+            type="email"
+            required
+            placeholder="you@email.com"
+            className={inputClass}
+            value={form.email}
+            onChange={update("email")}
+          />
 
           <label className={labelClass} htmlFor="b-service">
             Service
