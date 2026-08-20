@@ -19,6 +19,7 @@ const SLOT_INTERVAL = 15;
 
 function timeToMinutes(time) {
   const [hours, minutes] = time.split(":").map(Number);
+
   return hours * 60 + minutes;
 }
 
@@ -26,10 +27,9 @@ function minutesToTime(minutes) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
 
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(
-    2,
-    "0"
-  )}`;
+  return `${String(hours).padStart(2, "0")}:${String(
+    mins
+  ).padStart(2, "0")}`;
 }
 
 function isValidDate(date) {
@@ -38,40 +38,70 @@ function isValidDate(date) {
 
 export async function GET(request) {
   try {
-    // Release pending bookings whose 15-minute payment window has expired.
-    const { error: expiryError } = await supabase
-      .from("appointments")
-      .update({
-        booking_status: "cancelled",
-      })
-      .eq("booking_status", "pending")
-      .lt("expires_at", new Date().toISOString());
-
-    if (expiryError) {
-      console.error("Pending booking expiry error:", expiryError);
-    }
-
     const url = new URL(request.url);
 
     const date = url.searchParams.get("date");
-    const duration = Number(url.searchParams.get("duration"));
+    const duration = Number(
+      url.searchParams.get("duration")
+    );
 
     if (!date || !isValidDate(date)) {
       return Response.json(
-        { error: "Please provide a valid booking date." },
+        {
+          error:
+            "Please provide a valid booking date.",
+        },
         { status: 400 }
       );
     }
 
-    if (!Number.isInteger(duration) || duration <= 0) {
+    if (
+      !Number.isInteger(duration) ||
+      duration <= 0
+    ) {
       return Response.json(
-        { error: "Please provide a valid booking duration." },
+        {
+          error:
+            "Please provide a valid booking duration.",
+        },
         { status: 400 }
       );
     }
 
-    const selectedDate = new Date(`${date}T12:00:00`);
-    const dayOfWeek = selectedDate.getDay();
+    /*
+     * Release expired pending bookings.
+     *
+     * This keeps abandoned Yoco checkouts from blocking
+     * appointment times after their 15-minute window.
+     */
+    const { error: expiryError } =
+      await supabase
+        .from("appointments")
+        .update({
+          booking_status: "cancelled",
+        })
+        .eq("booking_status", "pending")
+        .lt(
+          "expires_at",
+          new Date().toISOString()
+        );
+
+    if (expiryError) {
+      console.error(
+        "Pending booking expiry error:",
+        expiryError
+      );
+    }
+
+    /*
+     * A Sunday is closed.
+     */
+    const selectedDate = new Date(
+      `${date}T12:00:00`
+    );
+
+    const dayOfWeek =
+      selectedDate.getDay();
 
     if (dayOfWeek === 0) {
       return Response.json({
@@ -80,49 +110,83 @@ export async function GET(request) {
       });
     }
 
-    const { data: appointments, error } = await supabase
-      .from("appointments")
-      .select("start_time, end_time, booking_status")
+    /*
+     * Get individual client appointments for this date.
+     *
+     * These are now the source of truth for availability.
+     */
+    const {
+      data: clientAppointments,
+      error,
+    } = await supabase
+      .from("appointment_clients")
+      .select(
+        "start_time, end_time, booking_status, appointment_id"
+      )
       .eq("booking_date", date)
-      .in("booking_status", ["pending", "confirmed"]);
+      .in("booking_status", [
+        "pending",
+        "confirmed",
+      ]);
 
     if (error) {
-      console.error("Availability Supabase error:", error);
+      console.error(
+        "Availability Supabase error:",
+        error
+      );
 
       return Response.json(
-        { error: "Unable to check availability." },
+        {
+          error:
+            "Unable to check availability.",
+        },
         { status: 500 }
       );
     }
 
-    console.log("Availability appointments:", appointments);
-
     const availableTimes = [];
 
+    /*
+     * Check every 15-minute starting point.
+     */
     for (
       let startMinutes = OPEN_MINUTES;
       startMinutes + duration <= CLOSE_MINUTES;
       startMinutes += SLOT_INTERVAL
     ) {
-      const endMinutes = startMinutes + duration;
+      const endMinutes =
+        startMinutes + duration;
 
-      const overlaps = (appointments || []).some((appointment) => {
-        const appointmentStart = timeToMinutes(
-          String(appointment.start_time).slice(0, 5)
-        );
+      const overlaps =
+        (clientAppointments || []).some(
+          (appointment) => {
+            const appointmentStart =
+              timeToMinutes(
+                String(
+                  appointment.start_time
+                ).slice(0, 5)
+              );
 
-        const appointmentEnd = timeToMinutes(
-          String(appointment.end_time).slice(0, 5)
-        );
+            const appointmentEnd =
+              timeToMinutes(
+                String(
+                  appointment.end_time
+                ).slice(0, 5)
+              );
 
-        return (
-          startMinutes < appointmentEnd &&
-          endMinutes > appointmentStart
+            return (
+              startMinutes <
+                appointmentEnd &&
+              endMinutes >
+                appointmentStart
+            );
+          }
         );
-      });
 
       if (!overlaps) {
-        availableTimes.push(minutesToTime(startMinutes));
+        availableTimes.push(
+          minutesToTime(startMinutes)
+        );
       }
     }
 
@@ -131,10 +195,16 @@ export async function GET(request) {
       availableTimes,
     });
   } catch (error) {
-    console.error("Availability API error:", error);
+    console.error(
+      "Availability API error:",
+      error
+    );
 
     return Response.json(
-      { error: "Something went wrong checking availability." },
+      {
+        error:
+          "Something went wrong checking availability.",
+      },
       { status: 500 }
     );
   }
