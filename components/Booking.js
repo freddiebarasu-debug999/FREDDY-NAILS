@@ -43,6 +43,36 @@ const SERVICE_CATEGORIES = [
     ],
   },
   {
+    category: "Eyelash Extensions",
+    items: [
+      { name: "Lashes — Cluster (R130)", duration: 45 },
+      { name: "Lashes — Cateye (R150)", duration: 60 },
+      { name: "Lashes — Classic (R180)", duration: 90 },
+      {
+        name: "Lashes — Hybrid (Coming soon)",
+        duration: 105,
+        disabled: true,
+      },
+      {
+        name: "Lashes — Volume (Coming soon)",
+        duration: 120,
+        disabled: true,
+      },
+      {
+        name: "Lashes — Mega Volume (Coming soon)",
+        duration: 135,
+        disabled: true,
+      },
+    ],
+  },
+  {
+    category: "Foot Spa",
+    items: [
+      { name: "Foot Spa — Basic (R200)", duration: 30 },
+      { name: "Foot Spa — Luxury (R280)", duration: 45 },
+    ],
+  },
+  {
     category: "Extras — add-on to a service above",
     items: [
       { name: "Extra — Buff & Shine (R150)", duration: 30 },
@@ -658,7 +688,7 @@ export default function Booking() {
   {SERVICE_CATEGORIES.map((group) => (
     <optgroup key={group.category} label={group.category}>
       {group.items.map((option) => (
-        <option key={option.name} value={option.name}>
+        <option key={option.name} value={option.name} disabled={option.disabled}>
           {option.name}
         </option>
       ))}
