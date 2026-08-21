@@ -167,6 +167,7 @@ export default function Booking() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [confirmedBooking, setConfirmedBooking] = useState(null);
+  const [confirmingBooking, setConfirmingBooking] = useState(false);
 
   const clientCount = Number(form.clients);
   const todayString = getTodayString();
@@ -452,7 +453,13 @@ export default function Booking() {
 
     const appointmentId = params.get("appointment");
 
-    async function loadConfirmedBooking() {
+    async function loadConfirmedBooking(attempt = 1) {
+      const MAX_ATTEMPTS = 8;
+
+      if (attempt === 1) {
+        setConfirmingBooking(true);
+      }
+
       try {
         const response = await fetch(
           `/api/booking?id=${encodeURIComponent(appointmentId)}`,
@@ -461,18 +468,49 @@ export default function Booking() {
         const data = await response.json();
 
         if (!response.ok) {
+          // The webhook may not have confirmed the booking yet —
+          // Yoco's redirect back to this page can arrive slightly
+          // before the server-to-server webhook does. Retry a few
+          // times before giving up.
+          if (attempt < MAX_ATTEMPTS) {
+            setTimeout(() => loadConfirmedBooking(attempt + 1), 2000);
+            return;
+          }
+          setConfirmingBooking(false);
           throw new Error(data.error || "Unable to load booking.");
         }
 
         setConfirmedBooking(data.appointment);
+        setConfirmingBooking(false);
         window.history.replaceState({}, "", window.location.pathname);
       } catch (bookingError) {
         console.error("Confirmation lookup error:", bookingError);
+        setConfirmingBooking(false);
       }
     }
 
     loadConfirmedBooking();
   }, []);
+
+  if (confirmingBooking && !confirmedBooking) {
+    return (
+      <section id="booking" className="max-w-[1180px] mx-auto px-5 py-22">
+        <div className="max-w-[560px] mx-auto text-center bg-nude-deep border border-line rounded p-9 md:p-13">
+          <div className="w-12 h-12 rounded-full border-2 border-gold border-t-transparent animate-spin mx-auto mb-5" />
+          <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
+            Freddy Nails Studio
+          </p>
+          <h2 className="font-serif font-medium text-[clamp(1.7rem,4vw,2.3rem)] mt-3 mb-2">
+            Confirming your booking...
+          </h2>
+          <p className="text-ink-soft leading-relaxed">
+            Your payment went through — just finalising the details. This
+            usually takes a few seconds.
+          </p>
+        </div>
+      </section>
+    );
+  }
 
   if (confirmedBooking) {
     const whatsappMessage = encodeURIComponent(
@@ -676,25 +714,29 @@ export default function Booking() {
                         key={`${clientIndex}-${serviceIndex}`}
                         className="flex gap-2 items-center"
                       >
-                       <select
-  className={`${inputClass} flex-1`}
-  value={serviceName}
-  onChange={(event) => {
-    const updated = [...services];
-    updated[serviceIndex] = event.target.value;
-    updateClientServices(clientIndex, updated);
-  }}
->
-  {SERVICE_CATEGORIES.map((group) => (
-    <optgroup key={group.category} label={group.category}>
-      {group.items.map((option) => (
-        <option key={option.name} value={option.name} disabled={option.disabled}>
-          {option.name}
-        </option>
-      ))}
-    </optgroup>
-  ))}
-</select>
+                        <select
+                          className={`${inputClass} flex-1`}
+                          value={serviceName}
+                          onChange={(event) => {
+                            const updated = [...services];
+                            updated[serviceIndex] = event.target.value;
+                            updateClientServices(clientIndex, updated);
+                          }}
+                        >
+                          {SERVICE_CATEGORIES.map((group) => (
+                            <optgroup key={group.category} label={group.category}>
+                              {group.items.map((option) => (
+                                <option
+                                  key={option.name}
+                                  value={option.name}
+                                  disabled={option.disabled}
+                                >
+                                  {option.name}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
 
                         {services.length > 1 && (
                           <button
