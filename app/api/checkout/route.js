@@ -21,19 +21,47 @@ const OPEN_MINUTES = 9 * 60 + 30;
 const CLOSE_MINUTES = 17 * 60 + 30;
 
 const SERVICE_OPTIONS = {
-  "Acrylic Manicure — Plain": 90,
-  "Acrylic Manicure — French": 90,
-  "Acrylic Manicure — Ombré": 150,
-  "Gel Manicure — Overlay": 90,
-  "Gel Manicure — Plain": 90,
-  "Gel Manicure — French": 90,
-  "Pedicure Set — Gel": 45,
-  "Pedicure Set — Acrylic": 45,
-  "Fill-in": 90,
-  "Nail Art / Rhinestones / 3D Art": 150,
-  "Repair / Soak Off": 30,
-};
+  "Acrylic — Plain Short–Medium (R200)": 90,
+  "Acrylic — Plain Long (R250)": 105,
+  "Acrylic — Plain XL–XXXL (R300)": 120,
+  "Acrylic — French Short–Medium (R300)": 100,
+  "Acrylic — French Long (R350)": 115,
+  "Acrylic — French XL–XXL (R400)": 130,
+  "Acrylic — Ombré Short–Medium (R250)": 120,
+  "Acrylic — Ombré Long (R300)": 135,
+  "Acrylic — Ombré XL–XXXL (R350)": 150,
 
+  "Gel — Overlay (R200)": 75,
+  "Gel — Plain Short–Medium (R250)": 90,
+  "Gel — Plain Long (R300)": 100,
+  "Gel — French Short–Medium (R300)": 95,
+  "Gel — French Long (R350)": 110,
+
+  "Pedicure — Gel Overlay (R150)": 45,
+  "Pedicure — Gel Full Tips (R200)": 60,
+  "Pedicure — Acrylic Overlay (R180)": 55,
+  "Pedicure — Acrylic Full Tips (R200)": 65,
+  "Pedicure — Acrylic French Tips (R250)": 75,
+
+  "Lashes — Cluster (R130)": 45,
+  "Lashes — Cateye (R150)": 60,
+  "Lashes — Classic (R180)": 90,
+  // Hybrid, Volume, and Mega Volume are intentionally left out here —
+  // they're shown but disabled on the booking form since they're not
+  // offered yet. Leaving them out of this object means the server
+  // rejects them too, not just the UI.
+
+  "Foot Spa — Basic (R200)": 30,
+  "Foot Spa — Luxury (R280)": 45,
+
+  "Extra — Buff & Shine (R150)": 30,
+  "Extra — Fill-in @3 weeks (R180)": 75,
+  "Extra — Nail Repair (R20–R30)": 15,
+  "Extra — Soak Off (R50)": 20,
+  "Extra — Nail Art (R30–R50)": 20,
+  "Extra — Rhinestones (R10–R15)": 10,
+  "Extra — 3D Art (R50–R100)": 30,
+};
 function timeToMinutes(time) {
   const [hours, minutes] = time.split(":").map(Number);
 
