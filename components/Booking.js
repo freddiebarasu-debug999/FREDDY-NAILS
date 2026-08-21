@@ -7,19 +7,59 @@ const CLIENT_GAP = 15;
 const MAX_CLIENTS = 4;
 const WHATSAPP_NUMBER = "27710888897";
 
-const SERVICE_OPTIONS = [
-  { name: "Acrylic Manicure — Plain", duration: 90 },
-  { name: "Acrylic Manicure — French", duration: 90 },
-  { name: "Acrylic Manicure — Ombré", duration: 150 },
-  { name: "Gel Manicure — Overlay", duration: 90 },
-  { name: "Gel Manicure — Plain", duration: 90 },
-  { name: "Gel Manicure — French", duration: 90 },
-  { name: "Pedicure Set — Gel", duration: 45 },
-  { name: "Pedicure Set — Acrylic", duration: 45 },
-  { name: "Fill-in", duration: 90 },
-  { name: "Nail Art / Rhinestones / 3D Art", duration: 150 },
-  { name: "Repair / Soak Off", duration: 30 },
+const SERVICE_CATEGORIES = [
+  {
+    category: "Acrylic Manicure",
+    items: [
+      { name: "Acrylic — Plain Short–Medium (R200)", duration: 90 },
+      { name: "Acrylic — Plain Long (R250)", duration: 105 },
+      { name: "Acrylic — Plain XL–XXXL (R300)", duration: 120 },
+      { name: "Acrylic — French Short–Medium (R300)", duration: 100 },
+      { name: "Acrylic — French Long (R350)", duration: 115 },
+      { name: "Acrylic — French XL–XXL (R400)", duration: 130 },
+      { name: "Acrylic — Ombré Short–Medium (R250)", duration: 120 },
+      { name: "Acrylic — Ombré Long (R300)", duration: 135 },
+      { name: "Acrylic — Ombré XL–XXXL (R350)", duration: 150 },
+    ],
+  },
+  {
+    category: "Gel Manicure",
+    items: [
+      { name: "Gel — Overlay (R200)", duration: 75 },
+      { name: "Gel — Plain Short–Medium (R250)", duration: 90 },
+      { name: "Gel — Plain Long (R300)", duration: 100 },
+      { name: "Gel — French Short–Medium (R300)", duration: 95 },
+      { name: "Gel — French Long (R350)", duration: 110 },
+    ],
+  },
+  {
+    category: "Pedicure Sets",
+    items: [
+      { name: "Pedicure — Gel Overlay (R150)", duration: 45 },
+      { name: "Pedicure — Gel Full Tips (R200)", duration: 60 },
+      { name: "Pedicure — Acrylic Overlay (R180)", duration: 55 },
+      { name: "Pedicure — Acrylic Full Tips (R200)", duration: 65 },
+      { name: "Pedicure — Acrylic French Tips (R250)", duration: 75 },
+    ],
+  },
+  {
+    category: "Extras — add-on to a service above",
+    items: [
+      { name: "Extra — Buff & Shine (R150)", duration: 30 },
+      { name: "Extra — Fill-in @3 weeks (R180)", duration: 75 },
+      { name: "Extra — Nail Repair (R20–R30)", duration: 15 },
+      { name: "Extra — Soak Off (R50)", duration: 20 },
+      { name: "Extra — Nail Art (R30–R50)", duration: 20 },
+      { name: "Extra — Rhinestones (R10–R15)", duration: 10 },
+      { name: "Extra — 3D Art (R50–R100)", duration: 30 },
+    ],
+  },
 ];
+
+// Flat lookup list, derived from the categories above — used for
+// duration calculations elsewhere in this file. Keep this in sync
+// automatically; don't maintain it separately.
+const SERVICE_OPTIONS = SERVICE_CATEGORIES.flatMap((group) => group.items);
 
 function timeToMinutes(time) {
   if (!time) return null;
@@ -606,21 +646,25 @@ export default function Booking() {
                         key={`${clientIndex}-${serviceIndex}`}
                         className="flex gap-2 items-center"
                       >
-                        <select
-                          className={`${inputClass} flex-1`}
-                          value={serviceName}
-                          onChange={(event) => {
-                            const updated = [...services];
-                            updated[serviceIndex] = event.target.value;
-                            updateClientServices(clientIndex, updated);
-                          }}
-                        >
-                          {SERVICE_OPTIONS.map((option) => (
-                            <option key={option.name} value={option.name}>
-                              {option.name}
-                            </option>
-                          ))}
-                        </select>
+                       <select
+  className={`${inputClass} flex-1`}
+  value={serviceName}
+  onChange={(event) => {
+    const updated = [...services];
+    updated[serviceIndex] = event.target.value;
+    updateClientServices(clientIndex, updated);
+  }}
+>
+  {SERVICE_CATEGORIES.map((group) => (
+    <optgroup key={group.category} label={group.category}>
+      {group.items.map((option) => (
+        <option key={option.name} value={option.name}>
+          {option.name}
+        </option>
+      ))}
+    </optgroup>
+  ))}
+</select>
 
                         {services.length > 1 && (
                           <button
