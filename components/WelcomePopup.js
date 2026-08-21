@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "freddynails_welcome_seen_v1";
+export const OPEN_EVENT = "freddynails:open-welcome";
 
 export default function WelcomePopup() {
   const [open, setOpen] = useState(false);
@@ -19,8 +20,21 @@ export default function WelcomePopup() {
         return () => clearTimeout(timer);
       }
     } catch {
-      // If localStorage is unavailable, just skip the popup.
+      // If localStorage is unavailable, just skip the auto-popup.
     }
+  }, []);
+
+  // Allow the popup to be reopened manually at any time (e.g. from
+  // the small persistent tab), regardless of whether it's already
+  // been seen once.
+  useEffect(() => {
+    function handleOpenRequest() {
+      setOpen(true);
+      requestAnimationFrame(() => setVisible(true));
+    }
+
+    window.addEventListener(OPEN_EVENT, handleOpenRequest);
+    return () => window.removeEventListener(OPEN_EVENT, handleOpenRequest);
   }, []);
 
   function close() {
