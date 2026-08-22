@@ -17,15 +17,20 @@ export default function Reveal({
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          // Toggle both ways, so the animation replays every time
-          // the section scrolls into or out of view — not just once.
-          setVisible(entry.isIntersecting);
+          if (entry.isIntersecting) {
+            setVisible(true);
+            observer.unobserve(node);
+          }
         });
       },
-      { threshold: 0.15, rootMargin: "0px 0px -60px 0px" }
+      {
+        threshold: 0.15,
+        rootMargin: "0px 0px -60px 0px",
+      }
     );
 
     observer.observe(node);
+
     return () => observer.disconnect();
   }, []);
 
@@ -42,9 +47,13 @@ export default function Reveal({
     <div
       ref={ref}
       className={`transition-all ease-out duration-700 ${
-        visible ? "opacity-100 translate-x-0 translate-y-0" : `opacity-0 ${offset}`
+        visible
+          ? "opacity-100 translate-x-0 translate-y-0"
+          : `opacity-0 ${offset}`
       }`}
-      style={{ transitionDelay: visible ? `${delay}ms` : "0ms" }}
+      style={{
+        transitionDelay: visible ? `${delay}ms` : "0ms",
+      }}
     >
       {children}
     </div>
