@@ -41,13 +41,17 @@ function verifySignature(rawBody, headers) {
     return false;
   }
 
-  const signedContent = `${webhookId}.${webhookTimestamp}.${rawBody}`;
+  const signedContent =
+    `${webhookId}.${webhookTimestamp}.${rawBody}`;
 
   const secretValue = secret.startsWith("whsec_")
     ? secret.slice(6)
     : secret;
 
-  const secretBytes = Buffer.from(secretValue, "base64");
+  const secretBytes = Buffer.from(
+    secretValue,
+    "base64"
+  );
 
   const expectedSignature = crypto
     .createHmac("sha256", secretBytes)
@@ -60,10 +64,16 @@ function verifySignature(rawBody, headers) {
     .filter(Boolean);
 
   return providedSignatures.some((signature) => {
-    const expectedBuffer = Buffer.from(expectedSignature);
-    const receivedBuffer = Buffer.from(signature);
+    const expectedBuffer =
+      Buffer.from(expectedSignature);
 
-    if (expectedBuffer.length !== receivedBuffer.length) {
+    const receivedBuffer =
+      Buffer.from(signature);
+
+    if (
+      expectedBuffer.length !==
+      receivedBuffer.length
+    ) {
       return false;
     }
 
@@ -101,7 +111,8 @@ function sanitizeForLogs(value) {
       ) {
         result[key] = "[REDACTED]";
       } else {
-        result[key] = sanitizeForLogs(val);
+        result[key] =
+          sanitizeForLogs(val);
       }
     }
 
@@ -112,10 +123,12 @@ function sanitizeForLogs(value) {
 }
 
 const EMAIL_FROM =
+  process.env.RESEND_FROM_EMAIL ||
   "Freddy Nails <bookings@freddynails.co.za>";
 
 async function sendEmail({ to, subject, html }) {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey =
+    process.env.RESEND_API_KEY;
 
   if (!apiKey) {
     console.error(
@@ -131,7 +144,8 @@ async function sendEmail({ to, subject, html }) {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
+          "Content-Type":
+            "application/json",
         },
         body: JSON.stringify({
           from: EMAIL_FROM,
@@ -143,7 +157,8 @@ async function sendEmail({ to, subject, html }) {
     );
 
     if (!res.ok) {
-      const errText = await res.text();
+      const errText =
+        await res.text();
 
       console.error(
         "Resend send failed:",
@@ -152,7 +167,10 @@ async function sendEmail({ to, subject, html }) {
         errText
       );
     } else {
-      console.log("Email sent to", to);
+      console.log(
+        "Email sent to",
+        to
+      );
     }
   } catch (err) {
     console.error(
@@ -163,22 +181,70 @@ async function sendEmail({ to, subject, html }) {
   }
 }
 
-async function sendOwnerNotification(appointment) {
+async function sendOwnerNotification(
+  appointment
+) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1B1714;">
       <h2 style="color: #AD8A4E; margin-bottom: 4px;">New paid booking 💅</h2>
-      <p style="margin-top: 0; color: #555;">A deposit has been confirmed on Freddy Nails.</p>
+
+      <p style="margin-top: 0; color: #555;">
+        A deposit has been confirmed on Freddy Nails.
+      </p>
 
       <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
-        <tr><td style="padding: 6px 0; color: #888;">Client</td><td style="padding: 6px 0; font-weight: bold;">${appointment.customer_name}</td></tr>
-        <tr><td style="padding: 6px 0; color: #888;">Phone</td><td style="padding: 6px 0;">${appointment.customer_phone}</td></tr>
-        <tr><td style="padding: 6px 0; color: #888;">Email</td><td style="padding: 6px 0;">${appointment.customer_email || "—"}</td></tr>
-        <tr><td style="padding: 6px 0; color: #888;">Booking summary</td><td style="padding: 6px 0;">${appointment.service_name}</td></tr>
-        <tr><td style="padding: 6px 0; color: #888;">Clients</td><td style="padding: 6px 0;">${appointment.client_count}</td></tr>
-        <tr><td style="padding: 6px 0; color: #888;">Deposit paid</td><td style="padding: 6px 0; font-weight: bold;">R${appointment.deposit_amount}</td></tr>
+        <tr>
+          <td style="padding: 6px 0; color: #888;">Client</td>
+          <td style="padding: 6px 0; font-weight: bold;">
+            ${appointment.customer_name}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding: 6px 0; color: #888;">Phone</td>
+          <td style="padding: 6px 0;">
+            ${appointment.customer_phone}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding: 6px 0; color: #888;">Email</td>
+          <td style="padding: 6px 0;">
+            ${appointment.customer_email || "—"}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding: 6px 0; color: #888;">Booking summary</td>
+          <td style="padding: 6px 0;">
+            ${appointment.service_name}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding: 6px 0; color: #888;">Clients</td>
+          <td style="padding: 6px 0;">
+            ${appointment.client_count}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding: 6px 0; color: #888;">Deposit paid</td>
+          <td style="padding: 6px 0; font-weight: bold;">
+            R${appointment.deposit_amount}
+          </td>
+        </tr>
+
         ${
           appointment.notes
-            ? `<tr><td style="padding: 6px 0; color: #888;">Notes</td><td style="padding: 6px 0;">${appointment.notes}</td></tr>`
+            ? `
+              <tr>
+                <td style="padding: 6px 0; color: #888;">Notes</td>
+                <td style="padding: 6px 0;">
+                  ${appointment.notes}
+                </td>
+              </tr>
+            `
             : ""
         }
       </table>
@@ -191,12 +257,15 @@ async function sendOwnerNotification(appointment) {
 
   await sendEmail({
     to: "freddiebarasu@gmail.com",
-    subject: `New paid booking — ${appointment.customer_name}`,
+    subject:
+      `New paid booking — ${appointment.customer_name}`,
     html,
   });
 }
 
-async function sendCustomerConfirmation(appointment) {
+async function sendCustomerConfirmation(
+  appointment
+) {
   if (!appointment.customer_email) {
     console.log(
       "No customer email on file; skipping customer confirmation."
@@ -206,27 +275,70 @@ async function sendCustomerConfirmation(appointment) {
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1B1714;">
-      <h2 style="color: #AD8A4E; margin-bottom: 4px;">You're booked! 💅</h2>
+      <h2 style="color: #AD8A4E; margin-bottom: 4px;">
+        You're booked! 💅
+      </h2>
 
       <p style="margin-top: 0; color: #555;">
         Hi ${appointment.customer_name}, your deposit has been received and your appointment with Freddy Nails is confirmed.
       </p>
 
       <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
-        <tr><td style="padding: 6px 0; color: #888;">Booking summary</td><td style="padding: 6px 0; font-weight: bold;">${appointment.service_name}</td></tr>
-        <tr><td style="padding: 6px 0; color: #888;">Clients</td><td style="padding: 6px 0;">${appointment.client_count}</td></tr>
-        <tr><td style="padding: 6px 0; color: #888;">Deposit paid</td><td style="padding: 6px 0; font-weight: bold;">R${appointment.deposit_amount}</td></tr>
+        <tr>
+          <td style="padding: 6px 0; color: #888;">
+            Booking summary
+          </td>
+
+          <td style="padding: 6px 0; font-weight: bold;">
+            ${appointment.service_name}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding: 6px 0; color: #888;">
+            Clients
+          </td>
+
+          <td style="padding: 6px 0;">
+            ${appointment.client_count}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding: 6px 0; color: #888;">
+            Deposit paid
+          </td>
+
+          <td style="padding: 6px 0; font-weight: bold;">
+            R${appointment.deposit_amount}
+          </td>
+        </tr>
+
         ${
           appointment.notes
-            ? `<tr><td style="padding: 6px 0; color: #888;">Your notes</td><td style="padding: 6px 0;">${appointment.notes}</td></tr>`
+            ? `
+              <tr>
+                <td style="padding: 6px 0; color: #888;">
+                  Your notes
+                </td>
+
+                <td style="padding: 6px 0;">
+                  ${appointment.notes}
+                </td>
+              </tr>
+            `
             : ""
         }
       </table>
 
       <p style="margin-top: 20px; color: #555;">
         Address: 8 Rhodes, Quigney, East London, Eastern Cape<br/>
+
         WhatsApp:
-        <a href="https://wa.me/27710888897" style="color: #AD8A4E;">
+        <a
+          href="https://wa.me/27710888897"
+          style="color: #AD8A4E;"
+        >
           +27 71 088 8897
         </a>
       </p>
@@ -243,19 +355,22 @@ async function sendCustomerConfirmation(appointment) {
 
   await sendEmail({
     to: appointment.customer_email,
-    subject: "Booking confirmed — Freddy Nails",
+    subject:
+      "Booking confirmed — Freddy Nails",
     html,
   });
 }
 
 export async function POST(request) {
   try {
-    const rawBody = await request.text();
+    const rawBody =
+      await request.text();
 
-    const isValid = verifySignature(
-      rawBody,
-      request.headers
-    );
+    const isValid =
+      verifySignature(
+        rawBody,
+        request.headers
+      );
 
     if (!isValid) {
       console.error(
@@ -263,18 +378,30 @@ export async function POST(request) {
       );
 
       return Response.json(
-        { error: "Invalid webhook signature." },
+        {
+          error:
+            "Invalid webhook signature.",
+        },
         { status: 401 }
       );
     }
 
-    const event = JSON.parse(rawBody);
+    const event =
+      JSON.parse(rawBody);
 
-    console.log("========================================");
+    console.log(
+      "========================================"
+    );
+
     console.log(
       "VERIFIED YOCO WEBHOOK RECEIVED"
     );
-    console.log("Event type:", event?.type);
+
+    console.log(
+      "Event type:",
+      event?.type
+    );
+
     console.log(
       "Safe event structure:",
       JSON.stringify(
@@ -283,15 +410,23 @@ export async function POST(request) {
         2
       )
     );
-    console.log("========================================");
 
-    if (event.type !== "payment.succeeded") {
+    console.log(
+      "========================================"
+    );
+
+    if (
+      event.type !==
+      "payment.succeeded"
+    ) {
       return Response.json({
         received: true,
       });
     }
 
-    const payment = event.payload;
+    const payment =
+      event.payload;
+
     const checkoutId =
       payment?.metadata?.checkoutId;
 
@@ -301,7 +436,10 @@ export async function POST(request) {
       );
 
       return Response.json(
-        { error: "Missing checkout ID." },
+        {
+          error:
+            "Missing checkout ID.",
+        },
         { status: 400 }
       );
     }
@@ -366,14 +504,39 @@ export async function POST(request) {
       );
     }
 
+    console.log(
+      "Appointment found:",
+      {
+        id: appointment.id,
+        booking_date:
+          appointment.booking_date,
+        start_time:
+          appointment.start_time,
+        end_time:
+          appointment.end_time,
+        duration_minutes:
+          appointment.duration_minutes,
+        service_name:
+          appointment.service_name,
+        client_count:
+          appointment.client_count,
+        existing_google_event_id:
+          appointment.google_event_id,
+      }
+    );
+
     const paidAmount =
       Number(payment.amount);
 
     const expectedAmount =
-      Number(appointment.deposit_amount) *
-      100;
+      Number(
+        appointment.deposit_amount
+      ) * 100;
 
-    if (paidAmount !== expectedAmount) {
+    if (
+      paidAmount !==
+      expectedAmount
+    ) {
       console.error(
         "Yoco payment amount mismatch.",
         {
@@ -400,7 +563,8 @@ export async function POST(request) {
       .update({
         payment_status: "paid",
         booking_status: "confirmed",
-        yoco_payment_id: payment.id,
+        yoco_payment_id:
+          payment.id,
       })
       .eq(
         "id",
@@ -450,29 +614,87 @@ export async function POST(request) {
     // ---------------------------------------------------------
     // GOOGLE CALENDAR
     // ---------------------------------------------------------
-    //
-    // Calendar failure must never undo a successful payment.
-    // The booking remains confirmed even if Google is temporarily
-    // unavailable.
-    //
+
+    let calendarStatus =
+      "not_attempted";
+
+    let calendarEventId =
+      appointment.google_event_id ||
+      null;
+
     try {
+      console.log(
+        "Starting Google Calendar creation for appointment:",
+        appointment.id
+      );
+
       const calendarResult =
         await createGoogleCalendarEvent(
           {
             ...appointment,
-            payment_status: "paid",
-            booking_status: "confirmed",
+            payment_status:
+              "paid",
+            booking_status:
+              "confirmed",
           }
         );
 
       console.log(
         "Google Calendar result:",
-        calendarResult
+        JSON.stringify(
+          calendarResult,
+          null,
+          2
+        )
       );
+
+      calendarStatus =
+        calendarResult?.alreadyExists
+          ? "already_exists"
+          : "created";
+
+      calendarEventId =
+        calendarResult?.eventId ||
+        calendarEventId;
     } catch (calendarError) {
+      calendarStatus =
+        "failed";
+
       console.error(
-        "Google Calendar creation failed:",
+        "========================================"
+      );
+
+      console.error(
+        "GOOGLE CALENDAR CREATION FAILED"
+      );
+
+      console.error(
+        "Appointment:",
+        appointment.id
+      );
+
+      console.error(
+        "Calendar error name:",
+        calendarError?.name
+      );
+
+      console.error(
+        "Calendar error message:",
+        calendarError?.message
+      );
+
+      console.error(
+        "Calendar error stack:",
+        calendarError?.stack
+      );
+
+      console.error(
+        "Full Calendar error:",
         calendarError
+      );
+
+      console.error(
+        "========================================"
       );
     }
 
@@ -488,8 +710,39 @@ export async function POST(request) {
       appointment
     );
 
+    console.log(
+      "========================================"
+    );
+
+    console.log(
+      "YOCO WEBHOOK COMPLETE"
+    );
+
+    console.log(
+      "Appointment:",
+      appointment.id
+    );
+
+    console.log(
+      "Calendar status:",
+      calendarStatus
+    );
+
+    console.log(
+      "Calendar event ID:",
+      calendarEventId
+    );
+
+    console.log(
+      "========================================"
+    );
+
     return Response.json({
       received: true,
+      appointmentId:
+        appointment.id,
+      calendarStatus,
+      calendarEventId,
     });
   } catch (error) {
     console.error(
