@@ -235,68 +235,98 @@ const NOTES = [
 
 export default function Services() {
   return (
-    <section id="services" className="max-w-[1180px] mx-auto px-5 py-22">
-      <div className="max-w-[640px] mb-12">
+    <section
+      id="services"
+      className="relative max-w-[1180px] mx-auto px-5 py-22"
+    >
+      {/* Section heading */}
+      <div className="max-w-[640px] mb-14">
         <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
           Menu
         </p>
-        <h2 className="font-serif font-medium text-[clamp(1.9rem,4vw,2.6rem)] mt-3.5">
+
+        <h2 className="font-serif font-medium text-[clamp(1.9rem,4vw,2.6rem)] mt-3.5 text-[#f4eee6]">
           Services &amp; pricing
         </h2>
+
+        <div className="mt-5 h-px w-16 bg-gold/60" />
       </div>
 
-      <div className="grid gap-px bg-line border border-line md:grid-cols-2">
+      {/* Services */}
+      <div className="grid gap-x-14 gap-y-16 md:grid-cols-2">
         {GROUPS.map((g) => (
-          <div key={g.title} className="bg-nude p-7 md:p-8">
-            <div className="flex items-center gap-2.5 mb-4">
-              <h3 className="text-[1.05rem] font-bold tracking-wide uppercase text-gold">
+          <div key={g.title} className="relative">
+            {/* Category heading */}
+            <div className="flex items-center gap-3 mb-5">
+              <h3 className="text-[0.9rem] font-bold tracking-[0.16em] uppercase text-gold">
                 {g.title}
               </h3>
+
               {g.badge && (
-                <span className="text-[0.62rem] font-bold uppercase tracking-wide text-ink bg-gold-bright px-2 py-0.5 rounded-sm">
+                <span className="text-[0.58rem] font-bold uppercase tracking-[0.12em] text-[#11100f] bg-gold-bright px-2 py-1 rounded-full">
                   {g.badge}
                 </span>
               )}
             </div>
 
-            {g.items.map((item) => (
-              <div
-                key={item.name}
-                className={`py-3 border-b border-line last:border-none ${
-                  item.price === "Coming soon" ? "opacity-50" : ""
-                }`}
-              >
-                <div className="flex justify-between gap-4 text-[0.94rem]">
-                  <span className="font-bold">{item.name}</span>
-                  <span className="font-bold text-gold whitespace-nowrap">
-                    {item.price}
-                  </span>
+            {/* Service list */}
+            <div>
+              {g.items.map((item, index) => (
+                <div
+                  key={item.name}
+                  className={`group py-4 ${
+                    index !== g.items.length - 1
+                      ? "border-b border-white/[0.09]"
+                      : ""
+                  } ${
+                    item.price === "Coming soon"
+                      ? "opacity-45"
+                      : ""
+                  }`}
+                >
+                  <div className="flex justify-between items-baseline gap-5">
+                    <span className="font-semibold text-[0.94rem] text-[#f4eee6] group-hover:text-gold-bright transition-colors">
+                      {item.name}
+                    </span>
+
+                    <span className="font-semibold text-[0.88rem] text-gold whitespace-nowrap">
+                      {item.price}
+                    </span>
+                  </div>
+
+                  <p className="text-[0.8rem] text-[#c9c0b6] leading-relaxed mt-1.5 max-w-[92%]">
+                    {item.description}
+                  </p>
                 </div>
-                <p className="text-[0.82rem] text-ink-soft leading-relaxed mt-1">
-                  {item.description}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ))}
       </div>
 
-      <div className="mt-7 border border-line bg-nude-deep rounded-sm p-6">
-        <p className="text-[0.68rem] font-bold tracking-[0.22em] uppercase text-gold mb-3">
-          Good to know
-        </p>
-        <ul className="space-y-2">
+      {/* Good to know */}
+      <div className="relative mt-16 pt-8 border-t border-white/[0.09]">
+        <div className="flex items-center gap-4 mb-5">
+          <p className="text-[0.68rem] font-bold tracking-[0.22em] uppercase text-gold">
+            Good to know
+          </p>
+
+          <div className="h-px flex-1 bg-white/[0.08]" />
+        </div>
+
+        <ul className="space-y-2.5 max-w-[900px]">
           {NOTES.map((note) => (
             <li
               key={note}
-              className="text-[0.85rem] text-ink-soft leading-relaxed flex gap-2"
+              className="text-[0.82rem] text-[#c9c0b6] leading-relaxed flex gap-3"
             >
               <span className="text-gold">•</span>
               <span>{note}</span>
             </li>
           ))}
         </ul>
-        <p className="text-[0.85rem] text-gold-bright italic mt-4">
+
+        <p className="text-[0.84rem] text-gold-bright italic mt-5">
           Student nail-art discount: 20% off (where applicable)
         </p>
       </div>
