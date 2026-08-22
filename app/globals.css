@@ -46,3 +46,37 @@ body {
 .nav-link:hover::after {
   width: 100%;
 }
+
+/* Dark luxury section backgrounds */
+.bg-nude {
+  background-color: #11100f !important;
+  color: #f4eee6 !important;
+}
+
+.bg-nude-deep {
+  background-color: #181614 !important;
+  color: #f4eee6 !important;
+}
+
+/* Make common text readable on dark backgrounds */
+.text-ink {
+  color: #f4eee6 !important;
+}
+
+.text-ink-soft {
+  color: #c9c0b6 !important;
+}
+
+/* Gold accents */
+.text-gold {
+  color: #ad8a4e !important;
+}
+
+.text-gold-bright {
+  color: #d6b36a !important;
+}
+
+/* Borders */
+.border-line {
+  border-color: rgba(214, 179, 106, 0.22) !important;
+}
