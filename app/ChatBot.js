@@ -225,14 +225,18 @@ export default function ChatBot() {
         ]);
       }
     } catch (error) {
-      setMessages([
-        ...newMessages,
-        {
-          role: "assistant",
-          content:
-            "Sorry, I'm having a little trouble right now. Please try again in a moment. 💅",
-        },
-      ]);
+  console.error("Chatbot request failed:", error);
+
+  setMessages([
+    ...newMessages,
+    {
+      role: "assistant",
+      content:
+        error?.message ||
+        "The photo could not be analysed right now. Please try again. 💅",
+    },
+  ]);
+}
     } finally {
       setLoading(false);
     }
