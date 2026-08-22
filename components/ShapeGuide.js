@@ -36,9 +36,9 @@ const SHAPES = [
 ];
 
 export default function ShapeGuide() {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState(null);
 
-  function bookShape(shapeName: string) {
+  function bookShape(shapeName) {
     window.location.href = `/?shape=${encodeURIComponent(
       shapeName
     )}#booking`;
@@ -143,7 +143,7 @@ export default function ShapeGuide() {
           })}
         </div>
 
-        {/* Selection panel */}
+        {/* Selected shape panel */}
         {selected && (
           <div className="mt-6 border border-[#d6b36a]/30 bg-[#181614] px-5 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
             <div>
