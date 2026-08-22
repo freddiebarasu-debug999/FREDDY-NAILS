@@ -23,6 +23,37 @@ export default function SignUpPage() {
     }));
   }
 
+  async function sendWelcomeEmail(name, email) {
+    try {
+      const response = await fetch("/api/account/welcome-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+        }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+
+        console.error(
+          "Welcome email failed:",
+          result?.error || "Unknown error"
+        );
+
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Welcome email request failed:", error);
+      return false;
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -52,13 +83,16 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
+      const name = form.fullName.trim();
+      const email = form.email.trim();
+
       const { data, error: signUpError } =
         await supabase.auth.signUp({
-          email: form.email.trim(),
+          email,
           password: form.password,
           options: {
             data: {
-              full_name: form.fullName.trim(),
+              full_name: name,
               phone: form.phone.trim(),
             },
           },
@@ -75,22 +109,25 @@ export default function SignUpPage() {
       }
 
       /*
-       * Do NOT insert into profiles here.
+       * The Supabase account/profile creation remains
+       * exactly as before.
        *
-       * Supabase creates the Auth user first.
-       * Our database trigger:
+       * The only new step is sending the Freddy Nails
+       * welcome email after the account is successfully created.
        *
-       * handle_new_user()
-       *
-       * automatically creates the matching profile.
-       *
-       * When email confirmation is enabled, Supabase normally
-       * returns no session until the client confirms their email.
+       * If the welcome email fails, the customer's account
+       * is still considered successfully created.
        */
+      await sendWelcomeEmail(name, email);
 
+      /*
+       * When email confirmation is enabled,
+       * Supabase normally returns no session until
+       * the customer confirms their email.
+       */
       if (!data.session) {
         setMessage(
-          "Your account has been created successfully. Please check your email and confirm your account before logging in."
+          "Welcome to Freddy Nails! Your account has been created successfully. Please check your email and confirm your account before logging in."
         );
 
         setForm((current) => ({
