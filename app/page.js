@@ -26,54 +26,72 @@ export default function Home() {
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
 
-      <Reveal>
-        <Services />
-      </Reveal>
+      <div className="py-10 md:py-16">
+        <Reveal>
+          <Services />
+        </Reveal>
+      </div>
 
-      <Reveal delay={100}>
-        <ShapeGuide />
-      </Reveal>
+      <div className="py-10 md:py-16">
+        <Reveal delay={100}>
+          <ShapeGuide />
+        </Reveal>
+      </div>
 
-      <Reveal>
-        <Gallery />
-      </Reveal>
-
-      <div className="h-px max-w-[1180px] mx-auto bg-line" />
-
-      <Reveal>
-        <Booking />
-      </Reveal>
-
-      <div className="h-px max-w-[1180px] mx-auto bg-line" />
-
-      <Reveal>
-        <Offers />
-      </Reveal>
+      <div className="py-10 md:py-16">
+        <Reveal>
+          <Gallery />
+        </Reveal>
+      </div>
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
 
-      <Reveal>
-        <Reviews />
-      </Reveal>
+      <div className="py-10 md:py-16">
+        <Reveal>
+          <Booking />
+        </Reveal>
+      </div>
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
 
-      <Reveal>
-        <FAQ />
-      </Reveal>
+      <div className="py-10 md:py-16">
+        <Reveal>
+          <Offers />
+        </Reveal>
+      </div>
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
 
-      {/* About the Studio — closing brand story */}
-      <Reveal>
-        <About />
-      </Reveal>
+      <div className="py-10 md:py-16">
+        <Reveal>
+          <Reviews />
+        </Reveal>
+      </div>
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
 
-      <Reveal>
-        <Contact />
-      </Reveal>
+      <div className="py-10 md:py-16">
+        <Reveal>
+          <FAQ />
+        </Reveal>
+      </div>
+
+      <div className="h-px max-w-[1180px] mx-auto bg-line" />
+
+      {/* About the Studio */}
+      <div className="py-10 md:py-16">
+        <Reveal>
+          <About />
+        </Reveal>
+      </div>
+
+      <div className="h-px max-w-[1180px] mx-auto bg-line" />
+
+      <div className="py-10 md:py-16">
+        <Reveal>
+          <Contact />
+        </Reveal>
+      </div>
 
       <Footer />
 
