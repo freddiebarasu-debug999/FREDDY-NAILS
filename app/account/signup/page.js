@@ -182,10 +182,7 @@ export default function SignUpPage() {
               type="password"
               value={form.confirmPassword}
               onChange={(e) =>
-                updateField(
-                  "confirmPassword",
-                  e.target.value
-                )
+                updateField("confirmPassword", e.target.value)
               }
               placeholder="Enter your password again"
               autoComplete="new-password"
