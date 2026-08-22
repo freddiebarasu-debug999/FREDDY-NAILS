@@ -95,6 +95,16 @@ export default function Gallery() {
               sizes="(max-width: 768px) 50vw, 33vw"
             />
 
+            {/* Watermark */}
+            <div className="absolute bottom-3 right-3 w-10 h-10 md:w-12 md:h-12 opacity-35 pointer-events-none">
+              <Image
+                src="/watermark.png"
+                alt=""
+                fill
+                className="object-contain"
+              />
+            </div>
+
             {/* Gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-90" />
 
@@ -180,6 +190,16 @@ export default function Gallery() {
               height={1200}
               className="w-full max-h-[80vh] object-contain rounded-sm"
             />
+
+            {/* Watermark */}
+            <div className="absolute bottom-16 right-4 w-14 h-14 md:w-16 md:h-16 opacity-40 pointer-events-none">
+              <Image
+                src="/watermark.png"
+                alt=""
+                fill
+                className="object-contain"
+              />
+            </div>
 
             <div className="absolute left-4 bottom-4 bg-gray-700/70 backdrop-blur-sm text-white px-4 py-2 rounded-sm">
               <p className="font-serif text-lg">
