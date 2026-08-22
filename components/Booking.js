@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 const DEPOSIT_PER_CLIENT = 90;
 const CLIENT_GAP = 15;
@@ -221,6 +222,9 @@ export default function Booking() {
     notes: "",
   });
 
+  const [accountLoaded, setAccountLoaded] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
+
   const [availableTimes, setAvailableTimes] = useState([[]]);
   const [loadingAvailability, setLoadingAvailability] = useState([false]);
   const [availabilityErrors, setAvailabilityErrors] = useState([""]);
@@ -243,12 +247,79 @@ export default function Booking() {
   const totalDeposit = clientCount * DEPOSIT_PER_CLIENT;
 
   /*
-   * AI / Shape Guide preselection
+   * Load the logged-in client's profile.
    *
-   * Supports:
-   * /?shape=Square#booking
-   * /?service=Acrylic%20%E2%80%94%20French%20Short%E2%80%93Medium%20(R300)#booking
-   * /?service=...&shape=Square#booking
+   * Guests are still allowed to book.
+   */
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadAccount() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!mounted) return;
+
+        if (!user) {
+          setLoggedIn(false);
+          setAccountLoaded(true);
+          return;
+        }
+
+        setLoggedIn(true);
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, phone, email")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (!mounted) return;
+
+        const metadata = user.user_metadata || {};
+
+        setForm((current) => ({
+          ...current,
+          name:
+            profile?.full_name ||
+            metadata.full_name ||
+            current.name ||
+            "",
+          phone:
+            profile?.phone ||
+            metadata.phone ||
+            user.phone ||
+            current.phone ||
+            "",
+          email:
+            profile?.email ||
+            user.email ||
+            current.email ||
+            "",
+        }));
+      } catch (accountError) {
+        console.error(
+          "Unable to load client account:",
+          accountError
+        );
+      } finally {
+        if (mounted) {
+          setAccountLoaded(true);
+        }
+      }
+    }
+
+    loadAccount();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  /*
+   * AI / Shape Guide preselection
    */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -778,6 +849,24 @@ export default function Booking() {
     setSubmitting(true);
 
     try {
+      /*
+       * Get the current authenticated session.
+       *
+       * Guests simply continue without an
+       * Authorization header.
+       */
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const headers = {
+        "Content-Type": "application/json",
+      };
+
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+
       const clientEndTimes =
         form.clientTimes.map(
           (startTime, index) =>
@@ -791,9 +880,7 @@ export default function Booking() {
         "/api/checkout",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers,
           body: JSON.stringify({
             name: form.name.trim(),
             phone: form.phone.trim(),
@@ -1113,6 +1200,16 @@ export default function Booking() {
           date and available time for each
           client.
         </p>
+
+        {loggedIn && accountLoaded && (
+          <div className="mt-5 border border-gold/20 bg-gold/[0.05] px-4 py-3 text-sm text-[#c9c0b6]">
+            <span className="text-gold font-semibold">
+              Your account is connected.
+            </span>{" "}
+            Your saved details have been filled
+            in automatically.
+          </div>
+        )}
       </div>
 
       <div className="max-w-[820px] mx-auto">
