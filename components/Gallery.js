@@ -1,8 +1,6 @@
 "use client";
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-
 const TILES = [
   { src: "/gallery/gallery-1.jpg", label: "Purple Chrome Ombré" },
   { src: "/gallery/gallery-2.jpg", label: "Black & White French" },
@@ -13,29 +11,56 @@ const TILES = [
   { src: "/gallery/gallery-7.jpg", label: "Lilac Square Set" },
   { src: "/gallery/gallery-8.jpg", label: "Leopard French Cherry" },
 ];
-
 export default function Gallery() {
   const [selectedImage, setSelectedImage] = useState(null);
-
+  const [visibleTiles, setVisibleTiles] = useState([]);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const index = Number(entry.target.dataset.index);
+            setVisibleTiles((current) =>
+              current.includes(index) ? current : [...current, index]
+            );
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        threshold: 0.15,
+      }
+    );
+    const elements = document.querySelectorAll("[data-gallery-tile]");
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, []);
   return (
     <section id="gallery" className="max-w-[1180px] mx-auto px-5 py-22">
       <div className="max-w-[640px] mb-12">
         <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
           Recent work
         </p>
-
         <h2 className="font-serif font-medium text-[clamp(1.9rem,4vw,2.6rem)] mt-3.5">
           Gallery
         </h2>
       </div>
-
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {TILES.map((t) => (
+        {TILES.map((t, index) => (
           <button
             key={t.label}
             type="button"
+            data-gallery-tile
+            data-index={index}
             onClick={() => setSelectedImage(t)}
-            className="relative aspect-square rounded-sm border border-line overflow-hidden flex items-end p-3.5 text-left cursor-pointer group"
+            className={`relative aspect-square rounded-sm border border-line overflow-hidden flex items-end p-3.5 text-left cursor-pointer group transition-all duration-700 ease-out ${
+              visibleTiles.includes(index)
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-10"
+            }`}
+            style={{
+              transitionDelay: `${index * 80}ms`,
+            }}
             aria-label={`View ${t.label}`}
           >
             <Image
@@ -45,16 +70,13 @@ export default function Gallery() {
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 768px) 50vw, 25vw"
             />
-
             <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
-
-            {/* Transparent grey label */}
-            <span className="relative text-white text-[0.78rem] font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"> {t.label}
+            <span className="relative text-white text-[0.78rem] font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              {t.label}
             </span>
           </button>
         ))}
       </div>
-
       {/* Full-size image viewer */}
       {selectedImage && (
         <div
@@ -72,13 +94,11 @@ export default function Gallery() {
               height={1200}
               className="w-full max-h-[80vh] object-contain rounded-sm"
             />
-
             <div className="absolute left-4 bottom-4 bg-gray-700/70 backdrop-blur-sm text-white px-4 py-2 rounded-sm">
               <p className="font-serif text-lg">
                 {selectedImage.label}
               </p>
             </div>
-
             <button
               type="button"
               onClick={() => setSelectedImage(null)}
