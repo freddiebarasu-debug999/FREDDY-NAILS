@@ -21,42 +21,62 @@ export default function Home() {
       <WelcomePopup />
       <OfferTab />
       <Header />
+
       <Hero />
+
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
-      <Reveal>
-        <About />
-      </Reveal>
-      <div className="h-px max-w-[1180px] mx-auto bg-line" />
+
       <Reveal>
         <Services />
       </Reveal>
+
       <Reveal delay={100}>
         <ShapeGuide />
       </Reveal>
+
       <Reveal>
         <Gallery />
       </Reveal>
+
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
+
       <Reveal>
         <Booking />
       </Reveal>
+
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
+
       <Reveal>
         <Offers />
       </Reveal>
+
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
+
       <Reveal>
         <Reviews />
       </Reveal>
+
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
+
       <Reveal>
         <FAQ />
       </Reveal>
+
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
+
+      {/* About the Studio — closing brand story */}
+      <Reveal>
+        <About />
+      </Reveal>
+
+      <div className="h-px max-w-[1180px] mx-auto bg-line" />
+
       <Reveal>
         <Contact />
       </Reveal>
+
       <Footer />
+
       <ChatBot />
     </>
   );
