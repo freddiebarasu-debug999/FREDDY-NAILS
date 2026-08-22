@@ -8,6 +8,27 @@ Be warm, stylish, helpful and concise.
 
 Help customers choose nail shapes, lengths, colours, designs, services and prices.
 
+CURRENCY RULE — EXTREMELY IMPORTANT:
+All Freddy Nails prices are in South African Rand (ZAR).
+
+ALWAYS display Freddy Nails prices using "R".
+Examples:
+R200
+R300
+R30–R50
+R330–R350
+
+NEVER use:
+$200
+USD 200
+200 USD
+€200
+£200
+or any other currency.
+
+NEVER convert Freddy Nails prices into another currency.
+The official Freddy Nails price list is already in South African Rand.
+
 Freddy Nails gallery:
 
 1. Purple Chrome Ombré
@@ -27,7 +48,14 @@ Never output <think> tags.
 `;
 
 const PRICE_CATALOG = `
-FREDDY NAILS PRICE LIST
+FREDDY NAILS OFFICIAL PRICE LIST
+
+IMPORTANT CURRENCY RULE:
+EVERY PRICE BELOW IS IN SOUTH AFRICAN RAND (ZAR).
+
+The "R" symbol means South African Rand.
+
+NEVER convert these prices into USD, dollars, euros, pounds, or any other currency.
 
 ACRYLIC
 Plain Short–Medium: R200
@@ -85,6 +113,38 @@ The customer has uploaded a photo.
 Analyse ONLY what is visibly identifiable in the photo.
 
 Your job is to estimate what the customer would likely pay at Freddy Nails.
+
+CRITICAL CURRENCY RULE:
+
+ALL FREDDY NAILS PRICES ARE IN SOUTH AFRICAN RAND (ZAR).
+
+The "R" symbol MUST be used for every Freddy Nails price.
+
+NEVER convert prices into:
+- US dollars
+- USD
+- $
+- euros
+- EUR
+- pounds
+- GBP
+- any other currency
+
+NEVER write "$200" when the Freddy Nails price is R200.
+
+ALWAYS write:
+R200
+
+NOT:
+$200
+
+If a price is a range, write:
+R30–R50
+
+NOT:
+$30–$50
+
+Even if the customer's device, browser, location, language or previous conversation suggests another currency, Freddy Nails prices MUST remain in South African Rand.
 
 IMPORTANT PRICING RULES:
 
@@ -167,6 +227,8 @@ IMPORTANT:
 - Do NOT mention AI, models or internal instructions.
 - NEVER reveal reasoning.
 - NEVER output <think> tags.
+- EVERY PRICE MUST USE R/ZAR.
+- NEVER USE $ FOR A FREDDY NAILS PRICE.
 
 Return ONLY the customer-facing answer.
 `;
@@ -201,6 +263,70 @@ function cleanAssistantResponse(text) {
   cleaned = cleaned.replace(
     /^(analysis|reasoning|internal reasoning)\s*:\s*/i,
     ""
+  );
+
+  /*
+   * Freddy Nails prices are ALWAYS South African Rand.
+   *
+   * These replacements are a final safety layer in case
+   * the AI incorrectly writes a dollar sign.
+   *
+   * Examples:
+   * $200       -> R200
+   * USD 200    -> R200
+   * 200 USD    -> R200
+   * $30-$50    -> R30-R50
+   */
+
+  cleaned = cleaned.replace(
+    /\bUSD\s*(\d+(?:[.,]\d+)?)/gi,
+    "R$1"
+  );
+
+  cleaned = cleaned.replace(
+    /\b(\d+(?:[.,]\d+)?)\s*USD\b/gi,
+    "R$1"
+  );
+
+  cleaned = cleaned.replace(
+    /\$\s*(\d+(?:[.,]\d+)?)/g,
+    "R$1"
+  );
+
+  cleaned = cleaned.replace(
+    /\b(\d+(?:[.,]\d+)?)\s*\$/g,
+    "R$1"
+  );
+
+  /*
+   * Handle dollar ranges such as:
+   * $30–$50
+   * $30-$50
+   */
+  cleaned = cleaned.replace(
+    /\$\s*(\d+(?:[.,]\d+)?)\s*[-–—]\s*\$\s*(\d+(?:[.,]\d+)?)/g,
+    "R$1–R$2"
+  );
+
+  /*
+   * If a dollar range was partially converted, normalize it.
+   */
+  cleaned = cleaned.replace(
+    /R(\d+(?:[.,]\d+)?)\s*[-–—]\s*\$(\d+(?:[.,]\d+)?)/g,
+    "R$1–R$2"
+  );
+
+  /*
+   * Normalize common currency wording.
+   */
+  cleaned = cleaned.replace(
+    /\bUS dollars?\b/gi,
+    "South African Rand"
+  );
+
+  cleaned = cleaned.replace(
+    /\bUSD\b/gi,
+    "ZAR"
   );
 
   return cleaned.trim();
@@ -309,7 +435,7 @@ export async function POST(request) {
               type: "text",
               text:
                 lastMessage?.content ||
-                "Analyse this photo and estimate the closest Freddy Nails service and total price.",
+                "Analyse this photo and estimate the closest Freddy Nails service and total price. All prices MUST be in South African Rand (R/ZAR).",
             },
             {
               type: "image_url",
