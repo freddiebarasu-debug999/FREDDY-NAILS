@@ -7,17 +7,17 @@ html {
 }
 
 body {
-  background-color: #efe6da;
-  color: #1b1714;
+  background-color: #11100f;
+  color: #f4eee6;
 }
 
 ::selection {
   background: #ad8a4e;
-  color: #1b1714;
+  color: #11100f;
 }
 
 :focus-visible {
-  outline: 2px solid #ad8a4e;
+  outline: 2px solid #d6b36a;
   outline-offset: 3px;
 }
 
@@ -31,6 +31,7 @@ body {
 .nav-link {
   position: relative;
 }
+
 .nav-link::after {
   content: "";
   position: absolute;
@@ -38,9 +39,10 @@ body {
   bottom: -2px;
   width: 0;
   height: 1px;
-  background: #ad8a4e;
+  background: #d6b36a;
   transition: width 0.25s ease;
 }
+
 .nav-link:hover::after {
   width: 100%;
 }
