@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -86,7 +86,9 @@ const SERVICE_CATEGORIES = [
   },
 ];
 
-const SERVICE_OPTIONS = SERVICE_CATEGORIES.flatMap((group) => group.items);
+const SERVICE_OPTIONS = SERVICE_CATEGORIES.flatMap(
+  (group) => group.items
+);
 
 const NAIL_SHAPES = [
   {
@@ -140,10 +142,9 @@ function minutesToTime(minutes) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
 
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(
-    2,
-    "0"
-  )}`;
+  return `${String(hours).padStart(2, "0")}:${String(
+    mins
+  ).padStart(2, "0")}`;
 }
 
 function formatDate(dateString) {
@@ -177,21 +178,67 @@ function formatTime(time) {
 
 function getTodayString() {
   const today = new Date();
+
   const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const month = String(
+    today.getMonth() + 1
+  ).padStart(2, "0");
+
   const day = String(today.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 }
 
-function calculateServicesDuration(services) {
-  return services.reduce((total, serviceName) => {
-    const service = SERVICE_OPTIONS.find(
-      (option) => option.name === serviceName
-    );
+/*
+ * Booking date rules
+ *
+ * 1. Previous dates are not allowed.
+ * 2. Sundays are not allowed.
+ * 3. Today and future Monday-Saturday dates are allowed.
+ */
+function isSunday(dateString) {
+  if (!dateString) return false;
 
-    return total + (service?.duration || 0);
-  }, 0);
+  const date = new Date(`${dateString}T12:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  return date.getDay() === 0;
+}
+
+function isPastDate(dateString) {
+  if (!dateString) return false;
+
+  return dateString < getTodayString();
+}
+
+function isBookableDate(dateString) {
+  if (!dateString) return false;
+
+  if (isPastDate(dateString)) {
+    return false;
+  }
+
+  if (isSunday(dateString)) {
+    return false;
+  }
+
+  return true;
+}
+
+function calculateServicesDuration(services) {
+  return services.reduce(
+    (total, serviceName) => {
+      const service = SERVICE_OPTIONS.find(
+        (option) => option.name === serviceName
+      );
+
+      return total + (service?.duration || 0);
+    },
+    0
+  );
 }
 
 const inputClass =
@@ -213,26 +260,42 @@ export default function Booking() {
     notes: "",
   });
 
-  const [availableTimes, setAvailableTimes] = useState([[]]);
-  const [loadingAvailability, setLoadingAvailability] = useState([false]);
-  const [availabilityErrors, setAvailabilityErrors] = useState([""]);
+  const [availableTimes, setAvailableTimes] = useState([
+    [],
+  ]);
+
+  const [loadingAvailability, setLoadingAvailability] =
+    useState([false]);
+
+  const [availabilityErrors, setAvailabilityErrors] =
+    useState([""]);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [confirmedBooking, setConfirmedBooking] = useState(null);
-  const [confirmingBooking, setConfirmingBooking] = useState(false);
+  const [confirmedBooking, setConfirmedBooking] =
+    useState(null);
+  const [confirmingBooking, setConfirmingBooking] =
+    useState(false);
 
   const clientCount = Number(form.clients);
   const todayString = getTodayString();
 
   const clientDurations = useMemo(
-    () => form.clientServices.map(calculateServicesDuration),
+    () =>
+      form.clientServices.map(
+        calculateServicesDuration
+      ),
     [form.clientServices]
   );
 
-  const totalDeposit = clientCount * DEPOSIT_PER_CLIENT;
+  const totalDeposit =
+    clientCount * DEPOSIT_PER_CLIENT;
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(
+      window.location.search
+    );
+
     const shape = params.get("shape");
 
     if (!shape) return;
@@ -252,9 +315,14 @@ export default function Booking() {
     }));
   }, []);
 
-  function updateClientServices(clientIndex, services) {
+  function updateClientServices(
+    clientIndex,
+    services
+  ) {
     setForm((current) => {
-      const updated = [...current.clientServices];
+      const updated = [
+        ...current.clientServices,
+      ];
 
       updated[clientIndex] = services;
 
@@ -267,9 +335,14 @@ export default function Booking() {
     setError("");
   }
 
-  function updateClientShape(clientIndex, shape) {
+  function updateClientShape(
+    clientIndex,
+    shape
+  ) {
     setForm((current) => {
-      const updated = [...current.clientShapes];
+      const updated = [
+        ...current.clientShapes,
+      ];
 
       updated[clientIndex] = shape;
 
@@ -284,12 +357,21 @@ export default function Booking() {
 
   function addService(clientIndex) {
     setForm((current) => {
-      const updated = [...current.clientServices];
+      const updated = [
+        ...current.clientServices,
+      ];
 
-      if (updated[clientIndex].length >= 4) return current;
+      if (
+        updated[clientIndex].length >= 4
+      ) {
+        return current;
+      }
 
       const unused = SERVICE_OPTIONS.find(
-        (option) => !updated[clientIndex].includes(option.name)
+        (option) =>
+          !updated[clientIndex].includes(
+            option.name
+          )
       );
 
       if (!unused) return current;
@@ -308,15 +390,26 @@ export default function Booking() {
     setError("");
   }
 
-  function removeService(clientIndex, serviceIndex) {
+  function removeService(
+    clientIndex,
+    serviceIndex
+  ) {
     setForm((current) => {
-      const updated = [...current.clientServices];
+      const updated = [
+        ...current.clientServices,
+      ];
 
-      if (updated[clientIndex].length <= 1) return current;
+      if (
+        updated[clientIndex].length <= 1
+      ) {
+        return current;
+      }
 
-      updated[clientIndex] = updated[clientIndex].filter(
-        (_, index) => index !== serviceIndex
-      );
+      updated[clientIndex] =
+        updated[clientIndex].filter(
+          (_, index) =>
+            index !== serviceIndex
+        );
 
       return {
         ...current,
@@ -331,13 +424,27 @@ export default function Booking() {
     const nextCount = Number(value);
 
     setForm((current) => {
-      const services = [...current.clientServices];
-      const shapes = [...current.clientShapes];
-      const dates = [...current.clientDates];
-      const times = [...current.clientTimes];
+      const services = [
+        ...current.clientServices,
+      ];
+
+      const shapes = [
+        ...current.clientShapes,
+      ];
+
+      const dates = [
+        ...current.clientDates,
+      ];
+
+      const times = [
+        ...current.clientTimes,
+      ];
 
       while (services.length < nextCount) {
-        services.push([SERVICE_OPTIONS[0].name]);
+        services.push([
+          SERVICE_OPTIONS[0].name,
+        ]);
+
         shapes.push("");
         dates.push("");
         times.push("");
@@ -359,24 +466,101 @@ export default function Booking() {
     });
 
     setAvailableTimes(
-      Array.from({ length: nextCount }, () => [])
+      Array.from(
+        { length: nextCount },
+        () => []
+      )
     );
 
     setLoadingAvailability(
-      Array.from({ length: nextCount }, () => false)
+      Array.from(
+        { length: nextCount },
+        () => false
+      )
     );
 
     setAvailabilityErrors(
-      Array.from({ length: nextCount }, () => "")
+      Array.from(
+        { length: nextCount },
+        () => ""
+      )
     );
 
     setError("");
   }
 
-  function updateClientDate(clientIndex, date) {
+  function updateClientDate(
+    clientIndex,
+    date
+  ) {
+    /*
+     * Explicitly reject dates before today.
+     */
+    if (date && isPastDate(date)) {
+      setError(
+        "Previous dates cannot be booked. Please choose today or a future date."
+      );
+
+      setForm((current) => {
+        const dates = [
+          ...current.clientDates,
+        ];
+
+        const times = [
+          ...current.clientTimes,
+        ];
+
+        dates[clientIndex] = "";
+        times[clientIndex] = "";
+
+        return {
+          ...current,
+          clientDates: dates,
+          clientTimes: times,
+        };
+      });
+
+      return;
+    }
+
+    /*
+     * Explicitly reject Sundays.
+     */
+    if (date && isSunday(date)) {
+      setError(
+        "Sundays are unavailable for bookings. Please choose Monday to Saturday."
+      );
+
+      setForm((current) => {
+        const dates = [
+          ...current.clientDates,
+        ];
+
+        const times = [
+          ...current.clientTimes,
+        ];
+
+        dates[clientIndex] = "";
+        times[clientIndex] = "";
+
+        return {
+          ...current,
+          clientDates: dates,
+          clientTimes: times,
+        };
+      });
+
+      return;
+    }
+
     setForm((current) => {
-      const dates = [...current.clientDates];
-      const times = [...current.clientTimes];
+      const dates = [
+        ...current.clientDates,
+      ];
+
+      const times = [
+        ...current.clientTimes,
+      ];
 
       dates[clientIndex] = date;
       times[clientIndex] = "";
@@ -391,9 +575,14 @@ export default function Booking() {
     setError("");
   }
 
-  function updateClientTime(clientIndex, time) {
+  function updateClientTime(
+    clientIndex,
+    time
+  ) {
     setForm((current) => {
-      const times = [...current.clientTimes];
+      const times = [
+        ...current.clientTimes,
+      ];
 
       times[clientIndex] = time;
 
@@ -406,6 +595,11 @@ export default function Booking() {
     setError("");
   }
 
+  /*
+   * Availability lookup.
+   *
+   * Invalid dates are never sent to the API.
+   */
   useEffect(() => {
     let cancelled = false;
 
@@ -430,10 +624,19 @@ export default function Booking() {
         clientIndex < clientCount;
         clientIndex++
       ) {
-        const date = form.clientDates[clientIndex];
-        const duration = clientDurations[clientIndex];
+        const date =
+          form.clientDates[clientIndex];
 
-        if (!date || !duration) continue;
+        const duration =
+          clientDurations[clientIndex];
+
+        if (
+          !date ||
+          !duration ||
+          !isBookableDate(date)
+        ) {
+          continue;
+        }
 
         loading[clientIndex] = true;
       }
@@ -447,10 +650,23 @@ export default function Booking() {
         Array.from(
           { length: clientCount },
           async (_, clientIndex) => {
-            const date = form.clientDates[clientIndex];
-            const duration = clientDurations[clientIndex];
+            const date =
+              form.clientDates[
+                clientIndex
+              ];
 
-            if (!date || !duration) return;
+            const duration =
+              clientDurations[
+                clientIndex
+              ];
+
+            if (
+              !date ||
+              !duration ||
+              !isBookableDate(date)
+            ) {
+              return;
+            }
 
             try {
               const response = await fetch(
@@ -462,7 +678,8 @@ export default function Booking() {
                 }
               );
 
-              const data = await response.json();
+              const data =
+                await response.json();
 
               if (!response.ok) {
                 throw new Error(
@@ -472,13 +689,15 @@ export default function Booking() {
               }
 
               results[clientIndex] =
-                data.availableTimes || [];
+                data.availableTimes ||
+                [];
             } catch (requestError) {
               errors[clientIndex] =
                 requestError.message ||
                 "Unable to load availability.";
             } finally {
-              loading[clientIndex] = false;
+              loading[clientIndex] =
+                false;
             }
           }
         )
@@ -502,8 +721,11 @@ export default function Booking() {
     clientDurations,
   ]);
 
-  function getClientAvailableTimes(clientIndex) {
-    let times = availableTimes[clientIndex] || [];
+  function getClientAvailableTimes(
+    clientIndex
+  ) {
+    let times =
+      availableTimes[clientIndex] || [];
 
     if (
       clientIndex > 0 &&
@@ -512,12 +734,17 @@ export default function Booking() {
         form.clientDates[clientIndex] &&
       form.clientTimes[clientIndex - 1]
     ) {
-      const previousStart = timeToMinutes(
-        form.clientTimes[clientIndex - 1]
-      );
+      const previousStart =
+        timeToMinutes(
+          form.clientTimes[
+            clientIndex - 1
+          ]
+        );
 
       const previousDuration =
-        clientDurations[clientIndex - 1];
+        clientDurations[
+          clientIndex - 1
+        ];
 
       const earliestStart =
         previousStart +
@@ -526,7 +753,8 @@ export default function Booking() {
 
       times = times.filter(
         (time) =>
-          timeToMinutes(time) >= earliestStart
+          timeToMinutes(time) >=
+          earliestStart
       );
     }
 
@@ -544,22 +772,31 @@ export default function Booking() {
     }
 
     if (!form.phone.trim()) {
-      setError("Please enter your phone number.");
+      setError(
+        "Please enter your phone number."
+      );
       return;
     }
 
     if (!form.email.trim()) {
-      setError("Please enter your email address.");
+      setError(
+        "Please enter your email address."
+      );
       return;
     }
 
+    /*
+     * Validate nail shapes.
+     */
     for (
       let clientIndex = 0;
       clientIndex < clientCount;
       clientIndex++
     ) {
       const services =
-        form.clientServices[clientIndex] || [];
+        form.clientServices[
+          clientIndex
+        ] || [];
 
       const needsShape = services.some(
         isShapeEligibleService
@@ -567,61 +804,122 @@ export default function Booking() {
 
       if (
         needsShape &&
-        !form.clientShapes[clientIndex]
+        !form.clientShapes[
+          clientIndex
+        ]
       ) {
         setError(
           `Please choose a nail shape for Client ${
             clientIndex + 1
           }.`
         );
+
         return;
       }
     }
 
+    /*
+     * Validate dates and times.
+     */
     for (
       let clientIndex = 0;
       clientIndex < clientCount;
       clientIndex++
     ) {
-      if (!form.clientDates[clientIndex]) {
+      const date =
+        form.clientDates[
+          clientIndex
+        ];
+
+      if (!date) {
         setError(
           `Please choose a preferred date for Client ${
             clientIndex + 1
           }.`
         );
+
         return;
       }
 
-      if (!form.clientTimes[clientIndex]) {
+      /*
+       * Final protection against:
+       * - previous dates
+       * - Sundays
+       */
+      if (!isBookableDate(date)) {
+        if (isPastDate(date)) {
+          setError(
+            `Client ${
+              clientIndex + 1
+            } has selected a previous date. Please choose today or a future date.`
+          );
+        } else if (isSunday(date)) {
+          setError(
+            `Client ${
+              clientIndex + 1
+            } has selected a Sunday. Sundays are unavailable for bookings.`
+          );
+        } else {
+          setError(
+            `Please choose a valid booking date for Client ${
+              clientIndex + 1
+            }.`
+          );
+        }
+
+        return;
+      }
+
+      if (
+        !form.clientTimes[
+          clientIndex
+        ]
+      ) {
         setError(
           `Please choose an available time for Client ${
             clientIndex + 1
           }.`
         );
+
         return;
       }
     }
 
+    /*
+     * Validate the 15-minute same-day gap.
+     */
     for (
       let clientIndex = 1;
       clientIndex < clientCount;
       clientIndex++
     ) {
       if (
-        form.clientDates[clientIndex] ===
-        form.clientDates[clientIndex - 1]
+        form.clientDates[
+          clientIndex
+        ] ===
+        form.clientDates[
+          clientIndex - 1
+        ]
       ) {
-        const previousStart = timeToMinutes(
-          form.clientTimes[clientIndex - 1]
-        );
+        const previousStart =
+          timeToMinutes(
+            form.clientTimes[
+              clientIndex - 1
+            ]
+          );
 
         const previousEnd =
           previousStart +
-          clientDurations[clientIndex - 1];
+          clientDurations[
+            clientIndex - 1
+          ];
 
-        const currentStart = timeToMinutes(
-          form.clientTimes[clientIndex]
-        );
+        const currentStart =
+          timeToMinutes(
+            form.clientTimes[
+              clientIndex
+            ]
+          );
 
         if (
           currentStart <
@@ -657,24 +955,30 @@ export default function Booking() {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
           },
           body: JSON.stringify({
             name: form.name.trim(),
             phone: form.phone.trim(),
             email: form.email.trim(),
-            clientServices: form.clientServices,
-            clientShapes: form.clientShapes,
+            clientServices:
+              form.clientServices,
+            clientShapes:
+              form.clientShapes,
             clientCount,
-            clientDates: form.clientDates,
-            clientStartTimes: form.clientTimes,
+            clientDates:
+              form.clientDates,
+            clientStartTimes:
+              form.clientTimes,
             clientEndTimes,
             notes: form.notes.trim(),
           }),
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -701,13 +1005,18 @@ export default function Booking() {
     }
   }
 
+  /*
+   * Booking confirmation after Yoco payment.
+   */
   useEffect(() => {
-    const params = new URLSearchParams(
-      window.location.search
-    );
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
 
     if (
-      params.get("booking") !== "success" ||
+      params.get("booking") !==
+        "success" ||
       !params.get("appointment")
     ) {
       return;
@@ -735,10 +1044,14 @@ export default function Booking() {
           }
         );
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
         if (!response.ok) {
-          if (attempt < MAX_ATTEMPTS) {
+          if (
+            attempt <
+            MAX_ATTEMPTS
+          ) {
             setTimeout(
               () =>
                 loadConfirmedBooking(
@@ -782,6 +1095,9 @@ export default function Booking() {
     loadConfirmedBooking();
   }, []);
 
+  /*
+   * Confirmation loading state.
+   */
   if (
     confirmingBooking &&
     !confirmedBooking
@@ -803,15 +1119,19 @@ export default function Booking() {
           </h2>
 
           <p className="text-[#c9c0b6] leading-relaxed">
-            Your payment went through — just
-            finalising the details. This usually
-            takes a few seconds.
+            Your payment went through —
+            just finalising the details.
+            This usually takes a few
+            seconds.
           </p>
         </div>
       </section>
     );
   }
 
+  /*
+   * Confirmed booking state.
+   */
   if (confirmedBooking) {
     const whatsappMessage =
       encodeURIComponent(
@@ -819,8 +1139,13 @@ export default function Booking() {
           confirmedBooking.clients
             ? confirmedBooking.clients
                 .map(
-                  (client, index) =>
-                    `Client ${index + 1}:\nServices: ${
+                  (
+                    client,
+                    index
+                  ) =>
+                    `Client ${
+                      index + 1
+                    }:\nServices: ${
                       client.service
                     }\nDate: ${formatDate(
                       client.bookingDate
@@ -866,35 +1191,45 @@ export default function Booking() {
           </p>
 
           <p className="text-[#c9c0b6] leading-relaxed">
-            Your payment has been received and
-            your appointment is confirmed.
+            Your payment has been
+            received and your
+            appointment is confirmed.
           </p>
 
           <p className="text-[#c9c0b6] leading-relaxed mt-2">
             Your R
-            {confirmedBooking.depositAmount}{" "}
+            {
+              confirmedBooking.depositAmount
+            }{" "}
             deposit has been received.
           </p>
 
           <p className="text-[#c9c0b6] leading-relaxed mt-2">
-            A confirmation email has been sent to{" "}
+            A confirmation email has
+            been sent to{" "}
             <strong className="text-[#f4eee6]">
-              {confirmedBooking.customerEmail}
+              {
+                confirmedBooking.customerEmail
+              }
             </strong>
             .
           </p>
 
           <p className="text-[#c9c0b6] leading-relaxed mt-2">
-            Freddy Nails has also received your
-            booking notification.
+            Freddy Nails has also
+            received your booking
+            notification.
           </p>
 
           {confirmedBooking.clients &&
-            confirmedBooking.clients.length >
-              0 && (
+            confirmedBooking.clients
+              .length > 0 && (
               <div className="space-y-3 my-6 text-left">
                 {confirmedBooking.clients.map(
-                  (client, index) => (
+                  (
+                    client,
+                    index
+                  ) => (
                     <div
                       key={
                         client.id ||
@@ -903,17 +1238,22 @@ export default function Booking() {
                       className="border-b border-white/[0.09] py-4 flex flex-col gap-1 text-sm"
                     >
                       <strong className="text-xs uppercase tracking-[0.12em] text-gold">
-                        Client {index + 1}
+                        Client{" "}
+                        {index + 1}
                       </strong>
 
                       <span className="text-[#f4eee6]">
-                        {client.service}
+                        {
+                          client.service
+                        }
                       </span>
 
                       {client.shape && (
                         <span className="text-[#c9c0b6]">
                           Shape:{" "}
-                          {client.shape}
+                          {
+                            client.shape
+                          }
                         </span>
                       )}
 
@@ -944,7 +1284,8 @@ export default function Booking() {
             rel="noreferrer"
             className="inline-flex items-center justify-center gap-2.5 bg-gold text-[#11100f] px-7 py-[15px] rounded-sm text-[0.85rem] font-bold uppercase tracking-wide hover:bg-gold-bright transition-colors mt-6"
           >
-            Message Freddy Nails on WhatsApp
+            Message Freddy Nails on
+            WhatsApp
           </a>
 
           <p className="text-xs text-[#8f877e] mt-5">
@@ -962,7 +1303,6 @@ export default function Booking() {
       id="booking"
       className="relative max-w-[1180px] mx-auto px-5 py-22"
     >
-      {/* Heading */}
       <div className="max-w-[820px] mx-auto mb-12">
         <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
           Book your appointment
@@ -975,15 +1315,16 @@ export default function Booking() {
         <div className="mt-5 h-px w-16 bg-gold/60" />
 
         <p className="text-[#c9c0b6] leading-relaxed text-[0.94rem] mt-5 max-w-[650px]">
-          Choose the services, preferred date
-          and available time for each client.
+          Choose the services, preferred
+          date and available time for each
+          client.
         </p>
       </div>
 
-      {/* Booking form */}
       <div className="max-w-[820px] mx-auto">
         <form onSubmit={handleSubmit}>
-          {/* Personal details */}
+          {/* YOUR DETAILS */}
+
           <div className="pb-8 border-b border-white/[0.09]">
             <div className="flex items-center gap-4 mb-6">
               <p className="text-[0.68rem] font-bold tracking-[0.22em] uppercase text-gold">
@@ -1006,7 +1347,8 @@ export default function Booking() {
                   onChange={(event) =>
                     setForm({
                       ...form,
-                      name: event.target.value,
+                      name: event.target
+                        .value,
                     })
                   }
                   placeholder="Your full name"
@@ -1026,7 +1368,8 @@ export default function Booking() {
                   onChange={(event) =>
                     setForm({
                       ...form,
-                      phone: event.target.value,
+                      phone: event.target
+                        .value,
                     })
                   }
                   placeholder="e.g. 071 234 5678"
@@ -1046,7 +1389,8 @@ export default function Booking() {
                   onChange={(event) =>
                     setForm({
                       ...form,
-                      email: event.target.value,
+                      email: event.target
+                        .value,
                     })
                   }
                   placeholder="you@example.com"
@@ -1064,19 +1408,28 @@ export default function Booking() {
                   value={form.clients}
                   onChange={(event) =>
                     changeClientCount(
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                 >
                   {Array.from(
-                    { length: MAX_CLIENTS },
+                    {
+                      length:
+                        MAX_CLIENTS,
+                    },
                     (_, index) => (
                       <option
-                        key={index + 1}
-                        value={index + 1}
+                        key={
+                          index + 1
+                        }
+                        value={
+                          index + 1
+                        }
                       >
                         {index + 1}{" "}
-                        {index === 0
+                        {index ===
+                        0
                           ? "client"
                           : "clients"}
                       </option>
@@ -1087,7 +1440,8 @@ export default function Booking() {
             </div>
           </div>
 
-          {/* Clients */}
+          {/* APPOINTMENT DETAILS */}
+
           <div className="pt-8">
             <div className="flex items-center gap-4 mb-7">
               <p className="text-[0.68rem] font-bold tracking-[0.22em] uppercase text-gold">
@@ -1099,7 +1453,10 @@ export default function Booking() {
 
             <div className="space-y-10">
               {Array.from(
-                { length: clientCount },
+                {
+                  length:
+                    clientCount,
+                },
                 (_, clientIndex) => {
                   const services =
                     form.clientServices[
@@ -1118,20 +1475,27 @@ export default function Booking() {
 
                   return (
                     <div
-                      key={clientIndex}
+                      key={
+                        clientIndex
+                      }
                       className="relative"
                     >
-                      {/* Client heading */}
+                      {/* CLIENT HEADING */}
+
                       <div className="flex justify-between items-start gap-4 mb-5">
                         <div>
                           <span className="block text-xs font-bold uppercase tracking-[0.16em] text-gold mb-1.5">
                             Client{" "}
-                            {clientIndex + 1}
+                            {clientIndex +
+                              1}
                           </span>
 
                           <h3 className="font-serif text-xl font-medium text-[#f4eee6]">
-                            Choose services &
-                            appointment time
+                            Choose
+                            services
+                            &
+                            appointment
+                            time
                           </h3>
                         </div>
 
@@ -1145,7 +1509,8 @@ export default function Booking() {
                         </span>
                       </div>
 
-                      {/* Services */}
+                      {/* SERVICES */}
+
                       <div className="space-y-3">
                         {services.map(
                           (
@@ -1172,7 +1537,9 @@ export default function Booking() {
                                   updated[
                                     serviceIndex
                                   ] =
-                                    event.target.value;
+                                    event
+                                      .target
+                                      .value;
 
                                   updateClientServices(
                                     clientIndex,
@@ -1254,7 +1621,8 @@ export default function Booking() {
                         )}
                       </div>
 
-                      {/* Nail shape */}
+                      {/* NAIL SHAPE */}
+
                       <div
                         className={`mt-7 pt-6 border-t border-white/[0.08] transition-all duration-300 ${
                           !needsShape
@@ -1277,14 +1645,17 @@ export default function Booking() {
 
                           {!needsShape && (
                             <span className="text-[0.6rem] font-bold uppercase tracking-wide text-[#8f877e]">
-                              Not applicable
+                              Not
+                              applicable
                             </span>
                           )}
                         </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {NAIL_SHAPES.map(
-                            (shape) => {
+                            (
+                              shape
+                            ) => {
                               const selected =
                                 form
                                   .clientShapes[
@@ -1334,7 +1705,8 @@ export default function Booking() {
                         </div>
                       </div>
 
-                      {/* Date and time */}
+                      {/* DATE + TIME */}
+
                       <div className="grid gap-5 sm:grid-cols-2 mt-7">
                         <label>
                           <span
@@ -1342,12 +1714,15 @@ export default function Booking() {
                               labelClass
                             }
                           >
-                            Preferred date
+                            Preferred
+                            date
                           </span>
 
                           <input
                             type="date"
-                            min={todayString}
+                            min={
+                              todayString
+                            }
                             className={
                               inputClass
                             }
@@ -1355,17 +1730,26 @@ export default function Booking() {
                               form
                                 .clientDates[
                                 clientIndex
-                              ] || ""
+                              ] ||
+                              ""
                             }
-                            onChange={(event) =>
+                            onChange={(
+                              event
+                            ) =>
                               updateClientDate(
                                 clientIndex,
-                                event.target
+                                event
+                                  .target
                                   .value
                               )
                             }
                             required
                           />
+
+                          <p className="text-[0.68rem] text-[#8f877e] mt-2">
+                            Sundays are
+                            unavailable.
+                          </p>
                         </label>
 
                         <label>
@@ -1374,7 +1758,8 @@ export default function Booking() {
                               labelClass
                             }
                           >
-                            Available time
+                            Available
+                            time
                           </span>
 
                           <select
@@ -1385,12 +1770,16 @@ export default function Booking() {
                               form
                                 .clientTimes[
                                 clientIndex
-                              ] || ""
+                              ] ||
+                              ""
                             }
-                            onChange={(event) =>
+                            onChange={(
+                              event
+                            ) =>
                               updateClientTime(
                                 clientIndex,
-                                event.target
+                                event
+                                  .target
                                   .value
                               )
                             }
@@ -1416,16 +1805,22 @@ export default function Booking() {
                                   ]
                                 ? "Choose a date first"
                                 : times.length ===
-                                  0
-                                ? "No times available"
-                                : "Choose a time"}
+                                    0
+                                  ? "No times available"
+                                  : "Choose a time"}
                             </option>
 
                             {times.map(
-                              (time) => (
+                              (
+                                time
+                              ) => (
                                 <option
-                                  key={time}
-                                  value={time}
+                                  key={
+                                    time
+                                  }
+                                  value={
+                                    time
+                                  }
                                 >
                                   {formatTime(
                                     time
@@ -1452,7 +1847,8 @@ export default function Booking() {
                       {form.clientDates[
                         clientIndex
                       ] &&
-                        times.length === 0 &&
+                        times.length ===
+                          0 &&
                         !loadingAvailability[
                           clientIndex
                         ] &&
@@ -1460,40 +1856,53 @@ export default function Booking() {
                           clientIndex
                         ] && (
                           <p className="text-xs text-[#9f978f] italic mt-3">
-                            No appointment
+                            No
+                            appointment
                             times are
                             currently
-                            available for
-                            this date.
-                            Please choose
-                            another date.
+                            available
+                            for this
+                            date.
+                            Please
+                            choose
+                            another
+                            date.
                           </p>
                         )}
 
-                      {clientIndex > 0 &&
-                        form.clientDates[
+                      {clientIndex >
+                        0 &&
+                        form
+                          .clientDates[
                           clientIndex
                         ] ===
-                          form.clientDates[
-                            clientIndex - 1
+                          form
+                            .clientDates[
+                            clientIndex -
+                              1
                           ] &&
-                        form.clientTimes[
-                          clientIndex - 1
+                        form
+                          .clientTimes[
+                          clientIndex -
+                            1
                         ] && (
                           <p className="text-xs text-[#9f978f] italic mt-3">
-                            Same-day clients
+                            Same-day
+                            clients
                             are
                             automatically
-                            scheduled with
-                            a 15-minute gap
+                            scheduled
+                            with a
+                            15-minute
+                            gap
                             between
                             appointments.
                           </p>
                         )}
 
-                      {/* Separator between clients */}
                       {clientIndex <
-                        clientCount - 1 && (
+                        clientCount -
+                          1 && (
                         <div className="mt-10 h-px bg-white/[0.08]" />
                       )}
                     </div>
@@ -1503,7 +1912,8 @@ export default function Booking() {
             </div>
           </div>
 
-          {/* Notes */}
+          {/* NOTES */}
+
           <label className="block mt-10 pt-8 border-t border-white/[0.09]">
             <span className={labelClass}>
               Notes
@@ -1515,7 +1925,8 @@ export default function Booking() {
               onChange={(event) =>
                 setForm({
                   ...form,
-                  notes: event.target.value,
+                  notes: event.target
+                    .value,
                 })
               }
               placeholder="Anything Freddy Nails should know?"
@@ -1523,14 +1934,16 @@ export default function Booking() {
             />
           </label>
 
-          {/* Error */}
+          {/* ERROR */}
+
           {error && (
             <div className="mt-5 border-l-2 border-red-400 bg-red-400/10 px-4 py-3 text-sm text-red-300">
               {error}
             </div>
           )}
 
-          {/* Summary */}
+          {/* SUMMARY */}
+
           <div className="flex gap-10 border-t border-white/[0.09] pt-6 mt-8">
             <div>
               <span className="block text-xs uppercase tracking-[0.12em] text-[#8f877e] mb-1">
@@ -1553,7 +1966,8 @@ export default function Booking() {
             </div>
           </div>
 
-          {/* Payment */}
+          {/* PAYMENT */}
+
           <button
             type="submit"
             disabled={submitting}
@@ -1565,8 +1979,10 @@ export default function Booking() {
           </button>
 
           <p className="text-xs text-[#8f877e] text-center mt-3">
-            You&apos;ll be securely redirected to
-            Yoco to complete your deposit payment.
+            You&apos;ll be securely
+            redirected to Yoco to
+            complete your deposit
+            payment.
           </p>
         </form>
       </div>
