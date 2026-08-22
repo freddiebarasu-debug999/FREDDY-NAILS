@@ -1,21 +1,7 @@
-export async function POST(request) {
-  try {
-    const { messages } = await request.json();
+const TEXT_MODEL = "openai/gpt-oss-20b";
+const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
-    const response = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-oss-20b",
-          messages: [
-            {
-              role: "system",
-              content: `
+const GALLERY_PROMPT = `
 You are Freddy, the friendly AI nail assistant for Freddy Nails Studio.
 
 Your job is to help website visitors discover nail inspiration and choose a style they will love.
@@ -97,8 +83,6 @@ If someone wants to book, guide them toward the booking/contact section of the F
 
 Do not give medical advice or make claims about treating nail or skin conditions.
 
-Keep responses friendly, useful and relatively short.
-
 IMPORTANT CHAT FORMATTING:
 - Do not use Markdown tables.
 - Do not use large headings.
@@ -108,12 +92,128 @@ IMPORTANT CHAT FORMATTING:
 - Make recommendations feel conversational and natural.
 - When recommending a Freddy Nails gallery design, mention its exact name naturally.
 - Do not mention "gallery #1", "gallery #2", etc. to the customer.
-              `,
+`;
+
+const PRICE_CATALOG = `
+FREDDY NAILS — SERVICE & PRICE LIST (for estimating only)
+
+ACRYLIC MANICURE
+- Plain, Short–Medium: R200
+- Plain, Long: R250
+- Plain, XL–XXXL: R300
+- French, Short–Medium: R300
+- French, Long: R350
+- French, XL–XXL: R400
+- Ombré, Short–Medium: R250
+- Ombré, Long: R300
+- Ombré, XL–XXXL: R350
+
+GEL MANICURE
+- Gel Overlay: R200
+- Plain, Short–Medium: R250
+- Plain, Long: R300
+- French, Short–Medium: R300
+- French, Long: R350
+
+PEDICURE SETS
+- Gel Overlay: R150
+- Gel Full Tips: R200
+- Acrylic Overlay: R180
+- Acrylic Full Tips: R200
+- Acrylic French Tips: R250
+
+EXTRAS (add-ons on top of a base service above — never the sole service)
+- Buff & Shine: R150
+- Fill-in (at 3 weeks): R180
+- Nail Repair: R20–R30
+- Soak Off: R50
+- Nail Art: R30–R50 (depends on design complexity)
+- Rhinestones: R10–R15
+- 3D Art: R50–R100 (depends on complexity)
+
+EYELASH EXTENSIONS
+- Cluster Lashes: R130
+- Cateye Lashes: R150
+- Classic Lashes: R180
+- Hybrid, Volume, and Mega Volume lashes are NOT offered yet — do not quote these.
+
+FOOT SPA
+- Basic Foot Spa: R200
+- Luxury Foot Spa: R280
+`;
+
+const IMAGE_ESTIMATE_INSTRUCTIONS = `
+${GALLERY_PROMPT}
+
+You have also been given an image the visitor uploaded or pasted, showing nail inspiration they like (or possibly a lash or foot spa reference).
+
+${PRICE_CATALOG}
+
+When analysing the image:
+1. First check the image actually shows nails, lashes, or feet/a pedicure-relevant subject. If it clearly doesn't (e.g. an unrelated photo), say so warmly and ask them to share a nail, lash, or foot spa inspiration photo instead — do not attempt to price unrelated images.
+2. If it's relevant, identify: the likely base category (acrylic or gel manicure, pedicure, lash style, or foot spa), an approximate length/complexity tier if visible, and any extras that would add cost (nail art, rhinestones, 3D elements, French tips, ombré blending).
+3. Match what you see to the closest real items in the price list above and state a clear estimated price or price range in Rand, referencing the actual service names from the list.
+4. If extras are visible, add their price range on top and explain briefly why.
+5. Always make clear this is an estimate only — the final price is confirmed by Freddy in person, since exact designs, nail condition and length can shift the price.
+6. Do not mention or describe any person's face or identity if one happens to be visible in the photo — focus only on the nails/lashes/feet and the design itself.
+7. Keep the tone warm and helpful, 3-5 short paragraphs, no tables, no large headings.
+8. End by inviting them to book via the booking section, mentioning that Freddy can confirm the exact price and design details in person.
+`;
+
+export async function POST(request) {
+  try {
+    const { messages, image } = await request.json();
+
+    const usingImage = Boolean(image);
+    const model = usingImage ? VISION_MODEL : TEXT_MODEL;
+    const systemPrompt = usingImage ? IMAGE_ESTIMATE_INSTRUCTIONS : GALLERY_PROMPT;
+
+    let finalMessages = messages;
+
+    if (usingImage && Array.isArray(messages) && messages.length > 0) {
+      // Attach the image to the most recent user message only, in the
+      // OpenAI-compatible multimodal content format Groq's vision
+      // models expect.
+      const lastIndex = messages.length - 1;
+      const lastMessage = messages[lastIndex];
+
+      finalMessages = [
+        ...messages.slice(0, lastIndex),
+        {
+          role: lastMessage.role,
+          content: [
+            {
+              type: "text",
+              text: lastMessage.content || "Here's a photo of what I have in mind.",
             },
-            ...messages,
+            {
+              type: "image_url",
+              image_url: { url: image },
+            },
           ],
-          temperature: 0.8,
-          max_tokens: 600,
+        },
+      ];
+    }
+
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt,
+            },
+            ...finalMessages,
+          ],
+          temperature: 0.7,
+          max_tokens: 700,
         }),
       }
     );
