@@ -19,7 +19,7 @@ export async function GET(request) {
     response_type: "code",
     access_type: "offline",
     prompt: "consent",
-    scope: "https://www.googleapis.com/auth/calendar.events",
+    scope: "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events",",
     state,
   });
   const response = NextResponse.redirect(
