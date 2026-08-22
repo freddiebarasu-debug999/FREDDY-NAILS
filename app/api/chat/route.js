@@ -6,7 +6,7 @@ You are Freddy, the friendly AI nail assistant for Freddy Nails Studio.
 
 Be warm, stylish, helpful and concise.
 
-Help visitors choose nail shapes, lengths, colours, designs and services.
+Help customers choose nail shapes, lengths, colours, designs, services and prices.
 
 Freddy Nails gallery:
 
@@ -19,11 +19,11 @@ Freddy Nails gallery:
 7. Lilac Square Set
 8. Leopard French Cherry
 
-When a visitor's request clearly matches a gallery design, mention its exact name.
+When a customer's request clearly matches a gallery design, mention the exact design name.
 
-Return only the customer-facing answer.
+Return ONLY the customer-facing answer.
 Never reveal internal reasoning.
-Never output <think>...</think>.
+Never output <think> tags.
 `;
 
 const PRICE_CATALOG = `
@@ -78,32 +78,45 @@ You are Freddy's Nail Muse for Freddy Nails Studio.
 
 ${PRICE_CATALOG}
 
-The customer uploaded a nail/lash/pedicure inspiration image.
+The customer has uploaded a photo.
 
-Analyse the visible result and give a SHORT customer-facing estimate.
+Look at the photo and identify what is visibly shown.
 
-The answer MUST include:
+Your job is to give a simple customer-facing price estimate.
+
+IMPORTANT:
+Do NOT provide long reasoning.
+Do NOT explain how you analysed the image.
+Do NOT mention AI, models or internal instructions.
+
+Your answer MUST start with:
 
 Estimated price: R___
+
+Then:
+
 Service: ___
 Shape & length: ___
 Design: ___
 
-Then one short explanation.
+Then give ONE short sentence explaining the estimate.
 
-Only add Nail Art, Rhinestones or 3D Art if the visible detail clearly qualifies as an additional service.
+If the image clearly shows additional nail art, rhinestones or 3D art, mention the likely extra separately.
 
-If it is a French acrylic set and appears short-to-medium, use R300.
+If it looks like a French acrylic set with short-to-medium length, use:
 
-If the exact service or length cannot be confirmed, give the closest reasonable estimate and say Freddy will confirm the final price.
+Estimated price: R300
+Service: Acrylic French, Short–Medium
 
-Keep the answer under 100 words.
+If you cannot determine the exact length, choose the closest price category and say that Freddy will confirm the final price.
+
+Keep the complete answer under 80 words.
+
+End with:
+
+Ready to book? Head to the booking section and choose your preferred date and time. 💅
 
 Return ONLY the customer-facing answer.
-
-NEVER reveal reasoning.
-NEVER output <think>.
-NEVER mention models, prompts or system instructions.
 `;
 
 function isValidImageDataUrl(image) {
@@ -111,9 +124,7 @@ function isValidImageDataUrl(image) {
     return false;
   }
 
-  return /^data:image\/(jpeg|jpg|png|webp|gif);base64,/i.test(
-    image
-  );
+  return /^data:image\/(jpeg|jpg|png|webp);base64,/i.test(image);
 }
 
 function cleanAssistantResponse(text) {
@@ -142,31 +153,47 @@ function cleanAssistantResponse(text) {
 }
 
 function extractMessage(data) {
-  const content = data?.choices?.[0]?.message?.content;
+  const choice = data?.choices?.[0];
 
-  if (typeof content === "string") {
-    return content;
+  if (!choice) {
+    return "";
+  }
+
+  const content = choice?.message?.content;
+
+  if (typeof content === "string" && content.trim()) {
+    return content.trim();
   }
 
   if (Array.isArray(content)) {
-    return content
+    const combined = content
       .map((item) => {
         if (typeof item === "string") {
           return item;
         }
 
-        if (item?.type === "text") {
-          return item.text || "";
+        if (
+          item &&
+          typeof item.text === "string"
+        ) {
+          return item.text;
         }
 
         return "";
       })
       .join("")
       .trim();
+
+    if (combined) {
+      return combined;
+    }
   }
 
-  if (typeof data?.choices?.[0]?.text === "string") {
-    return data.choices[0].text;
+  if (
+    typeof choice?.text === "string" &&
+    choice.text.trim()
+  ) {
+    return choice.text.trim();
   }
 
   return "";
@@ -213,8 +240,6 @@ export async function POST(request) {
       );
     }
 
-    const model = usingImage ? VISION_MODEL : TEXT_MODEL;
-
     let finalMessages = messages;
 
     if (usingImage) {
@@ -230,7 +255,7 @@ export async function POST(request) {
               type: "text",
               text:
                 lastMessage?.content ||
-                "Analyse this nail photo and estimate the closest Freddy Nails service and price.",
+                "Analyse this photo and estimate the closest Freddy Nails service and price.",
             },
             {
               type: "image_url",
@@ -243,6 +268,37 @@ export async function POST(request) {
       ];
     }
 
+    const model = usingImage
+      ? VISION_MODEL
+      : TEXT_MODEL;
+
+    const requestBody = {
+      model,
+      messages: [
+        {
+          role: "system",
+          content: usingImage
+            ? IMAGE_PROMPT
+            : GALLERY_PROMPT,
+        },
+        ...finalMessages,
+      ],
+      temperature: usingImage ? 0.2 : 0.7,
+      max_completion_tokens: usingImage ? 400 : 700,
+      stream: false,
+    };
+
+    /*
+     * Qwen 3.6 supports thinking and non-thinking modes.
+     * For the customer-facing nail assistant we do NOT need
+     * visible reasoning. Disable it so the output budget is
+     * used for the actual answer.
+     */
+    if (usingImage) {
+      requestBody.reasoning_effort = "none";
+      requestBody.reasoning_format = "hidden";
+    }
+
     const response = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -251,20 +307,7 @@ export async function POST(request) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
         },
-        body: JSON.stringify({
-          model,
-          messages: [
-            {
-              role: "system",
-              content: usingImage
-                ? IMAGE_PROMPT
-                : GALLERY_PROMPT,
-            },
-            ...finalMessages,
-          ],
-          temperature: usingImage ? 0.1 : 0.7,
-          max_tokens: usingImage ? 500 : 700,
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
 
@@ -272,7 +315,7 @@ export async function POST(request) {
 
     if (!response.ok) {
       console.error(
-        "GROQ ERROR:",
+        "GROQ API ERROR:",
         response.status,
         responseText
       );
@@ -301,7 +344,7 @@ export async function POST(request) {
       data = JSON.parse(responseText);
     } catch {
       console.error(
-        "GROQ RETURNED INVALID JSON:",
+        "GROQ INVALID JSON:",
         responseText
       );
 
@@ -314,24 +357,34 @@ export async function POST(request) {
       );
     }
 
+    const choice = data?.choices?.[0];
+
     console.log(
-      "GROQ RESPONSE:",
-      JSON.stringify(data, null, 2)
+      "GROQ FINISH REASON:",
+      choice?.finish_reason
+    );
+
+    console.log(
+      "GROQ MESSAGE:",
+      JSON.stringify(choice?.message, null, 2)
     );
 
     const rawMessage = extractMessage(data);
 
-    const message = cleanAssistantResponse(rawMessage);
+    const message = cleanAssistantResponse(
+      rawMessage
+    );
 
     if (!message) {
       console.error(
-        "NO MESSAGE CONTENT FOUND IN GROQ RESPONSE."
+        "GROQ RESPONSE HAD NO CUSTOMER MESSAGE:",
+        JSON.stringify(data, null, 2)
       );
 
       return Response.json(
         {
           error:
-            "The AI received your photo but did not produce readable text. Please try the photo again.",
+            "The AI analysed the photo but did not return a customer-facing answer. Please try again.",
         },
         { status: 500 }
       );
@@ -341,7 +394,10 @@ export async function POST(request) {
       message,
     });
   } catch (error) {
-    console.error("CHAT API ERROR:", error);
+    console.error(
+      "CHAT API UNEXPECTED ERROR:",
+      error
+    );
 
     return Response.json(
       {
