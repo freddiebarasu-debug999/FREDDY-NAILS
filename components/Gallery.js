@@ -96,7 +96,7 @@ export default function Gallery() {
             />
 
             {/* Watermark */}
-            <div className="absolute bottom-3 right-3 w-10 h-10 md:w-12 md:h-12 opacity-35 pointer-events-none">
+            <div className="absolute bottom-3 right-3 w-16 h-16 md:w-20 md:h-20 opacity-40 pointer-events-none">
               <Image
                 src="/watermark.png"
                 alt=""
@@ -191,8 +191,8 @@ export default function Gallery() {
               className="w-full max-h-[80vh] object-contain rounded-sm"
             />
 
-            {/* Watermark */}
-            <div className="absolute bottom-16 right-4 w-14 h-14 md:w-16 md:h-16 opacity-40 pointer-events-none">
+            {/* Watermark — stays visible on the enlarged view too */}
+            <div className="absolute bottom-20 right-5 w-20 h-20 md:w-28 md:h-28 opacity-45 pointer-events-none">
               <Image
                 src="/watermark.png"
                 alt=""
