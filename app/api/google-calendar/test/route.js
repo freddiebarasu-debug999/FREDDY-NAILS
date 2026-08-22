@@ -4,7 +4,7 @@ import { createGoogleCalendarEvent } from "@/lib/google-calendar";
 export async function GET() {
   try {
     const testAppointment = {
-      id: "00000000-0000-0000-0000-000000000001",
+      id: "abc123calendarTest001",
       customer_name: "Freddy Nails Calendar Test",
       customer_phone: "+27 71 088 8897",
       customer_email: "freddiebarasu@gmail.com",
@@ -22,9 +22,7 @@ export async function GET() {
     };
 
     const result =
-      await createGoogleCalendarEvent(
-        testAppointment
-      );
+      await createGoogleCalendarEvent(testAppointment);
 
     return NextResponse.json({
       success: true,
