@@ -29,7 +29,7 @@ export default function Gallery() {
         </h2>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {TILES.map((t, index) => (
           <button
             key={t.label}
