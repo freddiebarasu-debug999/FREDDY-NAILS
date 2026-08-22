@@ -23,15 +23,18 @@ export default function Gallery() {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const index = Number(entry.target.dataset.index);
+          const index = Number(entry.target.dataset.index);
 
-            setVisibleTiles((current) =>
-              current.includes(index) ? current : [...current, index]
-            );
-
-            observer.unobserve(entry.target);
-          }
+          // Toggle both ways, so the fly-in animation replays every
+          // time a tile scrolls into view — not just the first time.
+          setVisibleTiles((current) => {
+            if (entry.isIntersecting) {
+              return current.includes(index)
+                ? current
+                : [...current, index];
+            }
+            return current.filter((i) => i !== index);
+          });
         });
       },
       {
