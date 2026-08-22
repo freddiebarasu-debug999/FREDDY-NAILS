@@ -14,7 +14,7 @@ const GALLERY = [
   { name: "Leopard French Cherry", src: "/gallery/gallery-8.jpg" },
 ];
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export default function ChatBot() {
   const [open, setOpen] = useState(false);
@@ -77,8 +77,11 @@ export default function ChatBot() {
   function readFileAsDataUrl(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
+
       reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error("Could not read the image."));
+      reader.onerror = () =>
+        reject(new Error("Could not read the image."));
+
       reader.readAsDataURL(file);
     });
   }
@@ -92,7 +95,9 @@ export default function ChatBot() {
     }
 
     if (file.size > MAX_IMAGE_BYTES) {
-      setImageError("That image is a bit large — please use one under 5MB.");
+      setImageError(
+        "That image is a bit large — please use one under 5MB."
+      );
       return;
     }
 
@@ -107,21 +112,28 @@ export default function ChatBot() {
 
   function handleFileInputChange(e) {
     const file = e.target.files?.[0];
-    if (file) handleImageFile(file);
+
+    if (file) {
+      handleImageFile(file);
+    }
+
     e.target.value = "";
   }
 
   function handlePaste(e) {
     const items = e.clipboardData?.items;
+
     if (!items) return;
 
     for (const item of items) {
       if (item.type.startsWith("image/")) {
         const file = item.getAsFile();
+
         if (file) {
           e.preventDefault();
           handleImageFile(file);
         }
+
         break;
       }
     }
@@ -146,7 +158,10 @@ export default function ChatBot() {
       {
         role: "user",
         content:
-          text || (imageToSend ? "Here's a photo of what I have in mind." : ""),
+          text ||
+          (imageToSend
+            ? "Here's a photo of what I have in mind."
+            : ""),
         image: imageToSend || null,
       },
     ];
@@ -177,9 +192,6 @@ export default function ChatBot() {
         throw new Error(data.error || "Something went wrong");
       }
 
-      // Skip gallery-matching and Pexels inspiration search when the
-      // visitor supplied their own photo — the reply already
-      // addresses their exact image.
       if (imageToSend) {
         setMessages([
           ...newMessages,
@@ -189,13 +201,17 @@ export default function ChatBot() {
           },
         ]);
       } else {
-        const galleryDesign = findGalleryDesign(data.message, messages);
+        const galleryDesign = findGalleryDesign(
+          data.message,
+          messages
+        );
 
         const inspirationQuery = `${data.message
           .replace(/[#*_]/g, "")
           .slice(0, 180)} nail design manicure`;
 
-        const inspirationPhotos = await searchInspiration(inspirationQuery);
+        const inspirationPhotos =
+          await searchInspiration(inspirationQuery);
 
         setMessages([
           ...newMessages,
@@ -225,11 +241,29 @@ export default function ChatBot() {
   return (
     <>
       {open && (
-        <div className="fixed bottom-24 right-5 z-50 w-[calc(100vw-2.5rem)] max-w-[380px] overflow-hidden rounded-2xl border border-line bg-nude shadow-2xl">
-          <div className="bg-ink px-5 py-4 text-white">
+        <div
+          className="fixed bottom-24 right-5 z-50 w-[calc(100vw-2.5rem)] max-w-[380px] overflow-hidden rounded-2xl shadow-2xl shadow-black/60"
+          style={{
+            backgroundColor: "#11100f",
+            border: "1px solid rgba(255,255,255,0.10)",
+          }}
+        >
+          {/* HEADER */}
+          <div
+            className="px-5 py-4"
+            style={{
+              backgroundColor: "#181614",
+              borderBottom: "1px solid rgba(255,255,255,0.09)",
+            }}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-gold/50">
+                <div
+                  className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full"
+                  style={{
+                    border: "1px solid rgba(214,179,106,0.5)",
+                  }}
+                >
                   <Image
                     src="/chatbot-icon.png"
                     alt="Freddy Nails"
@@ -239,11 +273,11 @@ export default function ChatBot() {
                 </div>
 
                 <div>
-                  <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-gold">
+                  <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[#d6b36a]">
                     Freddy Nails
                   </p>
 
-                  <h3 className="font-serif text-xl leading-tight">
+                  <h3 className="font-serif text-xl leading-tight text-[#f4eee6]">
                     Nail Muse
                   </h3>
                 </div>
@@ -252,7 +286,7 @@ export default function ChatBot() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="text-white/70 hover:text-white"
+                className="text-[#c9c0b6]/70 transition-colors hover:text-[#d6b36a]"
                 aria-label="Close chat"
               >
                 ×
@@ -260,7 +294,13 @@ export default function ChatBot() {
             </div>
           </div>
 
-          <div className="h-[360px] overflow-y-auto p-4">
+          {/* MESSAGES */}
+          <div
+            className="h-[360px] overflow-y-auto p-4"
+            style={{
+              backgroundColor: "#11100f",
+            }}
+          >
             <div className="space-y-3">
               {messages.map((message, index) => (
                 <div
@@ -272,17 +312,37 @@ export default function ChatBot() {
                   }`}
                 >
                   <div
-                    className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    className="max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed"
+                    style={
                       message.role === "user"
-                        ? "bg-ink text-white"
-                        : "bg-white text-ink"
-                    }`}
+                        ? {
+                            backgroundColor: "#d6b36a",
+                            color: "#11100f",
+                            border:
+                              "1px solid rgba(214,179,106,0.35)",
+                          }
+                        : {
+                            backgroundColor: "#1c1a18",
+                            color: "#f4eee6",
+                            border:
+                              "1px solid rgba(255,255,255,0.09)",
+                          }
+                    }
                   >
                     {message.image && (
-                      <div className="mb-3 overflow-hidden rounded-xl">
+                      <div
+                        className="mb-3 overflow-hidden rounded-xl"
+                        style={{
+                          border:
+                            "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
                         <img
                           src={message.image}
-                          alt={message.imageName || "Nail inspiration"}
+                          alt={
+                            message.imageName ||
+                            "Nail inspiration"
+                          }
                           className="aspect-square w-full object-cover"
                         />
                       </div>
@@ -293,15 +353,26 @@ export default function ChatBot() {
                     </div>
 
                     {message.imageName && (
-                      <div className="mt-3">
-                        <p className="text-xs font-bold tracking-wide text-gold">
-                          Freddy Nails Gallery: {message.imageName}
+                      <div
+                        className="mt-3 pt-3"
+                        style={{
+                          borderTop:
+                            "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <p className="text-xs font-bold tracking-wide text-[#d6b36a]">
+                          Freddy Nails Gallery:{" "}
+                          {message.imageName}
                         </p>
 
                         <a
                           href="#booking"
                           onClick={() => setOpen(false)}
-                          className="mt-3 inline-flex items-center justify-center rounded-full bg-ink px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-80"
+                          className="mt-3 inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition-colors"
+                          style={{
+                            backgroundColor: "#d6b36a",
+                            color: "#11100f",
+                          }}
                         >
                           Book this look
                         </a>
@@ -309,8 +380,14 @@ export default function ChatBot() {
                     )}
 
                     {message.inspirationPhotos?.length > 0 && (
-                      <div className="mt-4">
-                        <p className="mb-2 text-[0.68rem] font-bold uppercase tracking-[0.15em] text-gold">
+                      <div
+                        className="mt-4 pt-4"
+                        style={{
+                          borderTop:
+                            "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <p className="mb-2 text-[0.68rem] font-bold uppercase tracking-[0.15em] text-[#d6b36a]">
                           More inspiration
                         </p>
 
@@ -324,6 +401,10 @@ export default function ChatBot() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="group overflow-hidden rounded-lg"
+                                style={{
+                                  border:
+                                    "1px solid rgba(255,255,255,0.08)",
+                                }}
                               >
                                 <img
                                   src={photo.src}
@@ -334,7 +415,7 @@ export default function ChatBot() {
                             ))}
                         </div>
 
-                        <p className="mt-2 text-[0.65rem] text-ink-soft">
+                        <p className="mt-2 text-[0.65rem] text-[#817970]">
                           Inspiration images via Pexels
                         </p>
                       </div>
@@ -345,7 +426,15 @@ export default function ChatBot() {
 
               {loading && (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl bg-white px-4 py-3 text-sm text-ink-soft">
+                  <div
+                    className="rounded-2xl px-4 py-3 text-sm"
+                    style={{
+                      backgroundColor: "#1c1a18",
+                      color: "#8f877e",
+                      border:
+                        "1px solid rgba(255,255,255,0.09)",
+                    }}
+                  >
                     {pendingImage
                       ? "Looking at your photo…"
                       : "Finding something gorgeous…"}
@@ -355,12 +444,24 @@ export default function ChatBot() {
             </div>
           </div>
 
+          {/* INPUT */}
           <form
             onSubmit={sendMessage}
-            className="border-t border-line bg-white p-3"
+            className="p-3"
+            style={{
+              backgroundColor: "#181614",
+              borderTop: "1px solid rgba(255,255,255,0.09)",
+            }}
           >
             {pendingImage && (
-              <div className="mb-2.5 flex items-center gap-2.5 rounded-xl border border-line bg-nude p-2">
+              <div
+                className="mb-2.5 flex items-center gap-2.5 rounded-xl p-2"
+                style={{
+                  backgroundColor: "#11100f",
+                  border:
+                    "1px solid rgba(255,255,255,0.10)",
+                }}
+              >
                 <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg">
                   <img
                     src={pendingImage}
@@ -368,13 +469,16 @@ export default function ChatBot() {
                     className="h-full w-full object-cover"
                   />
                 </div>
-                <p className="flex-1 text-xs text-ink-soft">
-                  Photo attached — I&apos;ll estimate a price for this.
+
+                <p className="flex-1 text-xs text-[#c9c0b6]">
+                  Photo attached — I&apos;ll estimate a price
+                  for this.
                 </p>
+
                 <button
                   type="button"
                   onClick={removePendingImage}
-                  className="shrink-0 text-ink-soft hover:text-ink text-lg leading-none px-1"
+                  className="shrink-0 px-1 text-lg leading-none text-[#8f877e] transition-colors hover:text-[#d6b36a]"
                   aria-label="Remove photo"
                 >
                   ×
@@ -383,7 +487,9 @@ export default function ChatBot() {
             )}
 
             {imageError && (
-              <p className="mb-2 text-xs text-red-600">{imageError}</p>
+              <p className="mb-2 text-xs text-red-400">
+                {imageError}
+              </p>
             )}
 
             <div className="flex gap-2">
@@ -397,8 +503,16 @@ export default function ChatBot() {
 
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="shrink-0 rounded-full border border-line bg-nude px-3.5 py-3 text-sm hover:border-gold transition-colors"
+                onClick={() =>
+                  fileInputRef.current?.click()
+                }
+                className="shrink-0 rounded-full px-3.5 py-3 text-sm transition-colors"
+                style={{
+                  backgroundColor: "#11100f",
+                  color: "#f4eee6",
+                  border:
+                    "1px solid rgba(255,255,255,0.12)",
+                }}
                 aria-label="Upload an inspiration photo"
                 title="Upload an inspiration photo"
               >
@@ -415,13 +529,23 @@ export default function ChatBot() {
                     ? "Add a note (optional)…"
                     : "Ask for nail inspiration or paste a photo…"
                 }
-                className="min-w-0 flex-1 rounded-full border border-line bg-nude px-4 py-3 text-sm outline-none focus:border-gold"
+                className="min-w-0 flex-1 rounded-full px-4 py-3 text-sm outline-none"
+                style={{
+                  backgroundColor: "#11100f",
+                  color: "#f4eee6",
+                  border:
+                    "1px solid rgba(255,255,255,0.12)",
+                }}
               />
 
               <button
                 type="submit"
                 disabled={loading}
-                className="rounded-full bg-ink px-5 py-3 text-sm font-bold text-white transition-opacity hover:opacity-80 disabled:opacity-50"
+                className="rounded-full px-5 py-3 text-sm font-bold transition-colors disabled:opacity-50"
+                style={{
+                  backgroundColor: "#d6b36a",
+                  color: "#11100f",
+                }}
               >
                 Send
               </button>
@@ -430,22 +554,29 @@ export default function ChatBot() {
         </div>
       )}
 
+      {/* FLOATING CHAT BUTTON */}
       <button
         type="button"
         onClick={() => setOpen(!open)}
         className="fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full"
-        aria-label={open ? "Close nail assistant" : "Open nail assistant"}
+        aria-label={
+          open
+            ? "Close nail assistant"
+            : "Open nail assistant"
+        }
       >
         {!open && (
           <>
-            <span className="absolute inset-0 rounded-full bg-gold/40 animate-ping-slow" />
-            <span className="absolute inset-0 rounded-full bg-gold/25 animate-ping-slower" />
+            <span className="absolute inset-0 rounded-full bg-[#d6b36a]/40 animate-ping-slow" />
+            <span className="absolute inset-0 rounded-full bg-[#d6b36a]/25 animate-ping-slower" />
           </>
         )}
 
-        <span className="relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-gold bg-ink shadow-xl transition-transform hover:scale-105 overflow-hidden">
+        <span className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#d6b36a] bg-[#11100f] shadow-xl transition-transform hover:scale-105">
           {open ? (
-            <span className="text-2xl text-white">×</span>
+            <span className="text-2xl text-[#f4eee6]">
+              ×
+            </span>
           ) : (
             <Image
               src="/chatbot-icon.png"
