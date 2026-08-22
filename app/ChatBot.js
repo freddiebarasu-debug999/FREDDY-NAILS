@@ -79,6 +79,7 @@ export default function ChatBot() {
       const reader = new FileReader();
 
       reader.onload = () => resolve(reader.result);
+
       reader.onerror = () =>
         reject(new Error("Could not read the image."));
 
@@ -104,8 +105,8 @@ export default function ChatBot() {
     try {
       const dataUrl = await readFileAsDataUrl(file);
       setPendingImage(dataUrl);
-    } catch (err) {
-      console.error("Image read error:", err);
+    } catch (error) {
+      console.error("Image read error:", error);
       setImageError("Couldn't load that image. Please try another.");
     }
   }
@@ -149,7 +150,9 @@ export default function ChatBot() {
 
     const text = input.trim();
 
-    if ((!text && !pendingImage) || loading) return;
+    if ((!text && !pendingImage) || loading) {
+      return;
+    }
 
     const imageToSend = pendingImage;
 
@@ -170,6 +173,7 @@ export default function ChatBot() {
     setInput("");
     setPendingImage(null);
     setLoading(true);
+    setImageError("");
 
     try {
       const response = await fetch("/api/chat", {
@@ -186,10 +190,27 @@ export default function ChatBot() {
         }),
       });
 
-      const data = await response.json();
+      let data;
+
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          `The chatbot server returned an invalid response (${response.status}).`
+        );
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || "Something went wrong");
+        throw new Error(
+          data?.error ||
+            `Chatbot request failed (${response.status}).`
+        );
+      }
+
+      if (!data?.message) {
+        throw new Error(
+          "The chatbot did not return a message."
+        );
       }
 
       if (imageToSend) {
@@ -225,18 +246,17 @@ export default function ChatBot() {
         ]);
       }
     } catch (error) {
-  console.error("Chatbot request failed:", error);
+      console.error("Chatbot request failed:", error);
 
-  setMessages([
-    ...newMessages,
-    {
-      role: "assistant",
-      content:
-        error?.message ||
-        "The photo could not be analysed right now. Please try again. 💅",
-    },
-  ]);
-}
+      setMessages([
+        ...newMessages,
+        {
+          role: "assistant",
+          content:
+            error?.message ||
+            "The chatbot could not respond right now. Please try again. 💅",
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -257,7 +277,8 @@ export default function ChatBot() {
             className="px-5 py-4"
             style={{
               backgroundColor: "#181614",
-              borderBottom: "1px solid rgba(255,255,255,0.09)",
+              borderBottom:
+                "1px solid rgba(255,255,255,0.09)",
             }}
           >
             <div className="flex items-center justify-between">
@@ -265,7 +286,8 @@ export default function ChatBot() {
                 <div
                   className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full"
                   style={{
-                    border: "1px solid rgba(214,179,106,0.5)",
+                    border:
+                      "1px solid rgba(214,179,106,0.5)",
                   }}
                 >
                   <Image
@@ -454,7 +476,8 @@ export default function ChatBot() {
             className="p-3"
             style={{
               backgroundColor: "#181614",
-              borderTop: "1px solid rgba(255,255,255,0.09)",
+              borderTop:
+                "1px solid rgba(255,255,255,0.09)",
             }}
           >
             {pendingImage && (
