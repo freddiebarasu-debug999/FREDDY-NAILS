@@ -25,14 +25,13 @@ export default function Gallery() {
         entries.forEach((entry) => {
           const index = Number(entry.target.dataset.index);
 
-          // Toggle both ways, so the fly-in animation replays every
-          // time a tile scrolls into view — not just the first time.
           setVisibleTiles((current) => {
             if (entry.isIntersecting) {
               return current.includes(index)
                 ? current
                 : [...current, index];
             }
+
             return current.filter((i) => i !== index);
           });
         });
@@ -96,7 +95,7 @@ export default function Gallery() {
             />
 
             {/* Watermark */}
-            <div className="absolute bottom-3 right-3 w-16 h-16 md:w-20 md:h-20 opacity-40 pointer-events-none">
+            <div className="absolute bottom-3 right-3 w-20 h-20 md:w-24 md:h-24 opacity-[0.65] pointer-events-none z-20">
               <Image
                 src="/watermark.png"
                 alt=""
@@ -106,10 +105,10 @@ export default function Gallery() {
             </div>
 
             {/* Gradient */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-90" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-90 pointer-events-none z-10" />
 
             {/* Label */}
-            <span className="absolute bottom-3.5 left-3.5 right-3.5 text-white text-[0.78rem] font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            <span className="absolute bottom-3.5 left-3.5 right-3.5 text-white text-[0.78rem] font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] z-20 pointer-events-none">
               {t.label}
             </span>
           </button>
@@ -180,37 +179,42 @@ export default function Gallery() {
           onClick={() => setSelectedImage(null)}
         >
           <div
-            className="relative w-full max-w-4xl max-h-[90vh]"
+            className="relative w-full max-w-4xl max-h-[90vh] flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <Image
-              src={selectedImage.src}
-              alt={selectedImage.label}
-              width={1200}
-              height={1200}
-              className="w-full max-h-[80vh] object-contain rounded-sm"
-            />
-
-            {/* Watermark — stays visible on the enlarged view too */}
-            <div className="absolute bottom-20 right-5 w-20 h-20 md:w-28 md:h-28 opacity-45 pointer-events-none">
+            {/* Image + watermark share the exact same positioning container */}
+            <div className="relative max-w-full max-h-[80vh]">
               <Image
-                src="/watermark.png"
-                alt=""
-                fill
-                className="object-contain"
+                src={selectedImage.src}
+                alt={selectedImage.label}
+                width={1200}
+                height={1200}
+                className="block w-auto max-w-full max-h-[80vh] object-contain rounded-sm"
               />
+
+              {/* Watermark is directly ON the image */}
+              <div className="absolute bottom-5 right-5 w-24 h-24 md:w-32 md:h-32 opacity-[0.65] pointer-events-none z-30">
+                <Image
+                  src="/watermark.png"
+                  alt=""
+                  fill
+                  className="object-contain"
+                />
+              </div>
             </div>
 
-            <div className="absolute left-4 bottom-4 bg-gray-700/70 backdrop-blur-sm text-white px-4 py-2 rounded-sm">
+            {/* Label */}
+            <div className="absolute left-4 bottom-4 bg-gray-700/70 backdrop-blur-sm text-white px-4 py-2 rounded-sm z-40">
               <p className="font-serif text-lg">
                 {selectedImage.label}
               </p>
             </div>
 
+            {/* Close */}
             <button
               type="button"
               onClick={() => setSelectedImage(null)}
-              className="absolute top-3 right-3 w-10 h-10 rounded-full bg-black/60 text-white text-xl hover:bg-gold hover:text-ink transition-colors"
+              className="absolute top-3 right-3 w-10 h-10 rounded-full bg-black/60 text-white text-xl hover:bg-gold hover:text-ink transition-colors z-40"
               aria-label="Close image"
             >
               ×
