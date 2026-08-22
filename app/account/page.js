@@ -1,189 +1,509 @@
+:::writing{variant="document" id="58321" title="Freddy Nails Account Dashboard"}
 "use client";
+
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+
 function formatDate(dateString) {
-  if (!dateString) return "Date not set";
-  const date = new Date(`${dateString}T00:00:00`);
+  if (!dateString) return "—";
+
+  const date = new Date(`${dateString}T12:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
   return date.toLocaleDateString("en-ZA", {
-    weekday: "long",
+    weekday: "short",
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 }
+
 function formatTime(timeString) {
-  if (!timeString) return "";
-  const [hours, minutes] = timeString.split(":");
+  if (!timeString) return "—";
+
+  const [hours, minutes] = timeString
+    .split(":")
+    .map(Number);
+
+  if (
+    Number.isNaN(hours) ||
+    Number.isNaN(minutes)
+  ) {
+    return timeString;
+  }
+
   const date = new Date();
-  date.setHours(Number(hours), Number(minutes), 0, 0);
+
+  date.setHours(hours, minutes, 0, 0);
+
   return date.toLocaleTimeString("en-ZA", {
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
-    hour12: false,
   });
 }
+
 function formatStatus(status) {
   if (!status) return "Pending";
-  return status
+
+  const value = String(status)
     .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    .toLowerCase();
+
+  return value.replace(
+    /\b\w/g,
+    (letter) => letter.toUpperCase()
+  );
 }
+
 function statusClass(status) {
-  const value = String(status || "").toLowerCase();
-  if (value.includes("confirmed")) {
-    return "border-green-400/30 bg-green-400/10 text-green-300";
+  const value = String(status || "")
+    .toLowerCase();
+
+  if (value === "confirmed") {
+    return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
   }
-  if (value.includes("deposit") || value.includes("approved")) {
+
+  if (
+    value === "deposit paid" ||
+    value === "deposit_paid"
+  ) {
     return "border-[#d6b36a]/30 bg-[#d6b36a]/10 text-[#d6b36a]";
   }
-  if (value.includes("cancel") || value.includes("reject")) {
+
+  if (value === "approved") {
+    return "border-blue-400/30 bg-blue-400/10 text-blue-300";
+  }
+
+  if (
+    value === "cancelled" ||
+    value === "canceled"
+  ) {
     return "border-red-400/30 bg-red-400/10 text-red-300";
   }
+
   return "border-white/[0.12] bg-white/[0.04] text-[#c9c0b6]";
 }
+
 function paymentLabel(status) {
-  const value = String(status || "").toLowerCase();
+  const value = String(status || "")
+    .toLowerCase();
+
   if (
-    value.includes("paid") ||
-    value.includes("success") ||
-    value.includes("completed")
+    value === "paid" ||
+    value === "deposit_paid"
   ) {
-    return "Paid";
+    return "Deposit Paid";
   }
-  return "Not paid";
+
+  if (value === "failed") {
+    return "Payment Failed";
+  }
+
+  if (value === "cancelled") {
+    return "Cancelled";
+  }
+
+  return "Deposit Pending";
 }
+
+function isUnpaidBooking(appointment) {
+  const bookingStatus = String(
+    appointment?.booking_status || ""
+  ).toLowerCase();
+
+  const paymentStatus = String(
+    appointment?.payment_status || ""
+  ).toLowerCase();
+
+  return (
+    (bookingStatus === "pending" ||
+      bookingStatus === "approved") &&
+    paymentStatus !== "paid" &&
+    paymentStatus !== "deposit_paid"
+  );
+}
+
+function isCancelledBooking(appointment) {
+  const bookingStatus = String(
+    appointment?.booking_status || ""
+  ).toLowerCase();
+
+  return (
+    bookingStatus === "cancelled" ||
+    bookingStatus === "canceled"
+  );
+}
+
 export default function AccountPage() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [appointments, setAppointments] = useState([]);
+
   const [loading, setLoading] = useState(true);
-  const [loggingOut, setLoggingOut] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
+
   const [error, setError] = useState("");
-  useEffect(() => {
-    loadAccount();
-  }, []);
+  const [actionError, setActionError] = useState("");
+  const [message, setMessage] = useState("");
+
   async function loadAccount() {
+    setLoading(true);
+    setError("");
+
     try {
-      setLoading(true);
-      setError("");
       const {
         data: { user: currentUser },
         error: userError,
       } = await supabase.auth.getUser();
+
       if (userError) {
         throw userError;
       }
+
       if (!currentUser) {
         window.location.href = "/account/login";
         return;
       }
+
       setUser(currentUser);
-      const { data: profileData, error: profileError } =
-        await supabase
+
+      const [
+        profileResult,
+        appointmentsResult,
+      ] = await Promise.all([
+        supabase
           .from("profiles")
-          .select("full_name, phone, email")
-          .eq("id", currentUser.id)
-          .maybeSingle();
-      if (profileError) {
-        throw profileError;
-      }
-      setProfile(profileData);
-      const { data: appointmentData, error: appointmentError } =
-        await supabase
-          .from("appointments")
           .select(
-            `
-              id,
-              customer_name,
-              customer_phone,
-              customer_email,
-              service_name,
-              client_count,
-              booking_date,
-              start_time,
-              end_time,
-              duration_minutes,
-              deposit_per_client,
-              deposit_amount,
-              payment_status,
-              booking_status,
-              notes,
-              created_at
-            `
+            "full_name, phone, email"
           )
+          .eq("id", currentUser.id)
+          .maybeSingle(),
+
+        supabase
+          .from("appointments")
+          .select(`
+            id,
+            customer_name,
+            customer_phone,
+            customer_email,
+            service_name,
+            client_count,
+            booking_date,
+            start_time,
+            end_time,
+            duration_minutes,
+            deposit_per_client,
+            deposit_amount,
+            payment_status,
+            booking_status,
+            notes,
+            created_at,
+            expires_at
+          `)
           .eq("profile_id", currentUser.id)
-          .order("booking_date", { ascending: true })
-          .order("start_time", { ascending: true });
-      if (appointmentError) {
-        throw appointmentError;
+          .order("booking_date", {
+            ascending: true,
+          })
+          .order("start_time", {
+            ascending: true,
+          }),
+      ]);
+
+      if (profileResult.error) {
+        console.error(
+          "Profile load error:",
+          profileResult.error
+        );
       }
-      setAppointments(appointmentData || []);
+
+      if (appointmentsResult.error) {
+        throw appointmentsResult.error;
+      }
+
+      setProfile(
+        profileResult.data || null
+      );
+
+      setAppointments(
+        appointmentsResult.data || []
+      );
     } catch (err) {
-      console.error("Account loading error:", err);
+      console.error(
+        "Account loading error:",
+        err
+      );
+
       setError(
         err?.message ||
-          "We couldn't load your account. Please try again."
+          "Unable to load your account."
       );
     } finally {
       setLoading(false);
     }
   }
-  async function handleLogout() {
-    setLoggingOut(true);
-    try {
-      const { error: logoutError } =
-        await supabase.auth.signOut();
-      if (logoutError) {
-        throw logoutError;
-      }
-      window.location.href = "/account/login";
-    } catch (err) {
-      console.error("Logout error:", err);
-      setError(
-        err?.message ||
-          "We couldn't log you out. Please try again."
+
+  useEffect(() => {
+    loadAccount();
+  }, []);
+
+  async function getAccessToken() {
+    const {
+      data,
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      throw sessionError;
+    }
+
+    const accessToken =
+      data?.session?.access_token;
+
+    if (!accessToken) {
+      throw new Error(
+        "Your session has expired. Please log in again."
       );
-      setLoggingOut(false);
+    }
+
+    return accessToken;
+  }
+
+  async function handlePayDeposit(appointment) {
+    if (!appointment?.id) return;
+
+    setActionError("");
+    setMessage("");
+    setActionLoading(
+      `pay-${appointment.id}`
+    );
+
+    try {
+      const accessToken =
+        await getAccessToken();
+
+      const response = await fetch(
+        "/api/account/checkout",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization:
+              `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            appointmentId:
+              appointment.id,
+          }),
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Unable to start payment."
+        );
+      }
+
+      if (!data?.redirectUrl) {
+        throw new Error(
+          "Yoco did not return a payment link."
+        );
+      }
+
+      window.location.href =
+        data.redirectUrl;
+    } catch (err) {
+      console.error(
+        "Deposit payment error:",
+        err
+      );
+
+      setActionError(
+        err?.message ||
+          "Unable to start the deposit payment."
+      );
+
+      setActionLoading(null);
     }
   }
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const upcomingAppointments = appointments.filter((appointment) => {
-    if (!appointment.booking_date) return false;
-    const appointmentDate = new Date(
-      `${appointment.booking_date}T00:00:00`
+
+  async function handleCancelBooking(appointment) {
+    if (!appointment?.id) return;
+
+    const confirmed = window.confirm(
+      "Are you sure you want to cancel this booking?\n\nYour selected time will be released and you will need to make a new booking if you change your mind."
     );
-    return appointmentDate >= today;
-  });
-  const upcomingAppointment = upcomingAppointments[0];
-  const historyAppointments = appointments.filter((appointment) => {
-    if (!appointment.booking_date) return true;
-    const appointmentDate = new Date(
-      `${appointment.booking_date}T00:00:00`
+
+    if (!confirmed) {
+      return;
+    }
+
+    setActionError("");
+    setMessage("");
+    setActionLoading(
+      `cancel-${appointment.id}`
     );
-    return appointmentDate < today;
-  });
+
+    try {
+      const accessToken =
+        await getAccessToken();
+
+      const response = await fetch(
+        "/api/account/cancel-booking",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization:
+              `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            appointmentId:
+              appointment.id,
+          }),
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Unable to cancel this booking."
+        );
+      }
+
+      setMessage(
+        "Your booking has been cancelled successfully."
+      );
+
+      await loadAccount();
+    } catch (err) {
+      console.error(
+        "Cancel booking error:",
+        err
+      );
+
+      setActionError(
+        err?.message ||
+          "Unable to cancel your booking."
+      );
+
+      setActionLoading(null);
+    }
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+
+    window.location.href = "/";
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-[#11100f] px-5 py-16 text-[#f4eee6]">
-        <div className="mx-auto max-w-[1100px]">
-          <p className="text-[0.7rem] font-bold uppercase tracking-[0.22em] text-[#d6b36a]">
-            Freddy Nails
+        <div className="mx-auto max-w-[1180px]">
+          <p className="text-sm text-[#8f877e]">
+            Loading your account...
           </p>
-          <div className="mt-10 h-8 w-48 animate-pulse bg-[#181614]" />
-          <div className="mt-8 grid gap-px bg-white/[0.08] md:grid-cols-3">
-            <div className="h-40 animate-pulse bg-[#181614]" />
-            <div className="h-40 animate-pulse bg-[#181614]" />
-            <div className="h-40 animate-pulse bg-[#181614]" />
-          </div>
         </div>
       </main>
     );
   }
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-[#11100f] px-5 py-16 text-[#f4eee6]">
+        <div className="mx-auto max-w-[520px]">
+          <a
+            href="/"
+            className="text-sm text-[#a79a87] hover:text-[#d6b36a]"
+          >
+            ← Back to Freddy Nails
+          </a>
+
+          <div className="mt-10 border border-red-400/30 bg-red-400/10 px-5 py-4">
+            <p className="text-sm text-red-300">
+              {error}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={loadAccount}
+            className="mt-5 bg-[#d6b36a] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] hover:bg-[#ad8a4e]"
+          >
+            Try again
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  /*
+   * Cancelled bookings stay in history even if their
+   * original appointment date is still in the future.
+   */
+  const activeAppointments =
+    appointments.filter(
+      (appointment) =>
+        !isCancelledBooking(
+          appointment
+        )
+    );
+
+  const upcomingAppointments =
+    activeAppointments.filter(
+      (appointment) => {
+        const appointmentDate =
+          new Date(
+            `${appointment.booking_date}T00:00:00`
+          );
+
+        return appointmentDate >= today;
+      }
+    );
+
+  const upcoming =
+    upcomingAppointments[0] || null;
+
+  const history = appointments.filter(
+    (appointment) => {
+      const appointmentDate =
+        new Date(
+          `${appointment.booking_date}T00:00:00`
+        );
+
+      return (
+        appointmentDate < today ||
+        isCancelledBooking(
+          appointment
+        )
+      );
+    }
+  );
+
+  const displayName =
+    profile?.full_name ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "Client";
+
   return (
-    <main className="min-h-screen bg-[#11100f] px-5 py-10 text-[#f4eee6] md:py-16">
-      <div className="mx-auto max-w-[1100px]">
-        {/* Header */}
+    <main className="min-h-screen bg-[#11100f] px-5 py-12 text-[#f4eee6]">
+      <div className="mx-auto max-w-[1180px]">
         <div className="flex flex-wrap items-center justify-between gap-5">
           <div>
             <a
@@ -192,311 +512,404 @@ export default function AccountPage() {
             >
               ← Freddy Nails
             </a>
+
             <p className="mt-8 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-[#d6b36a]">
-              Client Account
+              Client account
             </p>
-            <h1 className="mt-3 font-serif text-4xl text-[#f4eee6] md:text-5xl">
-              Welcome back
-              {profile?.full_name
-                ? `, ${profile.full_name.split(" ")[0]}`
-                : ""}
-              .
+
+            <h1 className="mt-2 font-serif text-4xl text-[#f4eee6]">
+              Welcome, {displayName}.
             </h1>
-            <p className="mt-4 max-w-[620px] text-sm leading-relaxed text-[#a79a87]">
-              Manage your Freddy Nails appointments, profile
-              and booking history from one place.
+
+            <p className="mt-3 max-w-[620px] text-sm leading-relaxed text-[#a79a87]">
+              Manage your appointments, deposits,
+              profile and booking history from here.
             </p>
           </div>
+
           <button
             type="button"
             onClick={handleLogout}
-            disabled={loggingOut}
-            className="rounded-sm border border-white/[0.12] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#c9c0b6] transition-colors hover:border-[#d6b36a] hover:text-[#d6b36a] disabled:opacity-50"
+            className="border border-white/[0.12] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#c9c0b6] transition-colors hover:border-[#d6b36a]/40 hover:text-[#d6b36a]"
           >
-            {loggingOut ? "Logging out..." : "Log out"}
+            Log out
           </button>
         </div>
-        {/* Error */}
-        {error && (
-          <div className="mt-8 border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
-            {error}
+
+        {message && (
+          <div className="mt-8 border border-[#d6b36a]/30 bg-[#d6b36a]/10 px-5 py-4 text-sm text-[#d6b36a]">
+            {message}
           </div>
         )}
-        {/* Summary Cards */}
-        <div className="mt-12 grid gap-px bg-white/[0.08] md:grid-cols-3">
-          {/* Upcoming */}
-          <div className="bg-[#181614] p-6">
-            <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[#d6b36a]">
-              Upcoming appointment
-            </p>
-            {upcomingAppointment ? (
-              <>
-                <p className="mt-5 font-serif text-xl text-[#f4eee6]">
-                  {formatDate(
-                    upcomingAppointment.booking_date
-                  )}
-                </p>
-                <p className="mt-2 text-sm text-[#c9c0b6]">
-                  {formatTime(
-                    upcomingAppointment.start_time
-                  )}
-                  {upcomingAppointment.end_time
-                    ? ` – ${formatTime(
-                        upcomingAppointment.end_time
-                      )}`
-                    : ""}
-                </p>
-                <p className="mt-3 text-sm text-[#8f877e]">
-                  {upcomingAppointment.service_name}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="mt-5 font-serif text-2xl text-[#f4eee6]">
-                  No appointment yet
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-[#8f877e]">
-                  Book your next Freddy Nails appointment
-                  to see it here.
-                </p>
-              </>
-            )}
+
+        {actionError && (
+          <div className="mt-8 border border-red-400/30 bg-red-400/10 px-5 py-4 text-sm text-red-300">
+            {actionError}
           </div>
-          {/* Booking Status */}
-          <div className="bg-[#181614] p-6">
-            <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[#d6b36a]">
-              Booking status
-            </p>
-            {upcomingAppointment ? (
-              <>
-                <div
-                  className={`mt-5 inline-flex border px-3 py-2 text-xs font-bold uppercase tracking-[0.1em] ${statusClass(
-                    upcomingAppointment.booking_status
-                  )}`}
-                >
-                  {formatStatus(
-                    upcomingAppointment.booking_status
-                  )}
+        )}
+
+        <section className="mt-12">
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[#d6b36a]">
+                Your booking
+              </p>
+
+              <h2 className="mt-2 font-serif text-2xl text-[#f4eee6]">
+                Upcoming appointment
+              </h2>
+            </div>
+
+            <a
+              href="/#booking"
+              className="hidden sm:inline-flex bg-[#d6b36a] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] transition-colors hover:bg-[#ad8a4e]"
+            >
+              Book an appointment →
+            </a>
+          </div>
+
+          {upcoming ? (
+            <div className="border border-white/[0.10] bg-[#181614]">
+              <div className="p-6 md:p-8">
+                <div className="flex flex-wrap items-start justify-between gap-5">
+                  <div>
+                    <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
+                      Appointment date
+                    </p>
+
+                    <p className="mt-2 font-serif text-2xl text-[#f4eee6]">
+                      {formatDate(
+                        upcoming.booking_date
+                      )}
+                    </p>
+
+                    <p className="mt-1 text-sm text-[#a79a87]">
+                      {formatTime(
+                        upcoming.start_time
+                      )}{" "}
+                      –{" "}
+                      {formatTime(
+                        upcoming.end_time
+                      )}
+                    </p>
+                  </div>
+
+                  <span
+                    className={`border px-3 py-2 text-[0.65rem] font-bold uppercase tracking-[0.14em] ${statusClass(
+                      upcoming.booking_status
+                    )}`}
+                  >
+                    {formatStatus(
+                      upcoming.booking_status
+                    )}
+                  </span>
                 </div>
-                <p className="mt-3 text-sm leading-relaxed text-[#8f877e]">
-                  Your appointment status will update here
-                  as Freddy processes your booking.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="mt-5 font-serif text-2xl text-[#f4eee6]">
-                  Ready to book
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-[#8f877e]">
-                  Your booking status will appear here once
-                  you make an appointment.
-                </p>
-              </>
-            )}
-          </div>
-          {/* Deposit */}
-          <div className="bg-[#181614] p-6">
-            <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[#d6b36a]">
-              Deposit
+
+                <div className="mt-7 border-t border-white/[0.08] pt-6">
+                  <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
+                    Services
+                  </p>
+
+                  <p className="mt-2 text-sm leading-relaxed text-[#c9c0b6]">
+                    {upcoming.service_name}
+                  </p>
+                </div>
+
+                <div className="mt-7 grid gap-5 sm:grid-cols-3 border-t border-white/[0.08] pt-6">
+                  <div>
+                    <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
+                      Clients
+                    </p>
+
+                    <p className="mt-1 text-sm text-[#f4eee6]">
+                      {upcoming.client_count}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
+                      Deposit
+                    </p>
+
+                    <p className="mt-1 text-sm text-[#d6b36a]">
+                      R
+                      {Number(
+                        upcoming.deposit_amount ||
+                          0
+                      ).toFixed(2)}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
+                      Payment
+                    </p>
+
+                    <p className="mt-1 text-sm text-[#f4eee6]">
+                      {paymentLabel(
+                        upcoming.payment_status
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {isUnpaidBooking(
+                  upcoming
+                ) && (
+                  <div className="mt-7 border-t border-[#d6b36a]/20 pt-6">
+                    <p className="text-sm leading-relaxed text-[#a79a87]">
+                      Your booking is being held for
+                      you. Complete the R
+                      {Number(
+                        upcoming.deposit_amount ||
+                          0
+                      ).toFixed(0)}{" "}
+                      deposit to secure your appointment.
+                    </p>
+
+                    <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handlePayDeposit(
+                            upcoming
+                          )
+                        }
+                        disabled={
+                          actionLoading !== null
+                        }
+                        className="inline-flex items-center justify-center bg-[#d6b36a] px-6 py-3.5 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] transition-colors hover:bg-[#ad8a4e] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {actionLoading ===
+                        `pay-${upcoming.id}`
+                          ? "Opening payment..."
+                          : `Pay R${Number(
+                              upcoming.deposit_amount ||
+                                0
+                            ).toFixed(0)} Deposit →`}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleCancelBooking(
+                            upcoming
+                          )
+                        }
+                        disabled={
+                          actionLoading !== null
+                        }
+                        className="inline-flex items-center justify-center border border-red-400/30 px-6 py-3.5 text-xs font-bold uppercase tracking-[0.12em] text-red-300 transition-colors hover:border-red-300/60 hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {actionLoading ===
+                        `cancel-${upcoming.id}`
+                          ? "Cancelling..."
+                          : "Cancel Booking"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!isUnpaidBooking(
+                  upcoming
+                ) &&
+                  String(
+                    upcoming.booking_status ||
+                      ""
+                  ).toLowerCase() ===
+                    "confirmed" && (
+                    <div className="mt-7 border-t border-emerald-400/20 pt-6">
+                      <p className="text-sm text-emerald-300">
+                        Your appointment is confirmed.
+                        We look forward to seeing you.
+                      </p>
+                    </div>
+                  )}
+
+                {!isUnpaidBooking(
+                  upcoming
+                ) &&
+                  String(
+                    upcoming.booking_status ||
+                      ""
+                  ).toLowerCase() ===
+                    "approved" && (
+                    <div className="mt-7 border-t border-[#d6b36a]/20 pt-6">
+                      <p className="text-sm text-[#d6b36a]">
+                        Your booking has been approved.
+                      </p>
+                    </div>
+                  )}
+              </div>
+            </div>
+          ) : (
+            <div className="border border-white/[0.10] bg-[#181614] p-7 md:p-8">
+              <p className="font-serif text-xl text-[#f4eee6]">
+                No upcoming appointment.
+              </p>
+
+              <p className="mt-2 max-w-[560px] text-sm leading-relaxed text-[#8f877e]">
+                Ready for your next set? Choose a
+                service and book your appointment.
+              </p>
+
+              <a
+                href="/#booking"
+                className="mt-6 inline-flex bg-[#d6b36a] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] hover:bg-[#ad8a4e]"
+              >
+                Book an appointment →
+              </a>
+            </div>
+          )}
+        </section>
+
+        <section className="mt-12">
+          <div className="border border-white/[0.10] bg-[#181614] p-6 md:p-8">
+            <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[#d6b36a]">
+              Profile
             </p>
-            {upcomingAppointment ? (
-              <>
-                <p className="mt-5 font-serif text-2xl text-[#f4eee6]">
-                  R
-                  {Number(
-                    upcomingAppointment.deposit_amount || 0
-                  ).toFixed(2)}
-                </p>
-                <p className="mt-2 text-sm text-[#8f877e]">
-                  {paymentLabel(
-                    upcomingAppointment.payment_status
-                  )}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="mt-5 font-serif text-2xl text-[#f4eee6]">
-                  R90
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-[#8f877e]">
-                  A R90 deposit is required to secure your
-                  appointment slot.
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-        {/* Upcoming Appointment Details */}
-        {upcomingAppointment && (
-          <section className="mt-10 border border-white/[0.09] bg-[#181614]">
-            <div className="border-b border-white/[0.09] px-6 py-5">
-              <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[#d6b36a]">
-                Appointment details
-              </p>
-            </div>
-            <div className="grid gap-6 p-6 md:grid-cols-2 lg:grid-cols-4">
+
+            <h2 className="mt-2 font-serif text-2xl text-[#f4eee6]">
+              Your details
+            </h2>
+
+            <div className="mt-7 grid gap-6 sm:grid-cols-3">
               <div>
-                <p className="text-[0.65rem] uppercase tracking-[0.14em] text-[#817970]">
-                  Service
+                <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
+                  Full name
                 </p>
-                <p className="mt-2 text-sm leading-relaxed text-[#f4eee6]">
-                  {upcomingAppointment.service_name}
+
+                <p className="mt-1 text-sm text-[#f4eee6]">
+                  {profile?.full_name ||
+                    displayName}
                 </p>
               </div>
+
               <div>
-                <p className="text-[0.65rem] uppercase tracking-[0.14em] text-[#817970]">
-                  Date
+                <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
+                  Phone
                 </p>
-                <p className="mt-2 text-sm text-[#f4eee6]">
-                  {formatDate(
-                    upcomingAppointment.booking_date
-                  )}
+
+                <p className="mt-1 text-sm text-[#f4eee6]">
+                  {profile?.phone ||
+                    user?.user_metadata?.phone ||
+                    "—"}
                 </p>
               </div>
+
               <div>
-                <p className="text-[0.65rem] uppercase tracking-[0.14em] text-[#817970]">
-                  Time
+                <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
+                  Email
                 </p>
-                <p className="mt-2 text-sm text-[#f4eee6]">
-                  {formatTime(
-                    upcomingAppointment.start_time
-                  )}
-                  {upcomingAppointment.end_time
-                    ? ` – ${formatTime(
-                        upcomingAppointment.end_time
-                      )}`
-                    : ""}
+
+                <p className="mt-1 break-all text-sm text-[#f4eee6]">
+                  {profile?.email ||
+                    user?.email ||
+                    "—"}
                 </p>
               </div>
-              <div>
-                <p className="text-[0.65rem] uppercase tracking-[0.14em] text-[#817970]">
-                  Deposit
-                </p>
-                <p className="mt-2 text-sm text-[#f4eee6]">
-                  R
-                  {Number(
-                    upcomingAppointment.deposit_amount || 0
-                  ).toFixed(2)}{" "}
-                  ·{" "}
-                  {paymentLabel(
-                    upcomingAppointment.payment_status
-                  )}
-                </p>
-              </div>
-            </div>
-          </section>
-        )}
-        {/* Profile */}
-        <section className="mt-10 border border-white/[0.09] bg-[#181614]">
-          <div className="border-b border-white/[0.09] px-6 py-5">
-            <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[#d6b36a]">
-              Your profile
-            </p>
-          </div>
-          <div className="grid gap-6 p-6 md:grid-cols-3">
-            <div>
-              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-[#817970]">
-                Full name
-              </p>
-              <p className="mt-2 text-sm text-[#f4eee6]">
-                {profile?.full_name || "Not provided"}
-              </p>
-            </div>
-            <div>
-              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-[#817970]">
-                Email
-              </p>
-              <p className="mt-2 break-all text-sm text-[#f4eee6]">
-                {profile?.email ||
-                  user?.email ||
-                  "Not provided"}
-              </p>
-            </div>
-            <div>
-              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-[#817970]">
-                Phone
-              </p>
-              <p className="mt-2 text-sm text-[#f4eee6]">
-                {profile?.phone || "Not provided"}
-              </p>
             </div>
           </div>
         </section>
-        {/* Booking History */}
-        <section className="mt-10 border border-white/[0.09] bg-[#181614]">
-          <div className="border-b border-white/[0.09] px-6 py-5">
-            <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[#d6b36a]">
-              Booking history
+
+        <section className="mt-12 pb-16">
+          <div className="mb-5">
+            <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[#d6b36a]">
+              Past bookings
             </p>
+
+            <h2 className="mt-2 font-serif text-2xl text-[#f4eee6]">
+              Booking history
+            </h2>
           </div>
-          {historyAppointments.length > 0 ? (
-            <div className="divide-y divide-white/[0.08]">
-              {historyAppointments
+
+          {history.length > 0 ? (
+            <div className="space-y-3">
+              {history
                 .slice()
                 .reverse()
                 .map((appointment) => (
                   <div
                     key={appointment.id}
-                    className="grid gap-4 px-6 py-5 md:grid-cols-[1fr_auto_auto] md:items-center"
+                    className="border border-white/[0.08] bg-[#181614] p-5"
                   >
-                    <div>
-                      <p className="text-sm font-semibold text-[#f4eee6]">
-                        {appointment.service_name}
-                      </p>
-                      <p className="mt-1 text-xs text-[#8f877e]">
-                        {formatDate(
-                          appointment.booking_date
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-[#f4eee6]">
+                          {formatDate(
+                            appointment.booking_date
+                          )}
+                        </p>
+
+                        <p className="mt-1 text-xs text-[#8f877e]">
+                          {formatTime(
+                            appointment.start_time
+                          )}{" "}
+                          –{" "}
+                          {formatTime(
+                            appointment.end_time
+                          )}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`border px-3 py-1.5 text-[0.6rem] font-bold uppercase tracking-[0.14em] ${statusClass(
+                          appointment.booking_status
+                        )}`}
+                      >
+                        {formatStatus(
+                          appointment.booking_status
                         )}
-                        {appointment.start_time
-                          ? ` · ${formatTime(
-                              appointment.start_time
-                            )}`
-                          : ""}
-                      </p>
+                      </span>
                     </div>
-                    <div
-                      className={`inline-flex w-fit border px-3 py-2 text-[0.65rem] font-bold uppercase tracking-[0.08em] ${statusClass(
-                        appointment.booking_status
-                      )}`}
-                    >
-                      {formatStatus(
-                        appointment.booking_status
-                      )}
-                    </div>
-                    <div className="text-sm text-[#c9c0b6]">
-                      R
-                      {Number(
-                        appointment.deposit_amount || 0
-                      ).toFixed(2)}
+
+                    <p className="mt-4 text-xs leading-relaxed text-[#a79a87]">
+                      {appointment.service_name}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[0.68rem] text-[#817970]">
+                      <span>
+                        Deposit:{" "}
+                        <span className="text-[#c9c0b6]">
+                          R
+                          {Number(
+                            appointment.deposit_amount ||
+                              0
+                          ).toFixed(2)}
+                        </span>
+                      </span>
+
+                      <span>
+                        Payment:{" "}
+                        <span className="text-[#c9c0b6]">
+                          {paymentLabel(
+                            appointment.payment_status
+                          )}
+                        </span>
+                      </span>
                     </div>
                   </div>
                 ))}
             </div>
           ) : (
-            <div className="px-6 py-10 text-center">
-              <p className="font-serif text-2xl text-[#f4eee6]">
-                No booking history yet
+            <div className="border border-white/[0.08] bg-[#181614] p-6">
+              <p className="text-sm text-[#8f877e]">
+                No previous bookings yet.
               </p>
-              <p className="mx-auto mt-3 max-w-[480px] text-sm leading-relaxed text-[#8f877e]">
-                Your previous Freddy Nails appointments
-                will appear here automatically.
-              </p>
-              <a
-                href="/#booking"
-                className="mt-6 inline-flex rounded-sm bg-[#d6b36a] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] transition-colors hover:bg-[#ad8a4e]"
-              >
-                Book an appointment
-              </a>
             </div>
           )}
         </section>
-        <div className="mt-10 border-t border-white/[0.09] pt-6 text-center">
-          <p className="text-xs text-[#817970]">
-            Freddy Nails · Crafted to Perfection
-          </p>
+
+        <div className="pb-10 sm:hidden">
+          <a
+            href="/#booking"
+            className="flex w-full items-center justify-center bg-[#d6b36a] px-5 py-3.5 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] hover:bg-[#ad8a4e]"
+          >
+            Book an appointment →
+          </a>
         </div>
       </div>
     </main>
   );
 }
+:::
