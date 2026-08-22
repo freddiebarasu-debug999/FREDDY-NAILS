@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
 const TILES = [
@@ -16,9 +16,40 @@ const TILES = [
 
 export default function Gallery() {
   const [selectedImage, setSelectedImage] = useState(null);
+  const [visibleTiles, setVisibleTiles] = useState([]);
+  const tileRefs = useRef([]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const index = Number(entry.target.dataset.index);
+
+            setVisibleTiles((current) =>
+              current.includes(index) ? current : [...current, index]
+            );
+
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        threshold: 0.12,
+        rootMargin: "0px 0px -50px 0px",
+      }
+    );
+
+    tileRefs.current.forEach((tile) => {
+      if (tile) observer.observe(tile);
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <section id="gallery" className="max-w-[1180px] mx-auto px-5 py-22">
+      {/* Heading */}
       <div className="max-w-[640px] mb-12">
         <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
           Recent work
@@ -29,53 +60,85 @@ export default function Gallery() {
         </h2>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {/* Masonry Gallery */}
+      <div className="columns-2 md:columns-3 gap-4 space-y-4">
         {TILES.map((t, index) => (
           <button
             key={t.label}
+            ref={(el) => {
+              tileRefs.current[index] = el;
+            }}
             type="button"
+            data-index={index}
             onClick={() => setSelectedImage(t)}
-            className="gallery-float relative aspect-square-[4/5] rounded-md border border-line overflow-hidden flex items-end p-3.5 text-left cursor-pointer group"
+            className={`gallery-tile group relative block w-full overflow-hidden rounded-md border border-line text-left break-inside-avoid cursor-pointer ${
+              visibleTiles.includes(index)
+                ? "gallery-visible"
+                : "gallery-hidden"
+            }`}
             style={{
-              animationDelay: `${index * -0.7}s`,
-              animationDuration: `${5 + (index % 3)}s`,
+              "--float-delay": `${index * -0.65}s`,
+              "--float-duration": `${5 + (index % 3)}s`,
+              "--entrance-delay": `${index * 90}ms`,
             }}
             aria-label={`View ${t.label}`}
           >
             <Image
               src={t.src}
               alt={t.label}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 768px) 50vw, 25vw"
+              width={900}
+              height={1200}
+              className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
+              sizes="(max-width: 768px) 50vw, 33vw"
             />
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+            {/* Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-90" />
 
-            <span className="relative text-white text-[0.78rem] font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            {/* Label */}
+            <span className="absolute bottom-3.5 left-3.5 right-3.5 text-white text-[0.78rem] font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
               {t.label}
             </span>
           </button>
         ))}
       </div>
 
-      {/* Continuous floating animation */}
       <style jsx>{`
-        .gallery-float {
-          animation-name: galleryFloat;
-          animation-timing-function: ease-in-out;
-          animation-iteration-count: infinite;
-          animation-direction: alternate;
-          will-change: transform;
+        /* Initial fly-in */
+        .gallery-hidden {
+          opacity: 0;
+          transform: translateY(45px) scale(0.97);
         }
 
+        .gallery-visible {
+          opacity: 1;
+          animation:
+            galleryEntrance 800ms cubic-bezier(0.22, 1, 0.36, 1)
+              var(--entrance-delay) both,
+            galleryFloat var(--float-duration) ease-in-out
+              calc(var(--entrance-delay) + 800ms) infinite alternate;
+        }
+
+        @keyframes galleryEntrance {
+          0% {
+            opacity: 0;
+            transform: translateY(45px) scale(0.97);
+          }
+
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        /* Continuous floating after entrance */
         @keyframes galleryFloat {
           0% {
-            transform: translateY(0px);
+            transform: translateY(0);
           }
 
           50% {
-            transform: translateY(-7px);
+            transform: translateY(-6px);
           }
 
           100% {
@@ -83,12 +146,15 @@ export default function Gallery() {
           }
         }
 
-        .gallery-float:hover {
+        .gallery-visible:hover {
           animation-play-state: paused;
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .gallery-float {
+          .gallery-hidden,
+          .gallery-visible {
+            opacity: 1;
+            transform: none;
             animation: none;
           }
         }
