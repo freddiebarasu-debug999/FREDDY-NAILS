@@ -14,308 +14,333 @@ const GALLERY = [
   { name: "Leopard French Cherry", src: "/gallery/gallery-8.jpg" },
 ];
 
+const BOOKABLE_SERVICES = [
+  "Acrylic — Plain Short–Medium (R200)",
+  "Acrylic — Plain Long (R250)",
+  "Acrylic — Plain XL–XXXL (R300)",
+  "Acrylic — French Short–Medium (R300)",
+  "Acrylic — French Long (R350)",
+  "Acrylic — French XL–XXL (R400)",
+  "Acrylic — Ombré Short–Medium (R250)",
+  "Acrylic — Ombré Long (R300)",
+  "Acrylic — Ombré XL–XXXL (R350)",
+  "Gel — Overlay (R200)",
+  "Gel — Plain Short–Medium (R250)",
+  "Gel — Plain Long (R300)",
+  "Gel — French Short–Medium (R300)",
+  "Gel — French Long (R350)",
+  "Pedicure — Gel Overlay (R150)",
+  "Pedicure — Gel Full Tips (R200)",
+  "Pedicure — Acrylic Overlay (R180)",
+  "Pedicure — Acrylic Full Tips (R200)",
+  "Pedicure — Acrylic French Tips (R250)",
+  "Lashes — Cluster (R130)",
+  "Lashes — Cateye (R150)",
+  "Lashes — Classic (R180)",
+  "Foot Spa — Basic (R200)",
+  "Foot Spa — Luxury (R280)",
+];
+
+const NAIL_SHAPES = [
+  "Almond",
+  "Square",
+  "Squoval",
+  "Oval",
+  "Coffin",
+  "Stiletto",
+];
+
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-/*
- * Converts the AI's customer-facing service description
- * into the exact service name used by the booking form.
- */
-function getRecommendedService(text) {
-  if (!text || typeof text !== "string") {
-    return null;
+function normalize(value) {
+  return value
+    ?.replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function findRecommendedService(text) {
+  if (!text) return null;
+
+  const normalizedText = normalize(text);
+
+  const exactMatch = BOOKABLE_SERVICES.find(
+    (service) =>
+      normalizedText.includes(normalize(service))
+  );
+
+  if (exactMatch) {
+    return exactMatch;
   }
 
-  const lower = text.toLowerCase();
-
-  const serviceRules = [
+  /*
+   * Fallback matching for AI wording such as:
+   * "Acrylic French Short-Medium — R300"
+   * "Base service: Acrylic French Short–Medium — R300"
+   */
+  const simplifiedMatches = [
     {
-      keywords: [
-        "acrylic french",
-        "short–medium",
-        "short-medium",
-      ],
       service:
         "Acrylic — French Short–Medium (R300)",
+      keywords: [
+        "acrylic",
+        "french",
+        "short",
+        "medium",
+        "r300",
+      ],
     },
     {
-      keywords: [
-        "acrylic french",
-        "long",
-      ],
       service:
         "Acrylic — French Long (R350)",
+      keywords: [
+        "acrylic",
+        "french",
+        "long",
+        "r350",
+      ],
     },
     {
-      keywords: [
-        "acrylic french",
-        "xl",
-      ],
       service:
         "Acrylic — French XL–XXL (R400)",
-    },
-    {
-      keywords: [
-        "acrylic ombré",
-        "short–medium",
-      ],
-      service:
-        "Acrylic — Ombré Short–Medium (R250)",
-    },
-    {
-      keywords: [
-        "acrylic ombre",
-        "short-medium",
-      ],
-      service:
-        "Acrylic — Ombré Short–Medium (R250)",
-    },
-    {
-      keywords: [
-        "acrylic ombré",
-        "long",
-      ],
-      service:
-        "Acrylic — Ombré Long (R300)",
-    },
-    {
-      keywords: [
-        "acrylic ombre",
-        "long",
-      ],
-      service:
-        "Acrylic — Ombré Long (R300)",
-    },
-    {
-      keywords: [
-        "acrylic ombré",
-        "xl",
-      ],
-      service:
-        "Acrylic — Ombré XL–XXXL (R350)",
-    },
-    {
-      keywords: [
-        "acrylic ombre",
-        "xl",
-      ],
-      service:
-        "Acrylic — Ombré XL–XXXL (R350)",
-    },
-    {
       keywords: [
         "acrylic",
-        "plain",
-        "short–medium",
+        "french",
+        "xl",
+        "xxl",
+        "r400",
       ],
+    },
+    {
       service:
         "Acrylic — Plain Short–Medium (R200)",
-    },
-    {
       keywords: [
         "acrylic",
         "plain",
-        "short-medium",
+        "short",
+        "medium",
+        "r200",
       ],
-      service:
-        "Acrylic — Plain Short–Medium (R200)",
     },
     {
-      keywords: [
-        "acrylic",
-        "plain",
-        "long",
-      ],
       service:
         "Acrylic — Plain Long (R250)",
+      keywords: [
+        "acrylic",
+        "plain",
+        "long",
+        "r250",
+      ],
     },
     {
+      service:
+        "Acrylic — Plain XL–XXXL (R300)",
       keywords: [
         "acrylic",
         "plain",
         "xl",
+        "xxxl",
+        "r300",
       ],
-      service:
-        "Acrylic — Plain XL–XXXL (R300)",
     },
     {
-      keywords: [
-        "gel french",
-        "short–medium",
-      ],
       service:
-        "Gel — French Short–Medium (R300)",
+        "Acrylic — Ombré Short–Medium (R250)",
+      keywords: [
+        "acrylic",
+        "ombré",
+        "short",
+        "medium",
+        "r250",
+      ],
     },
     {
-      keywords: [
-        "gel french",
-        "short-medium",
-      ],
       service:
-        "Gel — French Short–Medium (R300)",
-    },
-    {
+        "Acrylic — Ombré Long (R300)",
       keywords: [
-        "gel french",
+        "acrylic",
+        "ombré",
         "long",
+        "r300",
       ],
-      service:
-        "Gel — French Long (R350)",
     },
     {
+      service:
+        "Acrylic — Ombré XL–XXXL (R350)",
       keywords: [
-        "gel overlay",
+        "acrylic",
+        "ombré",
+        "xl",
+        "xxxl",
+        "r350",
       ],
+    },
+    {
       service:
         "Gel — Overlay (R200)",
+      keywords: ["gel", "overlay", "r200"],
     },
     {
+      service:
+        "Gel — Plain Short–Medium (R250)",
       keywords: [
         "gel",
         "plain",
-        "short–medium",
+        "short",
+        "medium",
+        "r250",
       ],
-      service:
-        "Gel — Plain Short–Medium (R250)",
     },
     {
-      keywords: [
-        "gel",
-        "plain",
-        "short-medium",
-      ],
       service:
-        "Gel — Plain Short–Medium (R250)",
-    },
-    {
+        "Gel — Plain Long (R300)",
       keywords: [
         "gel",
         "plain",
         "long",
+        "r300",
       ],
-      service:
-        "Gel — Plain Long (R300)",
     },
     {
+      service:
+        "Gel — French Short–Medium (R300)",
+      keywords: [
+        "gel",
+        "french",
+        "short",
+        "medium",
+        "r300",
+      ],
+    },
+    {
+      service:
+        "Gel — French Long (R350)",
+      keywords: [
+        "gel",
+        "french",
+        "long",
+        "r350",
+      ],
+    },
+    {
+      service:
+        "Pedicure — Gel Overlay (R150)",
+      keywords: [
+        "pedicure",
+        "gel",
+        "overlay",
+        "r150",
+      ],
+    },
+    {
+      service:
+        "Pedicure — Gel Full Tips (R200)",
+      keywords: [
+        "pedicure",
+        "gel",
+        "full",
+        "tips",
+        "r200",
+      ],
+    },
+    {
+      service:
+        "Pedicure — Acrylic Overlay (R180)",
+      keywords: [
+        "pedicure",
+        "acrylic",
+        "overlay",
+        "r180",
+      ],
+    },
+    {
+      service:
+        "Pedicure — Acrylic Full Tips (R200)",
+      keywords: [
+        "pedicure",
+        "acrylic",
+        "full",
+        "tips",
+        "r200",
+      ],
+    },
+    {
+      service:
+        "Pedicure — Acrylic French Tips (R250)",
       keywords: [
         "pedicure",
         "acrylic",
         "french",
+        "tips",
+        "r250",
       ],
-      service:
-        "Pedicure — Acrylic French Tips (R250)",
     },
     {
-      keywords: [
-        "pedicure",
-        "acrylic",
-        "full tips",
-      ],
-      service:
-        "Pedicure — Acrylic Full Tips (R200)",
-    },
-    {
-      keywords: [
-        "pedicure",
-        "acrylic",
-        "overlay",
-      ],
-      service:
-        "Pedicure — Acrylic Overlay (R180)",
-    },
-    {
-      keywords: [
-        "pedicure",
-        "gel",
-        "full tips",
-      ],
-      service:
-        "Pedicure — Gel Full Tips (R200)",
-    },
-    {
-      keywords: [
-        "pedicure",
-        "gel",
-        "overlay",
-      ],
-      service:
-        "Pedicure — Gel Overlay (R150)",
-    },
-    {
-      keywords: [
-        "lashes",
-        "cluster",
-      ],
       service:
         "Lashes — Cluster (R130)",
+      keywords: ["lashes", "cluster", "r130"],
     },
     {
-      keywords: [
-        "lashes",
-        "cateye",
-      ],
       service:
         "Lashes — Cateye (R150)",
+      keywords: ["lashes", "cateye", "r150"],
     },
     {
-      keywords: [
-        "lashes",
-        "classic",
-      ],
       service:
         "Lashes — Classic (R180)",
+      keywords: ["lashes", "classic", "r180"],
     },
     {
-      keywords: [
-        "foot spa",
-        "luxury",
-      ],
-      service:
-        "Foot Spa — Luxury (R280)",
-    },
-    {
-      keywords: [
-        "foot spa",
-        "basic",
-      ],
       service:
         "Foot Spa — Basic (R200)",
+      keywords: ["foot", "spa", "basic", "r200"],
+    },
+    {
+      service:
+        "Foot Spa — Luxury (R280)",
+      keywords: ["foot", "spa", "luxury", "r280"],
     },
   ];
 
-  for (const rule of serviceRules) {
-    if (
-      rule.keywords.every((keyword) =>
-        lower.includes(keyword)
+  const match = simplifiedMatches.find(
+    (item) =>
+      item.keywords.every((keyword) =>
+        normalizedText.includes(
+          normalize(keyword)
+        )
       )
-    ) {
-      return rule.service;
-    }
-  }
+  );
 
-  return null;
+  return match?.service || null;
 }
 
-function getRecommendedShape(text) {
-  if (!text || typeof text !== "string") {
-    return null;
-  }
+function findRecommendedShape(text) {
+  if (!text) return null;
 
-  const lower = text.toLowerCase();
-
-  const shapes = [
-    "Almond",
-    "Square",
-    "Squoval",
-    "Oval",
-    "Coffin",
-    "Stiletto",
-  ];
+  const normalizedText = normalize(text);
 
   return (
-    shapes.find((shape) =>
-      lower.includes(shape.toLowerCase())
+    NAIL_SHAPES.find((shape) =>
+      normalizedText.includes(
+        normalize(shape)
+      )
     ) || null
   );
+}
+
+function buildBookingUrl(service, shape) {
+  const params = new URLSearchParams();
+
+  if (service) {
+    params.set("service", service);
+  }
+
+  if (shape) {
+    params.set("shape", shape);
+  }
+
+  return `/?${params.toString()}#booking`;
 }
 
 export default function ChatBot() {
@@ -331,16 +356,11 @@ export default function ChatBot() {
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [pendingImage, setPendingImage] =
-    useState(null);
-  const [imageError, setImageError] =
-    useState("");
+  const [pendingImage, setPendingImage] = useState(null);
+  const [imageError, setImageError] = useState("");
   const fileInputRef = useRef(null);
 
-  function findGalleryDesign(
-    text,
-    previousMessages
-  ) {
+  function findGalleryDesign(text, previousMessages) {
     const lowerText = text.toLowerCase();
 
     const alreadyShown = previousMessages
@@ -354,17 +374,16 @@ export default function ChatBot() {
         )
     );
 
-    const newDesign =
-      matchingDesigns.find(
-        (item) =>
-          !alreadyShown.includes(item.name)
-      );
+    const newDesign = matchingDesigns.find(
+      (item) =>
+        !alreadyShown.includes(item.name)
+    );
 
-    if (newDesign) {
-      return newDesign;
-    }
-
-    return matchingDesigns[0] || null;
+    return (
+      newDesign ||
+      matchingDesigns[0] ||
+      null
+    );
   }
 
   async function searchInspiration(query) {
@@ -393,41 +412,34 @@ export default function ChatBot() {
   }
 
   function readFileAsDataUrl(file) {
-    return new Promise(
-      (resolve, reject) => {
-        const reader =
-          new FileReader();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
 
-        reader.onload = () =>
-          resolve(reader.result);
+      reader.onload = () =>
+        resolve(reader.result);
 
-        reader.onerror = () =>
-          reject(
-            new Error(
-              "Could not read the image."
-            )
-          );
+      reader.onerror = () =>
+        reject(
+          new Error(
+            "Could not read the image."
+          )
+        );
 
-        reader.readAsDataURL(file);
-      }
-    );
+      reader.readAsDataURL(file);
+    });
   }
 
   async function handleImageFile(file) {
     setImageError("");
 
-    if (
-      !file.type.startsWith("image/")
-    ) {
+    if (!file.type.startsWith("image/")) {
       setImageError(
         "Please choose an image file."
       );
       return;
     }
 
-    if (
-      file.size > MAX_IMAGE_BYTES
-    ) {
+    if (file.size > MAX_IMAGE_BYTES) {
       setImageError(
         "That image is a bit large — please use one under 5MB."
       );
@@ -452,8 +464,7 @@ export default function ChatBot() {
   }
 
   function handleFileInputChange(e) {
-    const file =
-      e.target.files?.[0];
+    const file = e.target.files?.[0];
 
     if (file) {
       handleImageFile(file);
@@ -469,13 +480,8 @@ export default function ChatBot() {
     if (!items) return;
 
     for (const item of items) {
-      if (
-        item.type.startsWith(
-          "image/"
-        )
-      ) {
-        const file =
-          item.getAsFile();
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
 
         if (file) {
           e.preventDefault();
@@ -492,54 +498,6 @@ export default function ChatBot() {
     setImageError("");
   }
 
-  /*
-   * Creates the booking URL using the exact
-   * service name expected by Booking.js.
-   */
-  function getBookingUrl(
-    service,
-    shape = null
-  ) {
-    const params =
-      new URLSearchParams();
-
-    if (service) {
-      params.set(
-        "service",
-        service
-      );
-    }
-
-    if (shape) {
-      params.set(
-        "shape",
-        shape
-      );
-    }
-
-    const query =
-      params.toString();
-
-    return query
-      ? `/?${query}#booking`
-      : "/#booking";
-  }
-
-  function handleBookRecommendation(
-    service,
-    shape = null
-  ) {
-    if (!service) return;
-
-    setOpen(false);
-
-    window.location.href =
-      getBookingUrl(
-        service,
-        shape
-      );
-  }
-
   async function sendMessage(e) {
     e.preventDefault();
 
@@ -552,8 +510,7 @@ export default function ChatBot() {
       return;
     }
 
-    const imageToSend =
-      pendingImage;
+    const imageToSend = pendingImage;
 
     const newMessages = [
       ...messages,
@@ -564,8 +521,7 @@ export default function ChatBot() {
           (imageToSend
             ? "Here's a photo of what I have in mind."
             : ""),
-        image:
-          imageToSend || null,
+        image: imageToSend || null,
       },
     ];
 
@@ -576,8 +532,9 @@ export default function ChatBot() {
     setImageError("");
 
     try {
-      const response =
-        await fetch("/api/chat", {
+      const response = await fetch(
+        "/api/chat",
+        {
           method: "POST",
           headers: {
             "Content-Type":
@@ -598,13 +555,13 @@ export default function ChatBot() {
               imageToSend ||
               undefined,
           }),
-        });
+        }
+      );
 
       let data;
 
       try {
-        data =
-          await response.json();
+        data = await response.json();
       } catch {
         throw new Error(
           `The chatbot server returned an invalid response (${response.status}).`
@@ -624,29 +581,33 @@ export default function ChatBot() {
         );
       }
 
-      /*
-       * Detect the service and shape recommended
-       * by the AI.
-       */
       const recommendedService =
-        getRecommendedService(
+        findRecommendedService(
           data.message
         );
 
       const recommendedShape =
-        getRecommendedShape(
+        findRecommendedShape(
           data.message
         );
+
+      const bookingUrl =
+        recommendedService
+          ? buildBookingUrl(
+              recommendedService,
+              recommendedShape
+            )
+          : null;
 
       if (imageToSend) {
         setMessages([
           ...newMessages,
           {
             role: "assistant",
-            content:
-              data.message,
+            content: data.message,
             recommendedService,
             recommendedShape,
+            bookingUrl,
           },
         ]);
       } else {
@@ -658,10 +619,7 @@ export default function ChatBot() {
 
         const inspirationQuery =
           `${data.message
-            .replace(
-              /[#*_]/g,
-              ""
-            )
+            .replace(/[#*_]/g, "")
             .slice(0, 180)} nail design manicure`;
 
         const inspirationPhotos =
@@ -673,8 +631,7 @@ export default function ChatBot() {
           ...newMessages,
           {
             role: "assistant",
-            content:
-              data.message,
+            content: data.message,
             image:
               galleryDesign?.src ||
               null,
@@ -684,6 +641,7 @@ export default function ChatBot() {
             inspirationPhotos,
             recommendedService,
             recommendedShape,
+            bookingUrl,
           },
         ]);
       }
@@ -713,19 +671,15 @@ export default function ChatBot() {
         <div
           className="fixed bottom-24 right-5 z-50 w-[calc(100vw-2.5rem)] max-w-[380px] overflow-hidden rounded-2xl shadow-2xl shadow-black/60"
           style={{
-            backgroundColor:
-              "#11100f",
+            backgroundColor: "#11100f",
             border:
               "1px solid rgba(255,255,255,0.10)",
           }}
         >
-          {/* HEADER */}
-
           <div
             className="px-5 py-4"
             style={{
-              backgroundColor:
-                "#181614",
+              backgroundColor: "#181614",
               borderBottom:
                 "1px solid rgba(255,255,255,0.09)",
             }}
@@ -771,21 +725,15 @@ export default function ChatBot() {
             </div>
           </div>
 
-          {/* MESSAGES */}
-
           <div
             className="h-[360px] overflow-y-auto p-4"
             style={{
-              backgroundColor:
-                "#11100f",
+              backgroundColor: "#11100f",
             }}
           >
             <div className="space-y-3">
               {messages.map(
-                (
-                  message,
-                  index
-                ) => (
+                (message, index) => (
                   <div
                     key={index}
                     className={`flex ${
@@ -840,9 +788,7 @@ export default function ChatBot() {
                       )}
 
                       <div className="whitespace-pre-wrap">
-                        {
-                          message.content
-                        }
+                        {message.content}
                       </div>
 
                       {message.recommendedService && (
@@ -853,19 +799,35 @@ export default function ChatBot() {
                               "1px solid rgba(255,255,255,0.08)",
                           }}
                         >
-                          <p className="mb-3 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-[#d6b36a]">
-                            Ready to book?
+                          <p className="text-[0.66rem] font-bold uppercase tracking-[0.15em] text-[#d6b36a]">
+                            AI booking recommendation
                           </p>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleBookRecommendation(
-                                message.recommendedService,
+                          <p className="mt-1 text-sm font-semibold text-[#f4eee6]">
+                            {
+                              message.recommendedService
+                            }
+                          </p>
+
+                          {message.recommendedShape && (
+                            <p className="mt-1 text-xs text-[#a79a87]">
+                              Shape:{" "}
+                              {
                                 message.recommendedShape
+                              }
+                            </p>
+                          )}
+
+                          <a
+                            href={
+                              message.bookingUrl
+                            }
+                            onClick={() =>
+                              setOpen(
+                                false
                               )
                             }
-                            className="inline-flex w-full items-center justify-center rounded-full px-4 py-2.5 text-xs font-bold transition-all hover:scale-[1.02]"
+                            className="mt-3 inline-flex w-full items-center justify-center rounded-full px-4 py-2.5 text-xs font-bold transition-colors"
                             style={{
                               backgroundColor:
                                 "#d6b36a",
@@ -873,12 +835,8 @@ export default function ChatBot() {
                                 "#11100f",
                             }}
                           >
-                            Book{" "}
-                            {
-                              message.recommendedService
-                            }{" "}
-                            →
-                          </button>
+                            Book this service →
+                          </a>
                         </div>
                       )}
 
@@ -891,38 +849,34 @@ export default function ChatBot() {
                           }}
                         >
                           <p className="text-xs font-bold tracking-wide text-[#d6b36a]">
-                            Freddy Nails
-                            Gallery:{" "}
+                            Freddy Nails Gallery:{" "}
                             {
                               message.imageName
                             }
                           </p>
 
-                          {!message.recommendedService && (
-                            <a
-                              href="#booking"
-                              onClick={() =>
-                                setOpen(
-                                  false
-                                )
-                              }
-                              className="mt-3 inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition-colors"
-                              style={{
-                                backgroundColor:
-                                  "#d6b36a",
-                                color:
-                                  "#11100f",
-                              }}
-                            >
-                              Book this look
-                            </a>
-                          )}
+                          <a
+                            href="#booking"
+                            onClick={() =>
+                              setOpen(
+                                false
+                              )
+                            }
+                            className="mt-3 inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition-colors"
+                            style={{
+                              backgroundColor:
+                                "#d6b36a",
+                              color:
+                                "#11100f",
+                            }}
+                          >
+                            Book this look
+                          </a>
                         </div>
                       )}
 
                       {message.inspirationPhotos
-                        ?.length >
-                        0 && (
+                        ?.length > 0 && (
                         <div
                           className="mt-4 pt-4"
                           style={{
@@ -974,9 +928,7 @@ export default function ChatBot() {
                           </div>
 
                           <p className="mt-2 text-[0.65rem] text-[#817970]">
-                            Inspiration
-                            images via
-                            Pexels
+                            Inspiration images via Pexels
                           </p>
                         </div>
                       )}
@@ -1007,14 +959,11 @@ export default function ChatBot() {
             </div>
           </div>
 
-          {/* INPUT */}
-
           <form
             onSubmit={sendMessage}
             className="p-3"
             style={{
-              backgroundColor:
-                "#181614",
+              backgroundColor: "#181614",
               borderTop:
                 "1px solid rgba(255,255,255,0.09)",
             }}
@@ -1038,9 +987,8 @@ export default function ChatBot() {
                 </div>
 
                 <p className="flex-1 text-xs text-[#c9c0b6]">
-                  Photo attached —
-                  I&apos;ll estimate a
-                  price for this.
+                  Photo attached — I&apos;ll estimate
+                  a price for this.
                 </p>
 
                 <button
@@ -1082,8 +1030,7 @@ export default function ChatBot() {
                 style={{
                   backgroundColor:
                     "#11100f",
-                  color:
-                    "#f4eee6",
+                  color: "#f4eee6",
                   border:
                     "1px solid rgba(255,255,255,0.12)",
                 }}
@@ -1097,9 +1044,7 @@ export default function ChatBot() {
                 type="text"
                 value={input}
                 onChange={(e) =>
-                  setInput(
-                    e.target.value
-                  )
+                  setInput(e.target.value)
                 }
                 onPaste={handlePaste}
                 placeholder={
@@ -1111,8 +1056,7 @@ export default function ChatBot() {
                 style={{
                   backgroundColor:
                     "#11100f",
-                  color:
-                    "#f4eee6",
+                  color: "#f4eee6",
                   border:
                     "1px solid rgba(255,255,255,0.12)",
                 }}
@@ -1125,8 +1069,7 @@ export default function ChatBot() {
                 style={{
                   backgroundColor:
                     "#d6b36a",
-                  color:
-                    "#11100f",
+                  color: "#11100f",
                 }}
               >
                 Send
@@ -1135,8 +1078,6 @@ export default function ChatBot() {
           </form>
         </div>
       )}
-
-      {/* FLOATING CHAT BUTTON */}
 
       <button
         type="button"
