@@ -39,7 +39,7 @@ export default function ShapeGuide() {
   const [selected, setSelected] = useState(null);
 
   function bookShape(shapeName) {
-    window.location.href = `?shape=${encodeURIComponent(
+    window.location.href = `/?shape=${encodeURIComponent(
       shapeName
     )}#booking`;
   }
