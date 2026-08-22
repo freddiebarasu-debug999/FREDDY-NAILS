@@ -1,204 +1,243 @@
-export const dynamic = "force-dynamic";
-
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
+import { deleteGoogleCalendarEvent } from "@/lib/google-calendar";
+function getSupabaseAdmin() {
+  const url = process.env.SUPABASE_URL;
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceRoleKey) {
+    throw new Error(
+      "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY."
+    );
+  }
+  return createClient(url, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
-  }
-);
-
-async function getAuthenticatedUser(request) {
-  const authorization = request.headers.get("authorization");
-
-  if (!authorization?.toLowerCase().startsWith("bearer ")) {
-    return null;
-  }
-
-  const accessToken = authorization.slice(7).trim();
-
-  if (!accessToken) {
-    return null;
-  }
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(accessToken);
-
-  if (error || !user) {
-    return null;
-  }
-
-  return user;
+  });
 }
-
 export async function POST(request) {
   try {
-    const user = await getAuthenticatedUser(request);
-
-    if (!user) {
-      return Response.json(
-        { error: "You must be logged in to cancel a booking." },
+    const authorization =
+      request.headers.get("authorization") || "";
+    if (!authorization.startsWith("Bearer ")) {
+      return NextResponse.json(
+        {
+          error: "Unauthorized.",
+        },
         { status: 401 }
       );
     }
-
-    const body = await request.json();
-    const appointmentId = body?.appointmentId;
-
+    const accessToken =
+      authorization.slice(7);
+    const supabaseAdmin =
+      getSupabaseAdmin();
+    const {
+      data: {
+        user,
+      },
+      error: userError,
+    } = await supabaseAdmin.auth.getUser(
+      accessToken
+    );
+    if (
+      userError ||
+      !user
+    ) {
+      return NextResponse.json(
+        {
+          error: "Unauthorized.",
+        },
+        { status: 401 }
+      );
+    }
+    const body =
+      await request.json();
+    const appointmentId =
+      body?.appointmentId;
     if (!appointmentId) {
-      return Response.json(
-        { error: "Booking ID is required." },
+      return NextResponse.json(
+        {
+          error:
+            "Appointment ID is required.",
+        },
         { status: 400 }
       );
     }
-
     const {
       data: appointment,
       error: appointmentError,
-    } = await supabase
-      .from("appointments")
-      .select(`
-        id,
-        profile_id,
-        booking_status,
-        payment_status,
-        booking_date,
-        start_time,
-        expires_at
-      `)
-      .eq("id", appointmentId)
-      .single();
-
-    if (appointmentError || !appointment) {
-      return Response.json(
-        { error: "Booking could not be found." },
-        { status: 404 }
-      );
-    }
-
-    /*
-     * The booking must belong to the currently
-     * authenticated client.
-     */
-    if (appointment.profile_id !== user.id) {
-      return Response.json(
-        { error: "You are not allowed to cancel this booking." },
-        { status: 403 }
-      );
-    }
-
-    const bookingStatus =
-      String(appointment.booking_status || "").toLowerCase();
-
-    const paymentStatus =
-      String(appointment.payment_status || "").toLowerCase();
-
-    if (bookingStatus === "cancelled") {
-      return Response.json(
-        { error: "This booking has already been cancelled." },
-        { status: 409 }
-      );
-    }
-
-    if (
-      bookingStatus === "confirmed" ||
-      paymentStatus === "paid" ||
-      paymentStatus === "deposit_paid"
-    ) {
-      return Response.json(
-        {
-          error:
-            "This booking can no longer be cancelled from your account. Please contact Freddy Nails.",
-        },
-        { status: 409 }
-      );
-    }
-
-    if (
-      bookingStatus !== "pending" &&
-      bookingStatus !== "approved"
-    ) {
-      return Response.json(
-        {
-          error:
-            "This booking cannot be cancelled at its current stage.",
-        },
-        { status: 409 }
-      );
-    }
-
-    /*
-     * Keep the appointment in the database so it remains
-     * visible in booking history, but release its slot by
-     * changing the booking status to cancelled.
-     */
-    const {
-      data: updatedAppointment,
-      error: updateError,
-    } = await supabase
-      .from("appointments")
-      .update({
-        booking_status: "cancelled",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", appointmentId)
-      .eq("profile_id", user.id)
-      .select("id, booking_status, payment_status")
-      .single();
-
-    if (updateError || !updatedAppointment) {
+    } =
+      await supabaseAdmin
+        .from("appointments")
+        .select(
+          `
+            id,
+            profile_id,
+            booking_status,
+            payment_status,
+            google_event_id
+          `
+        )
+        .eq(
+          "id",
+          appointmentId
+        )
+        .eq(
+          "profile_id",
+          user.id
+        )
+        .maybeSingle();
+    if (appointmentError) {
       console.error(
-        "Cancel booking update error:",
-        updateError
+        "Cancel booking lookup failed:",
+        appointmentError
       );
-
-      return Response.json(
-        { error: "Unable to cancel your booking." },
+      return NextResponse.json(
+        {
+          error:
+            "Unable to find this appointment.",
+        },
         { status: 500 }
       );
     }
-
-    /*
-     * Keep the child client appointment records in sync.
-     */
-    const { error: clientUpdateError } =
-      await supabase
-        .from("appointment_clients")
-        .update({
-          booking_status: "cancelled",
-        })
-        .eq("appointment_id", appointmentId);
-
-    if (clientUpdateError) {
-      console.error(
-        "Client appointment cancellation sync error:",
-        clientUpdateError
+    if (!appointment) {
+      return NextResponse.json(
+        {
+          error:
+            "Appointment not found.",
+        },
+        { status: 404 }
       );
     }
-
-    return Response.json({
+    if (
+      appointment.booking_status ===
+      "cancelled"
+    ) {
+      return NextResponse.json({
+        success: true,
+        message:
+          "This appointment is already cancelled.",
+      });
+    }
+    if (
+      appointment.booking_status ===
+        "confirmed" ||
+      appointment.payment_status ===
+        "paid" ||
+      appointment.booking_status ===
+        "deposit_paid"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This appointment cannot be cancelled from your account. Please contact Freddy Nails.",
+        },
+        { status: 400 }
+      );
+    }
+    /*
+     * Delete the matching Google Calendar event
+     * before marking the appointment cancelled.
+     *
+     * If there is no Google event, this safely
+     * returns without doing anything.
+     */
+    if (
+      appointment.google_event_id
+    ) {
+      try {
+        const calendarResult =
+          await deleteGoogleCalendarEvent(
+            appointment
+          );
+        console.log(
+          "Google Calendar cancellation sync:",
+          calendarResult
+        );
+      } catch (calendarError) {
+        console.error(
+          "Google Calendar cancellation failed:",
+          calendarError
+        );
+        return NextResponse.json(
+          {
+            error:
+              "The booking could not be cancelled because the Google Calendar event could not be removed. Please try again.",
+          },
+          { status: 500 }
+        );
+      }
+    }
+    const {
+      error: updateError,
+    } =
+      await supabaseAdmin
+        .from("appointments")
+        .update({
+          booking_status:
+            "cancelled",
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq(
+          "id",
+          appointmentId
+        )
+        .eq(
+          "profile_id",
+          user.id
+        );
+    if (updateError) {
+      console.error(
+        "Appointment cancellation failed:",
+        updateError
+      );
+      return NextResponse.json(
+        {
+          error:
+            "Unable to cancel the appointment.",
+        },
+        { status: 500 }
+      );
+    }
+    const {
+      error: clientsError,
+    } =
+      await supabaseAdmin
+        .from(
+          "appointment_clients"
+        )
+        .update({
+          booking_status:
+            "cancelled",
+        })
+        .eq(
+          "appointment_id",
+          appointmentId
+        );
+    if (clientsError) {
+      console.error(
+        "Appointment clients cancellation update failed:",
+        clientsError
+      );
+    }
+    return NextResponse.json({
       success: true,
-      appointment: updatedAppointment,
-      message: "Your booking has been cancelled.",
+      message:
+        "Appointment cancelled successfully.",
     });
   } catch (error) {
     console.error(
-      "Cancel booking API error:",
+      "Cancel booking route error:",
       error
     );
-
-    return Response.json(
+    return NextResponse.json(
       {
         error:
           error?.message ||
-          "Something went wrong cancelling your booking.",
+          "Unable to cancel appointment.",
       },
       { status: 500 }
     );
