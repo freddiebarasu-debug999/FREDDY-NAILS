@@ -32,13 +32,17 @@ export async function GET(request) {
     `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
   );
 
-  response.cookies.set("google_calendar_oauth_state", state, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 10 * 60,
-  });
+  response.cookies.set(
+    "google_calendar_oauth_state",
+    state,
+    {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 10 * 60,
+    }
+  );
 
   return response;
 }
