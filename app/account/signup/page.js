@@ -33,8 +33,7 @@ export default function SignUpPage() {
       !form.fullName.trim() ||
       !form.email.trim() ||
       !form.phone.trim() ||
-      !form.password ||
-      !form.confirmPassword
+      !form.password
     ) {
       setError("Please complete all required fields.");
       return;
@@ -76,26 +75,29 @@ export default function SignUpPage() {
       }
 
       /*
-       * The Supabase database trigger automatically creates
-       * the user's profile in public.profiles.
+       * Do NOT insert into profiles here.
        *
-       * We intentionally do NOT manually insert/upsert the
-       * profile here because email confirmation may mean there
-       * is no authenticated session yet.
+       * Supabase creates the Auth user first.
+       * Our database trigger:
+       *
+       * handle_new_user()
+       *
+       * automatically creates the matching profile.
+       *
+       * When email confirmation is enabled, Supabase normally
+       * returns no session until the client confirms their email.
        */
 
       if (!data.session) {
         setMessage(
-          "Your account has been created. Please check your email and confirm your account before logging in."
+          "Your account has been created successfully. Please check your email and confirm your account before logging in."
         );
 
-        setForm({
-          fullName: "",
-          email: form.email,
-          phone: "",
+        setForm((current) => ({
+          ...current,
           password: "",
           confirmPassword: "",
-        });
+        }));
 
         return;
       }
@@ -104,32 +106,10 @@ export default function SignUpPage() {
     } catch (err) {
       console.error("Sign up error:", err);
 
-      let friendlyMessage =
-        "Something went wrong while creating your account.";
-
-      if (err?.message?.toLowerCase().includes("already registered")) {
-        friendlyMessage =
-          "An account with this email already exists. Please log in instead.";
-      } else if (
-        err?.message?.toLowerCase().includes("user already registered")
-      ) {
-        friendlyMessage =
-          "An account with this email already exists. Please log in instead.";
-      } else if (
-        err?.message?.toLowerCase().includes("invalid email")
-      ) {
-        friendlyMessage =
-          "Please enter a valid email address.";
-      } else if (
-        err?.message?.toLowerCase().includes("password")
-      ) {
-        friendlyMessage =
-          "Please choose a stronger password with at least 6 characters.";
-      } else if (err?.message) {
-        friendlyMessage = err.message;
-      }
-
-      setError(friendlyMessage);
+      setError(
+        err?.message ||
+          "Something went wrong while creating your account."
+      );
     } finally {
       setLoading(false);
     }
@@ -242,10 +222,7 @@ export default function SignUpPage() {
               type="password"
               value={form.confirmPassword}
               onChange={(e) =>
-                updateField(
-                  "confirmPassword",
-                  e.target.value
-                )
+                updateField("confirmPassword", e.target.value)
               }
               placeholder="Enter your password again"
               autoComplete="new-password"
