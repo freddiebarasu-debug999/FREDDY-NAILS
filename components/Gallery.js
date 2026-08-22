@@ -35,7 +35,7 @@ export default function Gallery() {
             key={t.label}
             type="button"
             onClick={() => setSelectedImage(t)}
-            className="gallery-float relative aspect-square rounded-sm border border-line overflow-hidden flex items-end p-3.5 text-left cursor-pointer group"
+            className="gallery-float relative aspect-square-[4/5] rounded-md border border-line overflow-hidden flex items-end p-3.5 text-left cursor-pointer group"
             style={{
               animationDelay: `${index * -0.7}s`,
               animationDuration: `${5 + (index % 3)}s`,
