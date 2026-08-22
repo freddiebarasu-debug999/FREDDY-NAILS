@@ -1,8 +1,6 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-
 const TILES = [
   { src: "/gallery/gallery-1.jpg", label: "Purple Chrome Ombré" },
   { src: "/gallery/gallery-2.jpg", label: "Black & White French" },
@@ -13,25 +11,21 @@ const TILES = [
   { src: "/gallery/gallery-7.jpg", label: "Lilac Square Set" },
   { src: "/gallery/gallery-8.jpg", label: "Leopard French Cherry" },
 ];
-
 export default function Gallery() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [visibleTiles, setVisibleTiles] = useState([]);
   const tileRefs = useRef([]);
-
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           const index = Number(entry.target.dataset.index);
-
           setVisibleTiles((current) => {
             if (entry.isIntersecting) {
               return current.includes(index)
                 ? current
                 : [...current, index];
             }
-
             return current.filter((i) => i !== index);
           });
         });
@@ -41,27 +35,25 @@ export default function Gallery() {
         rootMargin: "0px 0px -50px 0px",
       }
     );
-
     tileRefs.current.forEach((tile) => {
       if (tile) observer.observe(tile);
     });
-
     return () => observer.disconnect();
   }, []);
-
   return (
-    <section id="gallery" className="max-w-[1180px] mx-auto px-5 py-22">
+    <section
+      id="gallery"
+      className="max-w-[1180px] mx-auto px-5 py-22"
+    >
       {/* Heading */}
       <div className="max-w-[640px] mb-12">
         <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
           Recent work
         </p>
-
         <h2 className="font-serif font-medium text-[clamp(1.9rem,4vw,2.6rem)] mt-3.5">
           Gallery
         </h2>
       </div>
-
       {/* Masonry Gallery */}
       <div className="columns-2 md:columns-3 gap-4 space-y-4">
         {TILES.map((t, index) => (
@@ -93,9 +85,8 @@ export default function Gallery() {
               className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 768px) 50vw, 33vw"
             />
-
             {/* Watermark */}
-            <div className="absolute bottom-3 right-3 w-20 h-20 md:w-24 md:h-24 opacity-[0.65] pointer-events-none z-20">
+            <div className="absolute left-1/2 top-[58%] -translate-x-1/2 -translate-y-1/2 w-14 h-14 md:w-[56px] md:h-[56px] opacity-[0.38] pointer-events-none z-20">
               <Image
                 src="/watermark.png"
                 alt=""
@@ -103,10 +94,8 @@ export default function Gallery() {
                 className="object-contain"
               />
             </div>
-
             {/* Gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-90 pointer-events-none z-10" />
-
             {/* Label */}
             <span className="absolute bottom-3.5 left-3.5 right-3.5 text-white text-[0.78rem] font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] z-20 pointer-events-none">
               {t.label}
@@ -114,14 +103,12 @@ export default function Gallery() {
           </button>
         ))}
       </div>
-
       <style jsx>{`
         /* Initial fly-in */
         .gallery-hidden {
           opacity: 0;
           transform: translateY(45px) scale(0.97);
         }
-
         .gallery-visible {
           opacity: 1;
           animation:
@@ -130,38 +117,31 @@ export default function Gallery() {
             galleryFloat var(--float-duration) ease-in-out
               calc(var(--entrance-delay) + 800ms) infinite alternate;
         }
-
         @keyframes galleryEntrance {
           0% {
             opacity: 0;
             transform: translateY(45px) scale(0.97);
           }
-
           100% {
             opacity: 1;
             transform: translateY(0) scale(1);
           }
         }
-
-        /* Continuous floating after entrance */
+        /* Continuous floating */
         @keyframes galleryFloat {
           0% {
             transform: translateY(0);
           }
-
           50% {
             transform: translateY(-6px);
           }
-
           100% {
             transform: translateY(4px);
           }
         }
-
         .gallery-visible:hover {
           animation-play-state: paused;
         }
-
         @media (prefers-reduced-motion: reduce) {
           .gallery-hidden,
           .gallery-visible {
@@ -171,7 +151,6 @@ export default function Gallery() {
           }
         }
       `}</style>
-
       {/* Full-size image viewer */}
       {selectedImage && (
         <div
@@ -182,7 +161,7 @@ export default function Gallery() {
             className="relative w-full max-w-4xl max-h-[90vh] flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Image + watermark share the exact same positioning container */}
+            {/* Image + watermark container */}
             <div className="relative max-w-full max-h-[80vh]">
               <Image
                 src={selectedImage.src}
@@ -191,9 +170,8 @@ export default function Gallery() {
                 height={1200}
                 className="block w-auto max-w-full max-h-[80vh] object-contain rounded-sm"
               />
-
-              {/* Watermark is directly ON the image */}
-              <div className="absolute bottom-5 right-5 w-24 h-24 md:w-32 md:h-32 opacity-[0.65] pointer-events-none z-30">
+              {/* Watermark directly on the image */}
+              <div className="absolute left-1/2 top-[58%] -translate-x-1/2 -translate-y-1/2 w-14 h-14 md:w-[56px] md:h-[56px] opacity-[0.38] pointer-events-none z-30">
                 <Image
                   src="/watermark.png"
                   alt=""
@@ -202,15 +180,13 @@ export default function Gallery() {
                 />
               </div>
             </div>
-
-            {/* Label */}
+            {/* Image label */}
             <div className="absolute left-4 bottom-4 bg-gray-700/70 backdrop-blur-sm text-white px-4 py-2 rounded-sm z-40">
               <p className="font-serif text-lg">
                 {selectedImage.label}
               </p>
             </div>
-
-            {/* Close */}
+            {/* Close button */}
             <button
               type="button"
               onClick={() => setSelectedImage(null)}
