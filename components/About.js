@@ -33,7 +33,7 @@ export default function About() {
               Experience
             </h3>
             <div className="mt-5 h-px w-16 bg-gold/60" />
-            <p className="text-ink-soft leading-relaxed text-[0.94rem] mt-5 max-w-[480px]">
+            <p className="text-[#c9c0b6] leading-relaxed text-[0.94rem] mt-5 max-w-[480px]">
               Detail-focused nail artistry, carefully selected designs, and a
               polished experience from booking to final set.
             </p>
@@ -56,7 +56,7 @@ export default function About() {
                   <p className="font-serif text-[1.08rem] text-ink">
                     {point.title}
                   </p>
-                  <p className="text-ink-soft/80 text-sm leading-relaxed mt-1">
+                  <p className="text-[#c9c0b6] text-sm leading-relaxed mt-1">
                     {point.description}
                   </p>
                 </div>
@@ -73,7 +73,7 @@ export default function About() {
             Clean, detailed work — every set.
           </h2>
           <div className="h-px w-16 bg-gold/60 mb-6" />
-          <div className="space-y-4 text-ink-soft leading-relaxed">
+          <div className="space-y-4 text-[#c9c0b6] leading-relaxed">
             <p>
               Freddy Nails is a professional nail-tech business based in East
               London, Eastern Cape, run by nail artist Alfred Mensah
@@ -97,7 +97,7 @@ export default function About() {
               <b className="block font-serif text-3xl text-ink">
                 By appt
               </b>
-              <span className="text-xs tracking-wide uppercase text-ink-soft">
+              <span className="text-xs tracking-wide uppercase text-[#c9c0b6]">
                 Personalised booking
               </span>
             </div>
@@ -105,7 +105,7 @@ export default function About() {
               <b className="block font-serif text-3xl text-ink">
                 100%
               </b>
-              <span className="text-xs tracking-wide uppercase text-ink-soft">
+              <span className="text-xs tracking-wide uppercase text-[#c9c0b6]">
                 Custom designs
               </span>
             </div>
@@ -113,7 +113,7 @@ export default function About() {
               <b className="block font-serif text-3xl text-ink">
                 East London
               </b>
-              <span className="text-xs tracking-wide uppercase text-ink-soft">
+              <span className="text-xs tracking-wide uppercase text-[#c9c0b6]">
                 Eastern Cape, SA
               </span>
             </div>
