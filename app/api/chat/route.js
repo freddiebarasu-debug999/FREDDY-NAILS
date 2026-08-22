@@ -1,5 +1,5 @@
 const TEXT_MODEL = "openai/gpt-oss-20b";
-const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const VISION_MODEL = "qwen/qwen3.6-27b";
 
 const GALLERY_PROMPT = `
 You are Freddy, the friendly AI nail assistant for Freddy Nails Studio.
@@ -122,20 +122,20 @@ PEDICURE SETS
 - Acrylic Full Tips: R200
 - Acrylic French Tips: R250
 
-EXTRAS (add-ons on top of a base service above — never the sole service)
+EXTRAS
 - Buff & Shine: R150
 - Fill-in (at 3 weeks): R180
 - Nail Repair: R20–R30
 - Soak Off: R50
-- Nail Art: R30–R50 (depends on design complexity)
+- Nail Art: R30–R50
 - Rhinestones: R10–R15
-- 3D Art: R50–R100 (depends on complexity)
+- 3D Art: R50–R100
 
 EYELASH EXTENSIONS
 - Cluster Lashes: R130
 - Cateye Lashes: R150
 - Classic Lashes: R180
-- Hybrid, Volume, and Mega Volume lashes are NOT offered yet — do not quote these.
+- Hybrid, Volume, and Mega Volume lashes are NOT offered yet.
 
 FOOT SPA
 - Basic Foot Spa: R200
@@ -150,45 +150,118 @@ You have also been given an image the visitor uploaded or pasted, showing nail i
 ${PRICE_CATALOG}
 
 When analysing the image:
-1. First check the image actually shows nails, lashes, or feet/a pedicure-relevant subject. If it clearly doesn't (e.g. an unrelated photo), say so warmly and ask them to share a nail, lash, or foot spa inspiration photo instead — do not attempt to price unrelated images.
-2. If it's relevant, identify: the likely base category (acrylic or gel manicure, pedicure, lash style, or foot spa), an approximate length/complexity tier if visible, and any extras that would add cost (nail art, rhinestones, 3D elements, French tips, ombré blending).
-3. Match what you see to the closest real items in the price list above and state a clear estimated price or price range in Rand, referencing the actual service names from the list.
-4. If extras are visible, add their price range on top and explain briefly why.
-5. Always make clear this is an estimate only — the final price is confirmed by Freddy in person, since exact designs, nail condition and length can shift the price.
-6. Do not mention or describe any person's face or identity if one happens to be visible in the photo — focus only on the nails/lashes/feet and the design itself.
-7. Keep the tone warm and helpful, 3-5 short paragraphs, no tables, no large headings.
-8. End by inviting them to book via the booking section, mentioning that Freddy can confirm the exact price and design details in person.
+
+1. First check whether the image actually shows nails, lashes, or feet/pedicure-relevant content.
+
+2. If it clearly does not, politely explain that you need a nail, lash, or foot-spa inspiration image instead.
+
+3. If it is relevant, identify:
+- likely service category
+- acrylic or gel if reasonably visible
+- approximate nail length
+- nail shape
+- colours
+- design style
+- visible extras such as nail art, rhinestones, 3D art, French tips or ombré
+
+4. Match the image to the closest real Freddy Nails service.
+
+5. Give a clear estimated price or price range in South African Rand.
+
+6. If extras are visible, explain that they may be added on top of the base service.
+
+7. Always make clear that this is an estimate only. Freddy confirms the final price in person.
+
+8. Do not describe a person's face or identity if one appears in the photo. Focus only on the nails, lashes, feet and design.
+
+9. Keep the response warm and concise.
+
+10. End by inviting the visitor to book through the booking section, where Freddy can confirm the exact price and design details.
 `;
+
+function isValidImageDataUrl(image) {
+  if (typeof image !== "string") {
+    return false;
+  }
+
+  return /^data:image\/(jpeg|jpg|png|webp|gif);base64,/i.test(image);
+}
 
 export async function POST(request) {
   try {
-    const { messages, image } = await request.json();
+    const body = await request.json();
+
+    const messages = Array.isArray(body?.messages)
+      ? body.messages
+      : [];
+
+    const image = body?.image;
 
     const usingImage = Boolean(image);
+
+    if (!process.env.GROQ_API_KEY) {
+      console.error("GROQ_API_KEY is missing.");
+
+      return Response.json(
+        {
+          error:
+            "The nail assistant is not configured correctly yet.",
+        },
+        { status: 500 }
+      );
+    }
+
+    if (messages.length === 0) {
+      return Response.json(
+        {
+          error: "Please enter a message.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (usingImage && !isValidImageDataUrl(image)) {
+      console.error(
+        "Invalid image format received by /api/chat."
+      );
+
+      return Response.json(
+        {
+          error:
+            "That image format could not be processed. Please upload a JPG, PNG or WebP image.",
+        },
+        { status: 400 }
+      );
+    }
+
     const model = usingImage ? VISION_MODEL : TEXT_MODEL;
-    const systemPrompt = usingImage ? IMAGE_ESTIMATE_INSTRUCTIONS : GALLERY_PROMPT;
+
+    const systemPrompt = usingImage
+      ? IMAGE_ESTIMATE_INSTRUCTIONS
+      : GALLERY_PROMPT;
 
     let finalMessages = messages;
 
-    if (usingImage && Array.isArray(messages) && messages.length > 0) {
-      // Attach the image to the most recent user message only, in the
-      // OpenAI-compatible multimodal content format Groq's vision
-      // models expect.
+    if (usingImage) {
       const lastIndex = messages.length - 1;
       const lastMessage = messages[lastIndex];
 
       finalMessages = [
         ...messages.slice(0, lastIndex),
         {
-          role: lastMessage.role,
+          role: "user",
           content: [
             {
               type: "text",
-              text: lastMessage.content || "Here's a photo of what I have in mind.",
+              text:
+                lastMessage?.content ||
+                "Please analyse this nail inspiration photo and estimate the closest Freddy Nails price.",
             },
             {
               type: "image_url",
-              image_url: { url: image },
+              image_url: {
+                url: image,
+              },
             },
           ],
         },
@@ -212,34 +285,80 @@ export async function POST(request) {
             },
             ...finalMessages,
           ],
-          temperature: 0.7,
+          temperature: usingImage ? 0.4 : 0.7,
           max_tokens: 700,
         }),
       }
     );
 
+    const responseText = await response.text();
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Groq error:", errorText);
+      console.error(
+        `Groq ${usingImage ? "vision" : "text"} error:`,
+        response.status,
+        responseText
+      );
+
+      let groqError = null;
+
+      try {
+        groqError = JSON.parse(responseText);
+      } catch {
+        // Keep raw response for logging only.
+      }
 
       return Response.json(
-        { error: "The nail assistant is temporarily unavailable." },
+        {
+          error:
+            groqError?.error?.message ||
+            "The nail assistant is temporarily unavailable.",
+        },
+        { status: response.status }
+      );
+    }
+
+    let data;
+
+    try {
+      data = JSON.parse(responseText);
+    } catch (error) {
+      console.error("Invalid Groq JSON response:", responseText);
+
+      return Response.json(
+        {
+          error:
+            "The nail assistant returned an invalid response.",
+        },
         { status: 500 }
       );
     }
 
-    const data = await response.json();
+    const message = data?.choices?.[0]?.message?.content;
+
+    if (!message) {
+      console.error("Groq returned no assistant message:", data);
+
+      return Response.json(
+        {
+          error:
+            "The nail assistant did not return a response.",
+        },
+        { status: 500 }
+      );
+    }
 
     return Response.json({
-      message:
-        data.choices?.[0]?.message?.content ||
-        "Sorry, I couldn't think of a nail idea right now.",
+      message,
     });
   } catch (error) {
     console.error("Chat API error:", error);
 
     return Response.json(
-      { error: "Something went wrong. Please try again." },
+      {
+        error:
+          "Something went wrong while processing your request.",
+      },
       { status: 500 }
     );
   }
