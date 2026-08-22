@@ -52,267 +52,143 @@ const NAIL_SHAPES = [
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-function normalize(value) {
+function normalize(value = "") {
   return value
-    ?.replace(/[–—]/g, "-")
+    .replace(/[–—]/g, "-")
+    .replace(/[’']/g, "")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
 }
 
+/*
+ * Detect the exact bookable service from the AI response.
+ *
+ * This deliberately checks the actual service catalogue first,
+ * then uses keyword matching so slightly different AI wording
+ * still produces a booking recommendation.
+ */
 function findRecommendedService(text) {
   if (!text) return null;
 
   const normalizedText = normalize(text);
 
-  const exactMatch = BOOKABLE_SERVICES.find(
-    (service) =>
-      normalizedText.includes(normalize(service))
+  // 1. Exact catalogue match.
+  const exactMatch = BOOKABLE_SERVICES.find((service) =>
+    normalizedText.includes(normalize(service))
   );
 
   if (exactMatch) {
     return exactMatch;
   }
 
-  /*
-   * Fallback matching for AI wording such as:
-   * "Acrylic French Short-Medium — R300"
-   * "Base service: Acrylic French Short–Medium — R300"
-   */
-  const simplifiedMatches = [
+  // 2. Strong keyword matching.
+  const matches = [
     {
-      service:
-        "Acrylic — French Short–Medium (R300)",
-      keywords: [
-        "acrylic",
-        "french",
-        "short",
-        "medium",
-        "r300",
-      ],
+      service: "Acrylic — French Short–Medium (R300)",
+      keywords: ["acrylic", "french", "short", "medium", "r300"],
     },
     {
-      service:
-        "Acrylic — French Long (R350)",
-      keywords: [
-        "acrylic",
-        "french",
-        "long",
-        "r350",
-      ],
+      service: "Acrylic — French Long (R350)",
+      keywords: ["acrylic", "french", "long", "r350"],
     },
     {
-      service:
-        "Acrylic — French XL–XXL (R400)",
-      keywords: [
-        "acrylic",
-        "french",
-        "xl",
-        "xxl",
-        "r400",
-      ],
+      service: "Acrylic — French XL–XXL (R400)",
+      keywords: ["acrylic", "french", "xl", "xxl", "r400"],
     },
     {
-      service:
-        "Acrylic — Plain Short–Medium (R200)",
-      keywords: [
-        "acrylic",
-        "plain",
-        "short",
-        "medium",
-        "r200",
-      ],
+      service: "Acrylic — Plain Short–Medium (R200)",
+      keywords: ["acrylic", "plain", "short", "medium", "r200"],
     },
     {
-      service:
-        "Acrylic — Plain Long (R250)",
-      keywords: [
-        "acrylic",
-        "plain",
-        "long",
-        "r250",
-      ],
+      service: "Acrylic — Plain Long (R250)",
+      keywords: ["acrylic", "plain", "long", "r250"],
     },
     {
-      service:
-        "Acrylic — Plain XL–XXXL (R300)",
-      keywords: [
-        "acrylic",
-        "plain",
-        "xl",
-        "xxxl",
-        "r300",
-      ],
+      service: "Acrylic — Plain XL–XXXL (R300)",
+      keywords: ["acrylic", "plain", "xl", "xxxl", "r300"],
     },
     {
-      service:
-        "Acrylic — Ombré Short–Medium (R250)",
-      keywords: [
-        "acrylic",
-        "ombré",
-        "short",
-        "medium",
-        "r250",
-      ],
+      service: "Acrylic — Ombré Short–Medium (R250)",
+      keywords: ["acrylic", "ombre", "short", "medium", "r250"],
     },
     {
-      service:
-        "Acrylic — Ombré Long (R300)",
-      keywords: [
-        "acrylic",
-        "ombré",
-        "long",
-        "r300",
-      ],
+      service: "Acrylic — Ombré Long (R300)",
+      keywords: ["acrylic", "ombre", "long", "r300"],
     },
     {
-      service:
-        "Acrylic — Ombré XL–XXXL (R350)",
-      keywords: [
-        "acrylic",
-        "ombré",
-        "xl",
-        "xxxl",
-        "r350",
-      ],
+      service: "Acrylic — Ombré XL–XXXL (R350)",
+      keywords: ["acrylic", "ombre", "xl", "xxxl", "r350"],
     },
     {
-      service:
-        "Gel — Overlay (R200)",
+      service: "Gel — Overlay (R200)",
       keywords: ["gel", "overlay", "r200"],
     },
     {
-      service:
-        "Gel — Plain Short–Medium (R250)",
-      keywords: [
-        "gel",
-        "plain",
-        "short",
-        "medium",
-        "r250",
-      ],
+      service: "Gel — Plain Short–Medium (R250)",
+      keywords: ["gel", "plain", "short", "medium", "r250"],
     },
     {
-      service:
-        "Gel — Plain Long (R300)",
-      keywords: [
-        "gel",
-        "plain",
-        "long",
-        "r300",
-      ],
+      service: "Gel — Plain Long (R300)",
+      keywords: ["gel", "plain", "long", "r300"],
     },
     {
-      service:
-        "Gel — French Short–Medium (R300)",
-      keywords: [
-        "gel",
-        "french",
-        "short",
-        "medium",
-        "r300",
-      ],
+      service: "Gel — French Short–Medium (R300)",
+      keywords: ["gel", "french", "short", "medium", "r300"],
     },
     {
-      service:
-        "Gel — French Long (R350)",
-      keywords: [
-        "gel",
-        "french",
-        "long",
-        "r350",
-      ],
+      service: "Gel — French Long (R350)",
+      keywords: ["gel", "french", "long", "r350"],
     },
     {
-      service:
-        "Pedicure — Gel Overlay (R150)",
-      keywords: [
-        "pedicure",
-        "gel",
-        "overlay",
-        "r150",
-      ],
+      service: "Pedicure — Gel Overlay (R150)",
+      keywords: ["pedicure", "gel", "overlay", "r150"],
     },
     {
-      service:
-        "Pedicure — Gel Full Tips (R200)",
-      keywords: [
-        "pedicure",
-        "gel",
-        "full",
-        "tips",
-        "r200",
-      ],
+      service: "Pedicure — Gel Full Tips (R200)",
+      keywords: ["pedicure", "gel", "full", "tips", "r200"],
     },
     {
-      service:
-        "Pedicure — Acrylic Overlay (R180)",
-      keywords: [
-        "pedicure",
-        "acrylic",
-        "overlay",
-        "r180",
-      ],
+      service: "Pedicure — Acrylic Overlay (R180)",
+      keywords: ["pedicure", "acrylic", "overlay", "r180"],
     },
     {
-      service:
-        "Pedicure — Acrylic Full Tips (R200)",
-      keywords: [
-        "pedicure",
-        "acrylic",
-        "full",
-        "tips",
-        "r200",
-      ],
+      service: "Pedicure — Acrylic Full Tips (R200)",
+      keywords: ["pedicure", "acrylic", "full", "tips", "r200"],
     },
     {
-      service:
-        "Pedicure — Acrylic French Tips (R250)",
-      keywords: [
-        "pedicure",
-        "acrylic",
-        "french",
-        "tips",
-        "r250",
-      ],
+      service: "Pedicure — Acrylic French Tips (R250)",
+      keywords: ["pedicure", "acrylic", "french", "tips", "r250"],
     },
     {
-      service:
-        "Lashes — Cluster (R130)",
+      service: "Lashes — Cluster (R130)",
       keywords: ["lashes", "cluster", "r130"],
     },
     {
-      service:
-        "Lashes — Cateye (R150)",
+      service: "Lashes — Cateye (R150)",
       keywords: ["lashes", "cateye", "r150"],
     },
     {
-      service:
-        "Lashes — Classic (R180)",
+      service: "Lashes — Classic (R180)",
       keywords: ["lashes", "classic", "r180"],
     },
     {
-      service:
-        "Foot Spa — Basic (R200)",
+      service: "Foot Spa — Basic (R200)",
       keywords: ["foot", "spa", "basic", "r200"],
     },
     {
-      service:
-        "Foot Spa — Luxury (R280)",
+      service: "Foot Spa — Luxury (R280)",
       keywords: ["foot", "spa", "luxury", "r280"],
     },
   ];
 
-  const match = simplifiedMatches.find(
-    (item) =>
-      item.keywords.every((keyword) =>
-        normalizedText.includes(
-          normalize(keyword)
-        )
-      )
+  const keywordMatch = matches.find((item) =>
+    item.keywords.every((keyword) =>
+      normalizedText.includes(normalize(keyword))
+    )
   );
 
-  return match?.service || null;
+  return keywordMatch?.service || null;
 }
 
 function findRecommendedShape(text) {
@@ -322,9 +198,7 @@ function findRecommendedShape(text) {
 
   return (
     NAIL_SHAPES.find((shape) =>
-      normalizedText.includes(
-        normalize(shape)
-      )
+      normalizedText.includes(normalize(shape))
     ) || null
   );
 }
@@ -367,31 +241,21 @@ export default function ChatBot() {
       .filter((message) => message.imageName)
       .map((message) => message.imageName);
 
-    const matchingDesigns = GALLERY.filter(
-      (item) =>
-        lowerText.includes(
-          item.name.toLowerCase()
-        )
+    const matchingDesigns = GALLERY.filter((item) =>
+      lowerText.includes(item.name.toLowerCase())
     );
 
     const newDesign = matchingDesigns.find(
-      (item) =>
-        !alreadyShown.includes(item.name)
+      (item) => !alreadyShown.includes(item.name)
     );
 
-    return (
-      newDesign ||
-      matchingDesigns[0] ||
-      null
-    );
+    return newDesign || matchingDesigns[0] || null;
   }
 
   async function searchInspiration(query) {
     try {
       const response = await fetch(
-        `/api/inspiration?query=${encodeURIComponent(
-          query
-        )}`
+        `/api/inspiration?query=${encodeURIComponent(query)}`
       );
 
       if (!response.ok) {
@@ -402,11 +266,7 @@ export default function ChatBot() {
 
       return data.photos || [];
     } catch (error) {
-      console.error(
-        "Inspiration search error:",
-        error
-      );
-
+      console.error("Inspiration search error:", error);
       return [];
     }
   }
@@ -415,15 +275,10 @@ export default function ChatBot() {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
 
-      reader.onload = () =>
-        resolve(reader.result);
+      reader.onload = () => resolve(reader.result);
 
       reader.onerror = () =>
-        reject(
-          new Error(
-            "Could not read the image."
-          )
-        );
+        reject(new Error("Could not read the image."));
 
       reader.readAsDataURL(file);
     });
@@ -433,9 +288,7 @@ export default function ChatBot() {
     setImageError("");
 
     if (!file.type.startsWith("image/")) {
-      setImageError(
-        "Please choose an image file."
-      );
+      setImageError("Please choose an image file.");
       return;
     }
 
@@ -447,16 +300,10 @@ export default function ChatBot() {
     }
 
     try {
-      const dataUrl =
-        await readFileAsDataUrl(file);
-
+      const dataUrl = await readFileAsDataUrl(file);
       setPendingImage(dataUrl);
     } catch (error) {
-      console.error(
-        "Image read error:",
-        error
-      );
-
+      console.error("Image read error:", error);
       setImageError(
         "Couldn't load that image. Please try another."
       );
@@ -474,8 +321,7 @@ export default function ChatBot() {
   }
 
   function handlePaste(e) {
-    const items =
-      e.clipboardData?.items;
+    const items = e.clipboardData?.items;
 
     if (!items) return;
 
@@ -503,10 +349,7 @@ export default function ChatBot() {
 
     const text = input.trim();
 
-    if (
-      (!text && !pendingImage) ||
-      loading
-    ) {
+    if ((!text && !pendingImage) || loading) {
       return;
     }
 
@@ -532,31 +375,19 @@ export default function ChatBot() {
     setImageError("");
 
     try {
-      const response = await fetch(
-        "/api/chat",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            messages:
-              newMessages.map(
-                ({
-                  role,
-                  content,
-                }) => ({
-                  role,
-                  content,
-                })
-              ),
-            image:
-              imageToSend ||
-              undefined,
-          }),
-        }
-      );
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: newMessages.map(({ role, content }) => ({
+            role,
+            content,
+          })),
+          image: imageToSend || undefined,
+        }),
+      });
 
       let data;
 
@@ -576,46 +407,46 @@ export default function ChatBot() {
       }
 
       if (!data?.message) {
-        throw new Error(
-          "The chatbot did not return a message."
-        );
+        throw new Error("The chatbot did not return a message.");
       }
 
-      const recommendedService =
-        findRecommendedService(
-          data.message
-        );
+      /*
+       * Always analyse the AI response itself.
+       * This happens identically on desktop and mobile.
+       */
+      const recommendedService = findRecommendedService(
+        data.message
+      );
 
-      const recommendedShape =
-        findRecommendedShape(
-          data.message
-        );
+      const recommendedShape = findRecommendedShape(
+        data.message
+      );
 
-      const bookingUrl =
-        recommendedService
-          ? buildBookingUrl(
-              recommendedService,
-              recommendedShape
-            )
-          : null;
+      const bookingUrl = recommendedService
+        ? buildBookingUrl(
+            recommendedService,
+            recommendedShape
+          )
+        : null;
+
+      const assistantMessage = {
+        role: "assistant",
+        content: data.message,
+        recommendedService,
+        recommendedShape,
+        bookingUrl,
+      };
 
       if (imageToSend) {
         setMessages([
           ...newMessages,
-          {
-            role: "assistant",
-            content: data.message,
-            recommendedService,
-            recommendedShape,
-            bookingUrl,
-          },
+          assistantMessage,
         ]);
       } else {
-        const galleryDesign =
-          findGalleryDesign(
-            data.message,
-            messages
-          );
+        const galleryDesign = findGalleryDesign(
+          data.message,
+          messages
+        );
 
         const inspirationQuery =
           `${data.message
@@ -623,33 +454,20 @@ export default function ChatBot() {
             .slice(0, 180)} nail design manicure`;
 
         const inspirationPhotos =
-          await searchInspiration(
-            inspirationQuery
-          );
+          await searchInspiration(inspirationQuery);
 
         setMessages([
           ...newMessages,
           {
-            role: "assistant",
-            content: data.message,
-            image:
-              galleryDesign?.src ||
-              null,
-            imageName:
-              galleryDesign?.name ||
-              null,
+            ...assistantMessage,
+            image: galleryDesign?.src || null,
+            imageName: galleryDesign?.name || null,
             inspirationPhotos,
-            recommendedService,
-            recommendedShape,
-            bookingUrl,
           },
         ]);
       }
     } catch (error) {
-      console.error(
-        "Chatbot request failed:",
-        error
-      );
+      console.error("Chatbot request failed:", error);
 
       setMessages([
         ...newMessages,
@@ -669,13 +487,14 @@ export default function ChatBot() {
     <>
       {open && (
         <div
-          className="fixed bottom-24 right-5 z-50 w-[calc(100vw-2.5rem)] max-w-[380px] overflow-hidden rounded-2xl shadow-2xl shadow-black/60"
+          className="fixed bottom-5 right-5 z-50 w-[calc(100vw-2.5rem)] max-w-[380px] overflow-hidden rounded-2xl shadow-2xl shadow-black/60"
           style={{
             backgroundColor: "#11100f",
             border:
               "1px solid rgba(255,255,255,0.10)",
           }}
         >
+          {/* HEADER */}
           <div
             className="px-5 py-4"
             style={{
@@ -712,11 +531,10 @@ export default function ChatBot() {
                 </div>
               </div>
 
+              {/* ONLY CLOSE BUTTON */}
               <button
                 type="button"
-                onClick={() =>
-                  setOpen(false)
-                }
+                onClick={() => setOpen(false)}
                 className="text-[#c9c0b6]/70 transition-colors hover:text-[#d6b36a]"
                 aria-label="Close chat"
               >
@@ -725,6 +543,7 @@ export default function ChatBot() {
             </div>
           </div>
 
+          {/* MESSAGES */}
           <div
             className="h-[360px] overflow-y-auto p-4"
             style={{
@@ -732,220 +551,176 @@ export default function ChatBot() {
             }}
           >
             <div className="space-y-3">
-              {messages.map(
-                (message, index) => (
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${
+                    message.role === "user"
+                      ? "justify-end"
+                      : "justify-start"
+                  }`}
+                >
                   <div
-                    key={index}
-                    className={`flex ${
-                      message.role ===
-                      "user"
-                        ? "justify-end"
-                        : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className="max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed"
-                      style={
-                        message.role ===
-                        "user"
-                          ? {
-                              backgroundColor:
-                                "#d6b36a",
-                              color:
-                                "#11100f",
-                              border:
-                                "1px solid rgba(214,179,106,0.35)",
-                            }
-                          : {
-                              backgroundColor:
-                                "#1c1a18",
-                              color:
-                                "#f4eee6",
-                              border:
-                                "1px solid rgba(255,255,255,0.09)",
-                            }
-                      }
-                    >
-                      {message.image && (
-                        <div
-                          className="mb-3 overflow-hidden rounded-xl"
-                          style={{
+                    className="max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed"
+                    style={
+                      message.role === "user"
+                        ? {
+                            backgroundColor: "#d6b36a",
+                            color: "#11100f",
                             border:
-                              "1px solid rgba(255,255,255,0.08)",
-                          }}
-                        >
-                          <img
-                            src={
-                              message.image
-                            }
-                            alt={
-                              message.imageName ||
-                              "Nail inspiration"
-                            }
-                            className="aspect-square w-full object-cover"
-                          />
-                        </div>
-                      )}
-
-                      <div className="whitespace-pre-wrap">
-                        {message.content}
+                              "1px solid rgba(214,179,106,0.35)",
+                          }
+                        : {
+                            backgroundColor: "#1c1a18",
+                            color: "#f4eee6",
+                            border:
+                              "1px solid rgba(255,255,255,0.09)",
+                          }
+                    }
+                  >
+                    {message.image && (
+                      <div
+                        className="mb-3 overflow-hidden rounded-xl"
+                        style={{
+                          border:
+                            "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <img
+                          src={message.image}
+                          alt={
+                            message.imageName ||
+                            "Nail inspiration"
+                          }
+                          className="aspect-square w-full object-cover"
+                        />
                       </div>
+                    )}
 
-                      {message.recommendedService && (
-                        <div
-                          className="mt-4 pt-4"
-                          style={{
-                            borderTop:
-                              "1px solid rgba(255,255,255,0.08)",
-                          }}
-                        >
-                          <p className="text-[0.66rem] font-bold uppercase tracking-[0.15em] text-[#d6b36a]">
-                            AI booking recommendation
+                    <div className="whitespace-pre-wrap">
+                      {message.content}
+                    </div>
+
+                    {/* AI BOOKING RECOMMENDATION */}
+                    {message.recommendedService && (
+                      <div
+                        className="mt-4 pt-4"
+                        style={{
+                          borderTop:
+                            "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <p className="text-[0.66rem] font-bold uppercase tracking-[0.15em] text-[#d6b36a]">
+                          AI booking recommendation
+                        </p>
+
+                        <p className="mt-1 text-sm font-semibold text-[#f4eee6]">
+                          {message.recommendedService}
+                        </p>
+
+                        {message.recommendedShape && (
+                          <p className="mt-1 text-xs text-[#a79a87]">
+                            Shape: {message.recommendedShape}
                           </p>
+                        )}
 
-                          <p className="mt-1 text-sm font-semibold text-[#f4eee6]">
-                            {
-                              message.recommendedService
-                            }
-                          </p>
-
-                          {message.recommendedShape && (
-                            <p className="mt-1 text-xs text-[#a79a87]">
-                              Shape:{" "}
-                              {
-                                message.recommendedShape
-                              }
-                            </p>
-                          )}
-
+                        {message.bookingUrl && (
                           <a
-                            href={
-                              message.bookingUrl
-                            }
-                            onClick={() =>
-                              setOpen(
-                                false
-                              )
-                            }
-                            className="mt-3 inline-flex w-full items-center justify-center rounded-full px-4 py-2.5 text-xs font-bold transition-colors"
+                            href={message.bookingUrl}
+                            onClick={() => setOpen(false)}
+                            className="mt-3 inline-flex w-full items-center justify-center rounded-full px-4 py-2.5 text-xs font-bold transition-all duration-300 hover:scale-[1.02]"
                             style={{
-                              backgroundColor:
-                                "#d6b36a",
-                              color:
-                                "#11100f",
+                              backgroundColor: "#d6b36a",
+                              color: "#11100f",
                             }}
                           >
                             Book this service →
                           </a>
-                        </div>
-                      )}
+                        )}
+                      </div>
+                    )}
 
-                      {message.imageName && (
-                        <div
-                          className="mt-4 pt-4"
+                    {/* GALLERY MATCH */}
+                    {message.imageName && (
+                      <div
+                        className="mt-4 pt-4"
+                        style={{
+                          borderTop:
+                            "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <p className="text-xs font-bold tracking-wide text-[#d6b36a]">
+                          Freddy Nails Gallery:{" "}
+                          {message.imageName}
+                        </p>
+
+                        <a
+                          href="#booking"
+                          onClick={() => setOpen(false)}
+                          className="mt-3 inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition-colors"
                           style={{
-                            borderTop:
-                              "1px solid rgba(255,255,255,0.08)",
+                            backgroundColor: "#d6b36a",
+                            color: "#11100f",
                           }}
                         >
-                          <p className="text-xs font-bold tracking-wide text-[#d6b36a]">
-                            Freddy Nails Gallery:{" "}
-                            {
-                              message.imageName
-                            }
-                          </p>
+                          Book this look
+                        </a>
+                      </div>
+                    )}
 
-                          <a
-                            href="#booking"
-                            onClick={() =>
-                              setOpen(
-                                false
-                              )
-                            }
-                            className="mt-3 inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition-colors"
-                            style={{
-                              backgroundColor:
-                                "#d6b36a",
-                              color:
-                                "#11100f",
-                            }}
-                          >
-                            Book this look
-                          </a>
+                    {/* INSPIRATION */}
+                    {message.inspirationPhotos?.length > 0 && (
+                      <div
+                        className="mt-4 pt-4"
+                        style={{
+                          borderTop:
+                            "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <p className="mb-2 text-[0.68rem] font-bold uppercase tracking-[0.15em] text-[#d6b36a]">
+                          More inspiration
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          {message.inspirationPhotos
+                            .slice(0, 4)
+                            .map((photo) => (
+                              <a
+                                key={photo.id}
+                                href={photo.pexelsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group overflow-hidden rounded-lg"
+                                style={{
+                                  border:
+                                    "1px solid rgba(255,255,255,0.08)",
+                                }}
+                              >
+                                <img
+                                  src={photo.src}
+                                  alt={photo.alt}
+                                  className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                />
+                              </a>
+                            ))}
                         </div>
-                      )}
 
-                      {message.inspirationPhotos
-                        ?.length > 0 && (
-                        <div
-                          className="mt-4 pt-4"
-                          style={{
-                            borderTop:
-                              "1px solid rgba(255,255,255,0.08)",
-                          }}
-                        >
-                          <p className="mb-2 text-[0.68rem] font-bold uppercase tracking-[0.15em] text-[#d6b36a]">
-                            More inspiration
-                          </p>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            {message.inspirationPhotos
-                              .slice(
-                                0,
-                                4
-                              )
-                              .map(
-                                (
-                                  photo
-                                ) => (
-                                  <a
-                                    key={
-                                      photo.id
-                                    }
-                                    href={
-                                      photo.pexelsUrl
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="group overflow-hidden rounded-lg"
-                                    style={{
-                                      border:
-                                        "1px solid rgba(255,255,255,0.08)",
-                                    }}
-                                  >
-                                    <img
-                                      src={
-                                        photo.src
-                                      }
-                                      alt={
-                                        photo.alt
-                                      }
-                                      className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                    />
-                                  </a>
-                                )
-                              )}
-                          </div>
-
-                          <p className="mt-2 text-[0.65rem] text-[#817970]">
-                            Inspiration images via Pexels
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                        <p className="mt-2 text-[0.65rem] text-[#817970]">
+                          Inspiration images via Pexels
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )
-              )}
+                </div>
+              ))}
 
               {loading && (
                 <div className="flex justify-start">
                   <div
                     className="rounded-2xl px-4 py-3 text-sm"
                     style={{
-                      backgroundColor:
-                        "#1c1a18",
-                      color:
-                        "#8f877e",
+                      backgroundColor: "#1c1a18",
+                      color: "#8f877e",
                       border:
                         "1px solid rgba(255,255,255,0.09)",
                     }}
@@ -959,6 +734,7 @@ export default function ChatBot() {
             </div>
           </div>
 
+          {/* INPUT */}
           <form
             onSubmit={sendMessage}
             className="p-3"
@@ -972,8 +748,7 @@ export default function ChatBot() {
               <div
                 className="mb-2.5 flex items-center gap-2.5 rounded-xl p-2"
                 style={{
-                  backgroundColor:
-                    "#11100f",
+                  backgroundColor: "#11100f",
                   border:
                     "1px solid rgba(255,255,255,0.10)",
                 }}
@@ -987,15 +762,13 @@ export default function ChatBot() {
                 </div>
 
                 <p className="flex-1 text-xs text-[#c9c0b6]">
-                  Photo attached — I&apos;ll estimate
-                  a price for this.
+                  Photo attached — I&apos;ll estimate a price
+                  for this.
                 </p>
 
                 <button
                   type="button"
-                  onClick={
-                    removePendingImage
-                  }
+                  onClick={removePendingImage}
                   className="shrink-0 px-1 text-lg leading-none text-[#8f877e] transition-colors hover:text-[#d6b36a]"
                   aria-label="Remove photo"
                 >
@@ -1015,9 +788,7 @@ export default function ChatBot() {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                onChange={
-                  handleFileInputChange
-                }
+                onChange={handleFileInputChange}
                 className="hidden"
               />
 
@@ -1028,8 +799,7 @@ export default function ChatBot() {
                 }
                 className="shrink-0 rounded-full px-3.5 py-3 text-sm transition-colors"
                 style={{
-                  backgroundColor:
-                    "#11100f",
+                  backgroundColor: "#11100f",
                   color: "#f4eee6",
                   border:
                     "1px solid rgba(255,255,255,0.12)",
@@ -1043,9 +813,7 @@ export default function ChatBot() {
               <input
                 type="text"
                 value={input}
-                onChange={(e) =>
-                  setInput(e.target.value)
-                }
+                onChange={(e) => setInput(e.target.value)}
                 onPaste={handlePaste}
                 placeholder={
                   pendingImage
@@ -1054,8 +822,7 @@ export default function ChatBot() {
                 }
                 className="min-w-0 flex-1 rounded-full px-4 py-3 text-sm outline-none"
                 style={{
-                  backgroundColor:
-                    "#11100f",
+                  backgroundColor: "#11100f",
                   color: "#f4eee6",
                   border:
                     "1px solid rgba(255,255,255,0.12)",
@@ -1067,8 +834,7 @@ export default function ChatBot() {
                 disabled={loading}
                 className="rounded-full px-5 py-3 text-sm font-bold transition-colors disabled:opacity-50"
                 style={{
-                  backgroundColor:
-                    "#d6b36a",
+                  backgroundColor: "#d6b36a",
                   color: "#11100f",
                 }}
               >
@@ -1079,40 +845,27 @@ export default function ChatBot() {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() =>
-          setOpen(!open)
-        }
-        className="fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full"
-        aria-label={
-          open
-            ? "Close nail assistant"
-            : "Open nail assistant"
-        }
-      >
-        {!open && (
-          <>
-            <span className="absolute inset-0 rounded-full bg-[#d6b36a]/40 animate-ping-slow" />
-            <span className="absolute inset-0 rounded-full bg-[#d6b36a]/25 animate-ping-slower" />
-          </>
-        )}
+      {/* FLOATING BUTTON — ONLY SHOW WHEN CHAT IS CLOSED */}
+      {!open && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full"
+          aria-label="Open nail assistant"
+        >
+          <span className="absolute inset-0 rounded-full bg-[#d6b36a]/40 animate-ping-slow" />
+          <span className="absolute inset-0 rounded-full bg-[#d6b36a]/25 animate-ping-slower" />
 
-        <span className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#d6b36a] bg-[#11100f] shadow-xl transition-transform hover:scale-105">
-          {open ? (
-            <span className="text-2xl text-[#f4eee6]">
-              ×
-            </span>
-          ) : (
+          <span className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#d6b36a] bg-[#11100f] shadow-xl transition-transform hover:scale-105">
             <Image
               src="/chatbot-icon.png"
               alt="Chat with Freddy Nails"
               fill
               className="object-cover"
             />
-          )}
-        </span>
-      </button>
+          </span>
+        </button>
+      )}
     </>
   );
 }
