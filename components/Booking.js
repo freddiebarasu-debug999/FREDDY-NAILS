@@ -2,11 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-const DEPOSIT_PER_CLIENT = 90;
-const CLIENT_GAP = 15;
-const MAX_CLIENTS = 4;
-const WHATSAPP_NUMBER = "27710888897";
-
 const SERVICE_CATEGORIES = [
   {
     category: "Acrylic Manicure",
@@ -86,27 +81,34 @@ const SERVICE_CATEGORIES = [
   },
 ];
 
-// Flat lookup list, derived from the categories above — used for
-// duration calculations elsewhere in this file. Keep this in sync
-// automatically; don't maintain it separately.
-const SERVICE_OPTIONS = SERVICE_CATEGORIES.flatMap((group) => group.items);
+const NAIL_SHAPES = [
+  { name: "Almond", desc: "Tapered, rounded tip" },
+  { name: "Square", desc: "Flat edge, sharp corners" },
+  { name: "Squoval", desc: "Square with soft corners" },
+  { name: "Oval", desc: "Rounded, classic" },
+  { name: "Coffin", desc: "Tapered, squared tip" },
+  { name: "Stiletto", desc: "Long, sharp point" },
+];
 
-function timeToMinutes(time) {
-  if (!time) return null;
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
+function isNailService(serviceName) {
+  if (!serviceName) return false;
 
-function minutesToTime(minutes) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+  // Gel Overlay does not require a nail shape.
+  if (serviceName === "Gel — Overlay (R200)") {
+    return false;
+  }
+
+  return (
+    serviceName.startsWith("Acrylic —") ||
+    serviceName.startsWith("Gel —")
+  );
 }
 
 function formatDate(dateString) {
   if (!dateString) return "";
-  const date = new Date(`${dateString}T12:00:00`);
-  if (Number.isNaN(date.getTime())) return dateString;
+
+  const date = new Date(`${dateString}T00:00:00`);
+
   return date.toLocaleDateString("en-ZA", {
     weekday: "long",
     day: "numeric",
@@ -115,783 +117,736 @@ function formatDate(dateString) {
   });
 }
 
-function formatTime(time) {
-  if (!time) return "";
-  const [hours, minutes] = time.split(":").map(Number);
-  const date = new Date();
-  date.setHours(hours, minutes, 0, 0);
-  return date.toLocaleTimeString("en-ZA", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function getTodayString() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function calculateServicesDuration(services) {
-  return services.reduce((total, serviceName) => {
-    const service = SERVICE_OPTIONS.find(
-      (option) => option.name === serviceName
-    );
-    return total + (service?.duration || 0);
-  }, 0);
-}
-
-const inputClass =
-  "w-full px-3.5 py-3 border border-line rounded-sm bg-nude text-[0.92rem] text-ink";
-
-const labelClass =
-  "block text-xs font-bold tracking-wide uppercase mb-1.5 text-ink-soft";
-
 export default function Booking() {
+  const [clientCount, setClientCount] = useState(1);
+
   const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    clientServices: [[SERVICE_OPTIONS[0].name]],
-    clients: "1",
-    clientDates: [""],
-    clientTimes: [""],
-    notes: "",
+    clients: [
+      {
+        name: "",
+        email: "",
+        phone: "",
+        services: [],
+        clientShapes: [""],
+      },
+    ],
+    date: "",
+    time: "",
   });
 
-  const [availableTimes, setAvailableTimes] = useState([[]]);
-  const [loadingAvailability, setLoadingAvailability] = useState([false]);
-  const [availabilityErrors, setAvailabilityErrors] = useState([""]);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [confirmedBooking, setConfirmedBooking] = useState(null);
-  const [confirmingBooking, setConfirmingBooking] = useState(false);
 
-  const clientCount = Number(form.clients);
-  const todayString = getTodayString();
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shape = params.get("shape");
 
-  const clientDurations = useMemo(
-    () => form.clientServices.map(calculateServicesDuration),
-    [form.clientServices]
-  );
+    if (!shape) return;
 
-  const totalDeposit = clientCount * DEPOSIT_PER_CLIENT;
+    const validShape = NAIL_SHAPES.find(
+      (item) => item.name === shape
+    );
 
-  function updateClientServices(clientIndex, services) {
-    setForm((current) => {
-      const updated = [...current.clientServices];
-      updated[clientIndex] = services;
-      return { ...current, clientServices: updated };
-    });
-    setError("");
-  }
+    if (!validShape) return;
 
-  function addService(clientIndex) {
-    setForm((current) => {
-      const updated = [...current.clientServices];
-      if (updated[clientIndex].length >= 4) return current;
+    setForm((current) => ({
+      ...current,
+      clients: current.clients.map((client, index) =>
+        index === 0
+          ? {
+              ...client,
+              clientShapes: [
+                validShape.name,
+                ...client.clientShapes.slice(1),
+              ],
+            }
+          : client
+      ),
+    }));
+  }, []);
 
-      const unused = SERVICE_OPTIONS.find(
-        (option) => !updated[clientIndex].includes(option.name)
-      );
-      if (!unused) return current;
+  function changeClientCount(count) {
+    const nextCount = Math.min(Math.max(count, 1), 4);
 
-      updated[clientIndex] = [...updated[clientIndex], unused.name];
-      return { ...current, clientServices: updated };
-    });
-    setError("");
-  }
-
-  function removeService(clientIndex, serviceIndex) {
-    setForm((current) => {
-      const updated = [...current.clientServices];
-      if (updated[clientIndex].length <= 1) return current;
-
-      updated[clientIndex] = updated[clientIndex].filter(
-        (_, index) => index !== serviceIndex
-      );
-      return { ...current, clientServices: updated };
-    });
-    setError("");
-  }
-
-  function changeClientCount(value) {
-    const nextCount = Number(value);
+    setClientCount(nextCount);
 
     setForm((current) => {
-      const services = [...current.clientServices];
-      const dates = [...current.clientDates];
-      const times = [...current.clientTimes];
+      const clients = [...current.clients];
 
-      while (services.length < nextCount) {
-        services.push([SERVICE_OPTIONS[0].name]);
-        dates.push("");
-        times.push("");
+      while (clients.length < nextCount) {
+        clients.push({
+          name: "",
+          email: "",
+          phone: "",
+          services: [],
+          clientShapes: [""],
+        });
       }
 
-      services.length = nextCount;
-      dates.length = nextCount;
-      times.length = nextCount;
+      clients.length = nextCount;
 
       return {
         ...current,
-        clients: String(nextCount),
-        clientServices: services,
-        clientDates: dates,
-        clientTimes: times,
+        clients,
       };
     });
-
-    setAvailableTimes(Array.from({ length: nextCount }, () => []));
-    setLoadingAvailability(Array.from({ length: nextCount }, () => false));
-    setAvailabilityErrors(Array.from({ length: nextCount }, () => ""));
-    setError("");
   }
 
-  function updateClientDate(clientIndex, date) {
+  function updateClient(clientIndex, field, value) {
     setForm((current) => {
-      const dates = [...current.clientDates];
-      const times = [...current.clientTimes];
-      dates[clientIndex] = date;
-      times[clientIndex] = "";
-      return { ...current, clientDates: dates, clientTimes: times };
+      const clients = [...current.clients];
+
+      clients[clientIndex] = {
+        ...clients[clientIndex],
+        [field]: value,
+      };
+
+      return {
+        ...current,
+        clients,
+      };
     });
-    setError("");
   }
 
-  function updateClientTime(clientIndex, time) {
+  function toggleService(clientIndex, service) {
+    if (service.disabled) return;
+
     setForm((current) => {
-      const times = [...current.clientTimes];
-      times[clientIndex] = time;
-      return { ...current, clientTimes: times };
-    });
-    setError("");
-  }
+      const clients = [...current.clients];
+      const client = clients[clientIndex];
 
-  // Fetch availability independently for every client's chosen date.
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadAvailability() {
-      const results = Array.from({ length: clientCount }, () => []);
-      const loading = Array.from({ length: clientCount }, () => false);
-      const errors = Array.from({ length: clientCount }, () => "");
-
-      for (let clientIndex = 0; clientIndex < clientCount; clientIndex++) {
-        const date = form.clientDates[clientIndex];
-        const duration = clientDurations[clientIndex];
-        if (!date || !duration) continue;
-        loading[clientIndex] = true;
-      }
-
-      if (!cancelled) {
-        setLoadingAvailability(loading);
-        setAvailabilityErrors(errors);
-      }
-
-      await Promise.all(
-        Array.from({ length: clientCount }, async (_, clientIndex) => {
-          const date = form.clientDates[clientIndex];
-          const duration = clientDurations[clientIndex];
-          if (!date || !duration) return;
-
-          try {
-            const response = await fetch(
-              `/api/availability?date=${encodeURIComponent(
-                date
-              )}&duration=${duration}`,
-              { cache: "no-store" }
-            );
-            const data = await response.json();
-            if (!response.ok) {
-              throw new Error(
-                data.error || "Unable to load availability."
-              );
-            }
-            results[clientIndex] = data.availableTimes || [];
-          } catch (requestError) {
-            errors[clientIndex] =
-              requestError.message || "Unable to load availability.";
-          } finally {
-            loading[clientIndex] = false;
-          }
-        })
+      const exists = client.services.some(
+        (item) => item.name === service.name
       );
 
-      if (!cancelled) {
-        setAvailableTimes(results);
-        setLoadingAvailability(loading);
-        setAvailabilityErrors(errors);
+      const services = exists
+        ? client.services.filter(
+            (item) => item.name !== service.name
+          )
+        : [...client.services, service];
+
+      clients[clientIndex] = {
+        ...client,
+        services,
+      };
+
+      return {
+        ...current,
+        clients,
+      };
+    });
+  }
+
+  function updateClientShape(clientIndex, shape) {
+    setForm((current) => {
+      const clients = [...current.clients];
+
+      const client = clients[clientIndex];
+
+      clients[clientIndex] = {
+        ...client,
+        clientShapes: [shape],
+      };
+
+      return {
+        ...current,
+        clients,
+      };
+    });
+  }
+
+  const totalDuration = useMemo(() => {
+    return form.clients.reduce((total, client) => {
+      return (
+        total +
+        client.services.reduce(
+          (serviceTotal, service) =>
+            serviceTotal + (service.duration || 0),
+          0
+        )
+      );
+    }, 0);
+  }, [form.clients]);
+
+  const totalPrice = useMemo(() => {
+    return form.clients.reduce((total, client) => {
+      return (
+        total +
+        client.services.reduce((serviceTotal, service) => {
+          const match = service.name.match(/R(\d+)/);
+          return serviceTotal + (match ? Number(match[1]) : 0);
+        }, 0)
+      );
+    }, 0);
+  }, [form.clients]);
+
+  const deposit = 90 * clientCount;
+
+  useEffect(() => {
+    if (!form.date || totalDuration <= 0) {
+      setAvailableSlots([]);
+      return;
+    }
+
+    async function loadAvailability() {
+      setLoadingSlots(true);
+      setError("");
+
+      try {
+        const response = await fetch(
+          `/api/availability?date=${encodeURIComponent(
+            form.date
+          )}&duration=${totalDuration}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.error || "Unable to load available times."
+          );
+        }
+
+        setAvailableSlots(data.slots || []);
+      } catch (err) {
+        setAvailableSlots([]);
+        setError(err.message || "Unable to load available times.");
+      } finally {
+        setLoadingSlots(false);
       }
     }
 
     loadAvailability();
-    return () => {
-      cancelled = true;
-    };
-  }, [clientCount, form.clientDates, clientDurations]);
-
-  function getClientAvailableTimes(clientIndex) {
-    let times = availableTimes[clientIndex] || [];
-
-    // If this client and the previous client have the same date,
-    // enforce the 15-minute gap.
-    if (
-      clientIndex > 0 &&
-      form.clientDates[clientIndex] &&
-      form.clientDates[clientIndex - 1] === form.clientDates[clientIndex] &&
-      form.clientTimes[clientIndex - 1]
-    ) {
-      const previousStart = timeToMinutes(form.clientTimes[clientIndex - 1]);
-      const previousDuration = clientDurations[clientIndex - 1];
-      const earliestStart = previousStart + previousDuration + CLIENT_GAP;
-
-      times = times.filter((time) => timeToMinutes(time) >= earliestStart);
-    }
-
-    return times;
-  }
+  }, [form.date, totalDuration]);
 
   async function handleSubmit(event) {
     event.preventDefault();
+
     setError("");
+    setSuccess("");
+    setConfirmedBooking(null);
 
-    if (!form.name.trim()) {
-      setError("Please enter your name.");
-      return;
-    }
-    if (!form.phone.trim()) {
-      setError("Please enter your phone number.");
-      return;
-    }
-    if (!form.email.trim()) {
-      setError("Please enter your email address.");
-      return;
-    }
+    for (let clientIndex = 0; clientIndex < form.clients.length; clientIndex++) {
+      const client = form.clients[clientIndex];
 
-    for (let clientIndex = 0; clientIndex < clientCount; clientIndex++) {
-      if (!form.clientDates[clientIndex]) {
+      if (!client.name.trim()) {
         setError(
-          `Please choose a preferred date for Client ${clientIndex + 1}.`
+          `Please enter the name for Client ${clientIndex + 1}.`
         );
         return;
       }
-      if (!form.clientTimes[clientIndex]) {
+
+      if (!client.email.trim()) {
         setError(
-          `Please choose an available time for Client ${clientIndex + 1}.`
+          `Please enter the email for Client ${clientIndex + 1}.`
+        );
+        return;
+      }
+
+      if (!client.phone.trim()) {
+        setError(
+          `Please enter the phone number for Client ${clientIndex + 1}.`
+        );
+        return;
+      }
+
+      if (client.services.length === 0) {
+        setError(
+          `Please choose at least one service for Client ${
+            clientIndex + 1
+          }.`
+        );
+        return;
+      }
+
+      const hasNailService = client.services.some(
+        (service) => isNailService(service.name)
+      );
+
+      if (
+        hasNailService &&
+        !client.clientShapes?.[0]
+      ) {
+        setError(
+          `Please choose a nail shape for Client ${
+            clientIndex + 1
+          }.`
         );
         return;
       }
     }
 
-    // Make sure same-day clients are scheduled with the required gap.
-    for (let clientIndex = 1; clientIndex < clientCount; clientIndex++) {
-      if (form.clientDates[clientIndex] === form.clientDates[clientIndex - 1]) {
-        const previousStart = timeToMinutes(form.clientTimes[clientIndex - 1]);
-        const previousEnd = previousStart + clientDurations[clientIndex - 1];
-        const currentStart = timeToMinutes(form.clientTimes[clientIndex]);
+    if (!form.date) {
+      setError("Please choose a booking date.");
+      return;
+    }
 
-        if (currentStart < previousEnd + CLIENT_GAP) {
-          setError(
-            `Client ${clientIndex + 1} needs to start at least 15 minutes after Client ${clientIndex} finishes when booked on the same date.`
-          );
-          return;
-        }
-      }
+    if (!form.time) {
+      setError("Please choose an available time.");
+      return;
     }
 
     setSubmitting(true);
 
     try {
-      const clientEndTimes = form.clientTimes.map((startTime, index) =>
-        minutesToTime(timeToMinutes(startTime) + clientDurations[index])
-      );
-
       const response = await fetch("/api/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          name: form.name.trim(),
-          phone: form.phone.trim(),
-          email: form.email.trim(),
-          clientServices: form.clientServices,
-          clientCount,
-          clientDates: form.clientDates,
-          clientStartTimes: form.clientTimes,
-          clientEndTimes,
-          notes: form.notes.trim(),
+          clients: form.clients,
+          clientShapes: form.clients.map(
+            (client) => client.clientShapes?.[0] || ""
+          ),
+          date: form.date,
+          time: form.time,
+          duration: totalDuration,
+          total: totalPrice,
+          deposit,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Unable to start checkout.");
-      }
-      if (!data.redirectUrl) {
-        throw new Error("No payment link was returned.");
+        throw new Error(
+          data?.error || "Unable to create booking."
+        );
       }
 
-      window.location.href = data.redirectUrl;
-    } catch (submitError) {
-      setError(
-        submitError.message || "Something went wrong. Please try again."
+      if (data?.redirectUrl) {
+        window.location.href = data.redirectUrl;
+        return;
+      }
+
+      setSuccess(
+        "Your booking request has been received."
       );
+
+      setConfirmedBooking(data);
+    } catch (err) {
+      setError(
+        err.message ||
+          "Something went wrong. Please try again."
+      );
+    } finally {
       setSubmitting(false);
     }
   }
 
-  // Check for a successful booking after returning from Yoco.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-
-    if (params.get("booking") !== "success" || !params.get("appointment")) {
-      return;
-    }
-
-    const appointmentId = params.get("appointment");
-
-    async function loadConfirmedBooking(attempt = 1) {
-      const MAX_ATTEMPTS = 8;
-
-      if (attempt === 1) {
-        setConfirmingBooking(true);
-      }
-
-      try {
-        const response = await fetch(
-          `/api/booking?id=${encodeURIComponent(appointmentId)}`,
-          { cache: "no-store" }
-        );
-        const data = await response.json();
-
-        if (!response.ok) {
-          // The webhook may not have confirmed the booking yet —
-          // Yoco's redirect back to this page can arrive slightly
-          // before the server-to-server webhook does. Retry a few
-          // times before giving up.
-          if (attempt < MAX_ATTEMPTS) {
-            setTimeout(() => loadConfirmedBooking(attempt + 1), 2000);
-            return;
-          }
-          setConfirmingBooking(false);
-          throw new Error(data.error || "Unable to load booking.");
-        }
-
-        setConfirmedBooking(data.appointment);
-        setConfirmingBooking(false);
-        window.history.replaceState({}, "", window.location.pathname);
-      } catch (bookingError) {
-        console.error("Confirmation lookup error:", bookingError);
-        setConfirmingBooking(false);
-      }
-    }
-
-    loadConfirmedBooking();
-  }, []);
-
-  if (confirmingBooking && !confirmedBooking) {
-    return (
-      <section id="booking" className="max-w-[1180px] mx-auto px-5 py-22">
-        <div className="max-w-[560px] mx-auto text-center bg-nude-deep border border-line rounded p-9 md:p-13">
-          <div className="w-12 h-12 rounded-full border-2 border-gold border-t-transparent animate-spin mx-auto mb-5" />
-          <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
-            Freddy Nails Studio
-          </p>
-          <h2 className="font-serif font-medium text-[clamp(1.7rem,4vw,2.3rem)] mt-3 mb-2">
-            Confirming your booking...
-          </h2>
-          <p className="text-ink-soft leading-relaxed">
-            Your payment went through — just finalising the details. This
-            usually takes a few seconds.
-          </p>
-        </div>
-      </section>
-    );
-  }
-
-  if (confirmedBooking) {
-    const whatsappMessage = encodeURIComponent(
-      `Hi Freddy Nails! 💅 My booking is confirmed.\n\nName: ${confirmedBooking.customerName}\nEmail: ${confirmedBooking.customerEmail}\n\n${
-        confirmedBooking.clients
-          ? confirmedBooking.clients
-              .map(
-                (client, index) =>
-                  `Client ${index + 1}:\nServices: ${client.service}\nDate: ${formatDate(
-                    client.bookingDate
-                  )}\nTime: ${formatTime(client.startTime)}`
-              )
-              .join("\n\n")
-          : `Services: ${confirmedBooking.service}\nDate: ${formatDate(
-              confirmedBooking.bookingDate
-            )}\nTime: ${formatTime(confirmedBooking.startTime)}`
-      }\n\nClients: ${confirmedBooking.clientCount}\nDeposit: R${confirmedBooking.depositAmount}`
-    );
-
-    return (
-      <section id="booking" className="max-w-[1180px] mx-auto px-5 py-22">
-        <div className="max-w-[560px] mx-auto text-center bg-nude-deep border border-line rounded p-9 md:p-13">
-          <div className="w-14 h-14 rounded-full bg-gold text-ink text-2xl font-bold flex items-center justify-center mx-auto mb-5">
-            ✓
-          </div>
-
-          <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
-            Freddy Nails Studio
-          </p>
-
-          <h2 className="font-serif font-medium text-[clamp(1.7rem,4vw,2.3rem)] mt-3 mb-2">
-            Booking confirmed
-          </h2>
-
-          <p className="font-serif italic text-lg text-gold-bright mb-4">
-            You&apos;re booked! 💅
-          </p>
-
-          <p className="text-ink-soft leading-relaxed">
-            Your payment has been received and your appointment is confirmed.
-          </p>
-
-          <p className="text-ink-soft leading-relaxed mt-2">
-            Your R{confirmedBooking.depositAmount} deposit has been received.
-          </p>
-
-          <p className="text-ink-soft leading-relaxed mt-2">
-            A confirmation email has been sent to{" "}
-            <strong className="text-ink">
-              {confirmedBooking.customerEmail}
-            </strong>
-            .
-          </p>
-
-          <p className="text-ink-soft leading-relaxed mt-2">
-            Freddy Nails has also received your booking notification.
-          </p>
-
-          {confirmedBooking.clients && confirmedBooking.clients.length > 0 && (
-            <div className="space-y-3 my-6 text-left">
-              {confirmedBooking.clients.map((client, index) => (
-                <div
-                  key={client.id || index}
-                  className="border border-line bg-nude rounded-sm p-4 flex flex-col gap-1 text-sm"
-                >
-                  <strong className="text-xs uppercase tracking-wide text-gold">
-                    Client {index + 1}
-                  </strong>
-                  <span>{client.service}</span>
-                  <span>{formatDate(client.bookingDate)}</span>
-                  <span>
-                    {formatTime(client.startTime)} –{" "}
-                    {formatTime(client.endTime)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <a
-            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center justify-center gap-2.5 bg-ink text-nude px-7 py-[15px] rounded-sm text-[0.85rem] font-bold uppercase tracking-wide hover:bg-gold hover:text-ink transition-colors mt-6"
-          >
-            Message Freddy Nails on WhatsApp
-          </a>
-
-          <p className="text-xs text-ink-soft mt-5">
-            Booking ID: {confirmedBooking.id || "Confirmed"}
-          </p>
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section id="booking" className="max-w-[1180px] mx-auto px-5 py-22">
-      <div className="max-w-[820px] mx-auto bg-nude-deep border border-line rounded p-7 md:p-13">
-        <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
-          Book your appointment
-        </p>
+    <section id="booking" className="bg-nude">
+      <div className="max-w-[1180px] mx-auto px-5 py-20">
+        <div className="max-w-[640px] mb-12">
+          <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
+            Reserve your appointment
+          </p>
 
-        <h2 className="font-serif font-medium text-[clamp(1.9rem,4vw,2.6rem)] mt-3.5 mb-4">
-          Reserve your nail appointment
-        </h2>
+          <h2 className="font-serif font-medium text-[clamp(1.9rem,4vw,2.6rem)] mt-3.5">
+            Book your nails.
+          </h2>
 
-        <p className="text-ink-soft leading-relaxed text-[0.94rem] mb-8">
-          Choose the services, preferred date and available time for each
-          client.
-        </p>
+          <p className="mt-3 text-ink-soft leading-relaxed">
+            Select your services, choose your preferred shape and
+            reserve your time with a R90 deposit per client.
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 sm:grid-cols-2 mb-4.5">
-            <label>
-              <span className={labelClass}>Full name</span>
-              <input
-                type="text"
-                className={inputClass}
-                value={form.name}
-                onChange={(event) =>
-                  setForm({ ...form, name: event.target.value })
-                }
-                placeholder="Your full name"
-                required
-              />
-            </label>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="border border-line bg-white/30 p-5 md:p-7 rounded-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <p className="text-[0.68rem] uppercase tracking-[0.18em] font-bold text-gold">
+                  Number of clients
+                </p>
 
-            <label>
-              <span className={labelClass}>Phone number</span>
-              <input
-                type="tel"
-                className={inputClass}
-                value={form.phone}
-                onChange={(event) =>
-                  setForm({ ...form, phone: event.target.value })
-                }
-                placeholder="e.g. 071 234 5678"
-                required
-              />
-            </label>
+                <p className="font-serif text-xl mt-1">
+                  {clientCount}{" "}
+                  {clientCount === 1 ? "client" : "clients"}
+                </p>
+              </div>
 
-            <label>
-              <span className={labelClass}>Email address</span>
-              <input
-                type="email"
-                className={inputClass}
-                value={form.email}
-                onChange={(event) =>
-                  setForm({ ...form, email: event.target.value })
-                }
-                placeholder="you@example.com"
-                required
-              />
-            </label>
-
-            <label>
-              <span className={labelClass}>Number of clients</span>
-              <select
-                className={inputClass}
-                value={form.clients}
-                onChange={(event) => changeClientCount(event.target.value)}
-              >
-                {Array.from({ length: MAX_CLIENTS }, (_, index) => (
-                  <option key={index + 1} value={index + 1}>
-                    {index + 1} {index === 0 ? "client" : "clients"}
-                  </option>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4].map((number) => (
+                  <button
+                    key={number}
+                    type="button"
+                    onClick={() =>
+                      changeClientCount(number)
+                    }
+                    className={`w-10 h-10 rounded-sm border text-sm font-bold transition-colors ${
+                      clientCount === number
+                        ? "bg-ink text-nude border-ink"
+                        : "border-line hover:border-gold"
+                    }`}
+                  >
+                    {number}
+                  </button>
                 ))}
-              </select>
-            </label>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-5 mt-2">
-            {Array.from({ length: clientCount }, (_, clientIndex) => {
-              const services = form.clientServices[clientIndex] || [];
-              const times = getClientAvailableTimes(clientIndex);
+          {form.clients.map((client, clientIndex) => {
+            const hasNailService = client.services.some(
+              (service) =>
+                isNailService(service.name)
+            );
 
-              return (
-                <div
-                  key={clientIndex}
-                  className="border border-line bg-nude rounded-sm p-5"
-                >
-                  <div className="flex justify-between items-start gap-4 mb-4">
-                    <div>
-                      <span className="block text-xs font-bold uppercase tracking-wide text-gold mb-1">
-                        Client {clientIndex + 1}
-                      </span>
-                      <h3 className="font-serif text-lg font-medium">
-                        Choose services & appointment time
-                      </h3>
-                    </div>
+            return (
+              <div
+                key={clientIndex}
+                className="border border-line bg-white/30 p-5 md:p-7 rounded-sm"
+              >
+                <div className="mb-6">
+                  <p className="text-[0.68rem] uppercase tracking-[0.18em] font-bold text-gold">
+                    Client {clientIndex + 1}
+                  </p>
 
-                    <span className="shrink-0 text-xs font-bold uppercase tracking-wide text-ink-soft bg-nude-deep border border-line px-2.5 py-1 rounded-sm">
-                      {clientDurations[clientIndex]} min
-                    </span>
-                  </div>
-
-                  <div className="space-y-2.5 mb-4">
-                    {services.map((serviceName, serviceIndex) => (
-                      <div
-                        key={`${clientIndex}-${serviceIndex}`}
-                        className="flex gap-2 items-center"
-                      >
-                        <select
-                          className={`${inputClass} flex-1`}
-                          value={serviceName}
-                          onChange={(event) => {
-                            const updated = [...services];
-                            updated[serviceIndex] = event.target.value;
-                            updateClientServices(clientIndex, updated);
-                          }}
-                        >
-                          {SERVICE_CATEGORIES.map((group) => (
-                            <optgroup key={group.category} label={group.category}>
-                              {group.items.map((option) => (
-                                <option
-                                  key={option.name}
-                                  value={option.name}
-                                  disabled={option.disabled}
-                                >
-                                  {option.name}
-                                </option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </select>
-
-                        {services.length > 1 && (
-                          <button
-                            type="button"
-                            className="shrink-0 text-xs font-bold uppercase text-red-600 hover:text-red-700 px-2 py-1"
-                            onClick={() =>
-                              removeService(clientIndex, serviceIndex)
-                            }
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    ))}
-
-                    {services.length < 4 && (
-                      <button
-                        type="button"
-                        className="text-xs font-bold uppercase tracking-wide text-gold hover:text-gold-bright underline underline-offset-2"
-                        onClick={() => addService(clientIndex)}
-                      >
-                        + Add another service
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label>
-                      <span className={labelClass}>Preferred date</span>
-                      <input
-                        type="date"
-                        min={todayString}
-                        className={inputClass}
-                        value={form.clientDates[clientIndex] || ""}
-                        onChange={(event) =>
-                          updateClientDate(clientIndex, event.target.value)
-                        }
-                        required
-                      />
-                    </label>
-
-                    <label>
-                      <span className={labelClass}>Available time</span>
-                      <select
-                        className={inputClass}
-                        value={form.clientTimes[clientIndex] || ""}
-                        onChange={(event) =>
-                          updateClientTime(clientIndex, event.target.value)
-                        }
-                        disabled={
-                          !form.clientDates[clientIndex] ||
-                          loadingAvailability[clientIndex]
-                        }
-                        required
-                      >
-                        <option value="">
-                          {loadingAvailability[clientIndex]
-                            ? "Checking availability..."
-                            : !form.clientDates[clientIndex]
-                            ? "Choose a date first"
-                            : times.length === 0
-                            ? "No times available"
-                            : "Choose a time"}
-                        </option>
-
-                        {times.map((time) => (
-                          <option key={time} value={time}>
-                            {formatTime(time)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-
-                  {availabilityErrors[clientIndex] && (
-                    <div className="mt-3 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {availabilityErrors[clientIndex]}
-                    </div>
-                  )}
-
-                  {form.clientDates[clientIndex] &&
-                    times.length === 0 &&
-                    !loadingAvailability[clientIndex] &&
-                    !availabilityErrors[clientIndex] && (
-                      <p className="text-xs text-ink-soft italic mt-2">
-                        No appointment times are currently available for this
-                        date. Please choose another date.
-                      </p>
-                    )}
-
-                  {clientIndex > 0 &&
-                    form.clientDates[clientIndex] ===
-                      form.clientDates[clientIndex - 1] &&
-                    form.clientTimes[clientIndex - 1] && (
-                      <p className="text-xs text-ink-soft italic mt-2">
-                        Same-day clients are automatically scheduled with a
-                        15-minute gap between appointments.
-                      </p>
-                    )}
+                  <h3 className="font-serif text-2xl mt-1">
+                    Appointment details
+                  </h3>
                 </div>
-              );
-            })}
+
+                <div className="grid md:grid-cols-3 gap-4 mb-7">
+                  <input
+                    type="text"
+                    placeholder="Full name"
+                    value={client.name}
+                    onChange={(e) =>
+                      updateClient(
+                        clientIndex,
+                        "name",
+                        e.target.value
+                      )
+                    }
+                    className="w-full border border-line bg-white px-4 py-3 rounded-sm outline-none focus:border-gold"
+                  />
+
+                  <input
+                    type="email"
+                    placeholder="Email address"
+                    value={client.email}
+                    onChange={(e) =>
+                      updateClient(
+                        clientIndex,
+                        "email",
+                        e.target.value
+                      )
+                    }
+                    className="w-full border border-line bg-white px-4 py-3 rounded-sm outline-none focus:border-gold"
+                  />
+
+                  <input
+                    type="tel"
+                    placeholder="Phone number"
+                    value={client.phone}
+                    onChange={(e) =>
+                      updateClient(
+                        clientIndex,
+                        "phone",
+                        e.target.value
+                      )
+                    }
+                    className="w-full border border-line bg-white px-4 py-3 rounded-sm outline-none focus:border-gold"
+                  />
+                </div>
+
+                <div className="mb-7">
+                  <p className="text-[0.72rem] uppercase tracking-[0.18em] font-bold text-gold mb-4">
+                    Choose your service
+                  </p>
+
+                  <div className="space-y-5">
+                    {SERVICE_CATEGORIES.map(
+                      (category) => (
+                        <div key={category.category}>
+                          <p className="font-serif text-lg mb-2">
+                            {category.category}
+                          </p>
+
+                          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {category.items.map(
+                              (service) => {
+                                const selected =
+                                  client.services.some(
+                                    (item) =>
+                                      item.name ===
+                                      service.name
+                                  );
+
+                                return (
+                                  <button
+                                    key={service.name}
+                                    type="button"
+                                    disabled={
+                                      service.disabled
+                                    }
+                                    onClick={() =>
+                                      toggleService(
+                                        clientIndex,
+                                        service
+                                      )
+                                    }
+                                    className={`text-left border px-3.5 py-3 rounded-sm transition-all ${
+                                      service.disabled
+                                        ? "opacity-40 cursor-not-allowed"
+                                        : selected
+                                        ? "border-gold bg-gold/10"
+                                        : "border-line bg-white hover:border-gold"
+                                    }`}
+                                  >
+                                    <span className="block text-[0.8rem] font-bold">
+                                      {service.name}
+                                    </span>
+
+                                    <span className="block text-[0.68rem] text-ink-soft mt-1">
+                                      {service.disabled
+                                        ? "Coming soon"
+                                        : `${service.duration} min`}
+                                    </span>
+                                  </button>
+                                );
+                              }
+                            )}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  className={`border border-line rounded-sm p-5 transition-all duration-300 ${
+                    hasNailService
+                      ? "bg-white/40"
+                      : "opacity-35 grayscale pointer-events-none select-none"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <div>
+                      <p className="text-[0.72rem] uppercase tracking-[0.18em] font-bold text-gold">
+                        Nail shape
+                      </p>
+
+                      <p className="text-sm text-ink-soft mt-1">
+                        {hasNailService
+                          ? "Choose the shape you want."
+                          : "Available for nail services only."}
+                      </p>
+                    </div>
+
+                    {!hasNailService && (
+                      <span className="text-[0.62rem] uppercase tracking-[0.16em] font-bold">
+                        Not applicable
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                    {NAIL_SHAPES.map((shape) => {
+                      const selected =
+                        client.clientShapes?.[0] ===
+                        shape.name;
+
+                      return (
+                        <button
+                          key={shape.name}
+                          type="button"
+                          onClick={() =>
+                            updateClientShape(
+                              clientIndex,
+                              shape.name
+                            )
+                          }
+                          className={`border px-3 py-3 rounded-sm text-center transition-all ${
+                            selected
+                              ? "border-gold bg-gold/10"
+                              : "border-line bg-white hover:border-gold"
+                          }`}
+                        >
+                          <span className="block text-[0.78rem] font-bold">
+                            {shape.name}
+                          </span>
+
+                          <span className="block text-[0.65rem] text-ink-soft mt-1">
+                            {shape.desc}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          <div className="border border-line bg-white/30 p-5 md:p-7 rounded-sm">
+            <div className="grid md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-[0.72rem] uppercase tracking-[0.18em] font-bold text-gold mb-2">
+                  Choose date
+                </label>
+
+                <input
+                  type="date"
+                  value={form.date}
+                  onChange={(e) =>
+                    setForm((current) => ({
+                      ...current,
+                      date: e.target.value,
+                      time: "",
+                    }))
+                  }
+                  min={
+                    new Date()
+                      .toISOString()
+                      .split("T")[0]
+                  }
+                  className="w-full border border-line bg-white px-4 py-3 rounded-sm outline-none focus:border-gold"
+                />
+
+                {form.date && (
+                  <p className="text-xs text-ink-soft mt-2">
+                    {formatDate(form.date)}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-[0.72rem] uppercase tracking-[0.18em] font-bold text-gold mb-2">
+                  Available time
+                </label>
+
+                {!form.date ? (
+                  <p className="border border-line bg-white px-4 py-3 text-sm text-ink-soft">
+                    Choose a date first.
+                  </p>
+                ) : loadingSlots ? (
+                  <p className="border border-line bg-white px-4 py-3 text-sm text-ink-soft">
+                    Checking availability...
+                  </p>
+                ) : availableSlots.length === 0 ? (
+                  <p className="border border-line bg-white px-4 py-3 text-sm text-ink-soft">
+                    No available times for this date.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {availableSlots.map((slot) => {
+                      const value =
+                        typeof slot === "string"
+                          ? slot
+                          : slot.time;
+
+                      const available =
+                        typeof slot === "string"
+                          ? true
+                          : slot.available !== false;
+
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          disabled={!available}
+                          onClick={() =>
+                            setForm((current) => ({
+                              ...current,
+                              time: value,
+                            }))
+                          }
+                          className={`border px-3 py-3 rounded-sm text-sm font-bold transition-colors ${
+                            !available
+                              ? "opacity-30 cursor-not-allowed"
+                              : form.time === value
+                              ? "bg-ink text-nude border-ink"
+                              : "border-line bg-white hover:border-gold"
+                          }`}
+                        >
+                          {value}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          <label className="block mt-6">
-            <span className={labelClass}>Notes</span>
-            <textarea
-              className={`${inputClass} min-h-[80px] resize-y`}
-              value={form.notes}
-              onChange={(event) =>
-                setForm({ ...form, notes: event.target.value })
-              }
-              placeholder="Anything Freddy Nails should know?"
-              rows={4}
-            />
-          </label>
+          <div className="border border-ink bg-ink text-nude p-6 md:p-8 rounded-sm">
+            <div className="grid sm:grid-cols-3 gap-6">
+              <div>
+                <p className="text-[0.65rem] uppercase tracking-[0.18em] text-gold-bright font-bold">
+                  Services
+                </p>
+                <p className="font-serif text-2xl mt-1">
+                  R{totalPrice}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[0.65rem] uppercase tracking-[0.18em] text-gold-bright font-bold">
+                  Deposit
+                </p>
+                <p className="font-serif text-2xl mt-1">
+                  R{deposit}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[0.65rem] uppercase tracking-[0.18em] text-gold-bright font-bold">
+                  Duration
+                </p>
+                <p className="font-serif text-2xl mt-1">
+                  {totalDuration} min
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-[#A79A87] mt-6 leading-relaxed">
+              Your R90 deposit per client is used to secure the
+              appointment. The remaining balance is payable
+              according to Freddy Nails booking terms.
+            </p>
+          </div>
 
           {error && (
-            <div className="mt-4 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="border border-red-300 bg-red-50 text-red-800 px-4 py-3 rounded-sm text-sm">
               {error}
             </div>
           )}
 
-          <div className="flex gap-8 border-t border-line pt-5 mt-7">
-            <div>
-              <span className="block text-xs uppercase tracking-wide text-ink-soft mb-1">
-                Clients
-              </span>
-              <strong className="font-serif text-2xl">{clientCount}</strong>
+          {success && (
+            <div className="border border-green-300 bg-green-50 text-green-800 px-4 py-3 rounded-sm text-sm">
+              {success}
             </div>
+          )}
 
-            <div>
-              <span className="block text-xs uppercase tracking-wide text-ink-soft mb-1">
-                Deposit
-              </span>
-              <strong className="font-serif text-2xl text-gold">
-                R{totalDeposit}
-              </strong>
+          {confirmedBooking && (
+            <div className="border border-gold bg-white p-5 rounded-sm">
+              <p className="text-[0.68rem] uppercase tracking-[0.18em] font-bold text-gold">
+                Booking received
+              </p>
+
+              <p className="font-serif text-xl mt-1">
+                Thank you for booking with Freddy Nails.
+              </p>
             </div>
-          </div>
+          )}
 
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center justify-center gap-2.5 w-full bg-ink text-nude py-4 rounded-sm font-bold uppercase tracking-wide text-[0.85rem] hover:bg-gold hover:text-ink transition-colors disabled:opacity-50 mt-6"
+            className="w-full sm:w-auto inline-flex items-center justify-center bg-ink text-nude border border-ink px-8 py-4 rounded-sm text-[0.8rem] font-bold uppercase tracking-[0.12em] hover:bg-gold hover:border-gold hover:text-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting
-              ? "Preparing secure payment..."
-              : `Pay R${totalDeposit} deposit`}
+              ? "Processing..."
+              : `Continue to deposit — R${deposit}`}
           </button>
-
-          <p className="text-xs text-ink-soft text-center mt-3">
-            You&apos;ll be securely redirected to Yoco to complete your
-            deposit payment.
-          </p>
         </form>
       </div>
     </section>
