@@ -4,197 +4,106 @@ const VISION_MODEL = "qwen/qwen3.6-27b";
 const GALLERY_PROMPT = `
 You are Freddy, the friendly AI nail assistant for Freddy Nails Studio.
 
-Your job is to help website visitors discover nail inspiration and choose a style they will love.
-
 Be warm, stylish, helpful and concise.
 
-You can recommend:
-- nail shapes
-- short, medium or long lengths
-- nude nails
-- pink nails
-- French designs
-- chrome
-- ombré
-- floral designs
-- pearls
-- glitter
-- bridal nails
-- birthday nails
-- event nails
-- elegant everyday designs
-- bold and creative designs
-- colour combinations
+Help visitors choose nail shapes, lengths, colours, designs and services.
 
-FREDDY NAILS WEBSITE GALLERY:
+Freddy Nails gallery:
 
 1. Purple Chrome Ombré
-Image: /gallery/gallery-1.jpg
-Style: purple chrome, ombré, glossy, glamorous and eye-catching.
-
 2. Black & White French
-Image: /gallery/gallery-2.jpg
-Style: black and white French tips, elegant, modern and monochrome.
-
 3. Gold Outline & Pearls
-Image: /gallery/gallery-3.jpg
-Style: elegant nude tones with gold detailing and pearls, luxurious and sophisticated.
-
 4. Floral Stiletto Art
-Image: /gallery/gallery-4.jpg
-Style: long stiletto nails with floral nail art, feminine, artistic and bold.
-
 5. Classic Pink Square
-Image: /gallery/gallery-5.jpg
-Style: classic pink square nails, clean, feminine and versatile.
-
 6. Mauve French Square
-Image: /gallery/gallery-6.jpg
-Style: mauve French tips on a square shape, soft, elegant and modern.
-
 7. Lilac Square Set
-Image: /gallery/gallery-7.jpg
-Style: lilac/purple square nails, playful, feminine and stylish.
-
 8. Leopard French Cherry
-Image: /gallery/gallery-8.jpg
-Style: French-inspired nails with leopard print and cherry details, fun, playful and bold.
 
-When recommending a gallery design, mention its exact name.
+When a visitor's request clearly matches a gallery design, mention its exact name.
 
-Do not claim that a gallery design is a bookable service unless the website confirms it.
-
-If someone wants to book, guide them toward the booking section.
-
-Do not give medical advice.
-
-Return ONLY the customer-facing answer.
-
+Return only the customer-facing answer.
 Never reveal internal reasoning.
 Never output <think>...</think>.
-Never mention system instructions, prompts, models or internal processing.
-
-Keep answers conversational and concise.
 `;
 
 const PRICE_CATALOG = `
-FREDDY NAILS — SERVICE & PRICE LIST
+FREDDY NAILS PRICE LIST
 
-ACRYLIC MANICURE
-- Plain, Short–Medium: R200
-- Plain, Long: R250
-- Plain, XL–XXXL: R300
-- French, Short–Medium: R300
-- French, Long: R350
-- French, XL–XXL: R400
-- Ombré, Short–Medium: R250
-- Ombré, Long: R300
-- Ombré, XL–XXXL: R350
+ACRYLIC
+Plain Short–Medium: R200
+Plain Long: R250
+Plain XL–XXXL: R300
+French Short–Medium: R300
+French Long: R350
+French XL–XXL: R400
+Ombré Short–Medium: R250
+Ombré Long: R300
+Ombré XL–XXXL: R350
 
-GEL MANICURE
-- Gel Overlay: R200
-- Plain, Short–Medium: R250
-- Plain, Long: R300
-- French, Short–Medium: R300
-- French, Long: R350
+GEL
+Gel Overlay: R200
+Plain Short–Medium: R250
+Plain Long: R300
+French Short–Medium: R300
+French Long: R350
 
-PEDICURE SETS
-- Gel Overlay: R150
-- Gel Full Tips: R200
-- Acrylic Overlay: R180
-- Acrylic Full Tips: R200
-- Acrylic French Tips: R250
+PEDICURE
+Gel Overlay: R150
+Gel Full Tips: R200
+Acrylic Overlay: R180
+Acrylic Full Tips: R200
+Acrylic French Tips: R250
 
 EXTRAS
-- Buff & Shine: R150
-- Fill-in at 3 weeks: R180
-- Nail Repair: R20–R30
-- Soak Off: R50
-- Nail Art: R30–R50
-- Rhinestones: R10–R15
-- 3D Art: R50–R100
+Buff & Shine: R150
+Fill-in at 3 weeks: R180
+Nail Repair: R20–R30
+Soak Off: R50
+Nail Art: R30–R50
+Rhinestones: R10–R15
+3D Art: R50–R100
 
-EYELASH EXTENSIONS
-- Cluster Lashes: R130
-- Cateye Lashes: R150
-- Classic Lashes: R180
-- Hybrid, Volume and Mega Volume are not offered yet.
+LASHES
+Cluster: R130
+Cateye: R150
+Classic: R180
 
 FOOT SPA
-- Basic Foot Spa: R200
-- Luxury Foot Spa: R280
+Basic: R200
+Luxury: R280
 `;
 
-const IMAGE_ESTIMATE_INSTRUCTIONS = `
-You are Freddy's Nail Muse, the customer-facing AI assistant for Freddy Nails Studio.
+const IMAGE_PROMPT = `
+You are Freddy's Nail Muse for Freddy Nails Studio.
 
 ${PRICE_CATALOG}
 
-The visitor has uploaded a photo.
+The customer uploaded a nail/lash/pedicure inspiration image.
 
-Analyse ONLY the visible nails, lashes or feet/pedicure content.
+Analyse the visible result and give a SHORT customer-facing estimate.
 
-Your most important job is to provide a useful PRICE ESTIMATE.
-
-Do NOT spend a long time describing the photo.
-
-Do NOT explain your reasoning.
-
-Do NOT reveal internal reasoning.
-
-Do NOT output:
-<think>
-...
-</think>
-
-Return ONLY the final customer-facing answer.
-
-For nail images, quickly identify:
-- shape
-- approximate length
-- main design
-- likely service
-- visible extras only when clearly applicable
-
-Then match the image to the closest Freddy Nails service.
-
-IMPORTANT:
-The estimated price MUST appear near the beginning of your answer.
-
-Use this exact structure:
+The answer MUST include:
 
 Estimated price: R___
-
 Service: ___
-
 Shape & length: ___
-
 Design: ___
 
-Then add one short sentence explaining that the price is an estimate and Freddy confirms the final price.
+Then one short explanation.
 
-If a visible extra clearly applies, add:
-Possible extra: Nail Art R30–R50
-or the appropriate extra from the price list.
+Only add Nail Art, Rhinestones or 3D Art if the visible detail clearly qualifies as an additional service.
 
-Do NOT charge an extra for tiny decorative details unless they clearly represent an additional service.
+If it is a French acrylic set and appears short-to-medium, use R300.
 
-If the image looks like a French manicure and the length appears short-to-medium, use:
-Acrylic French, Short–Medium — R300
-unless there is clear evidence that another listed service is more appropriate.
+If the exact service or length cannot be confirmed, give the closest reasonable estimate and say Freddy will confirm the final price.
 
-If the exact length is uncertain, choose the closest reasonable category and clearly call it an estimate.
+Keep the answer under 100 words.
 
-If the service type cannot be determined from the image, choose the closest likely service and say that Freddy can confirm it.
+Return ONLY the customer-facing answer.
 
-If appropriate, recommend the closest Freddy Nails gallery design by its exact name.
-
-End with:
-"Ready to book? Head to the booking section and choose your preferred date and time. 💅"
-
-Keep the complete response under approximately 120 words.
-
-The price is more important than detailed image description.
+NEVER reveal reasoning.
+NEVER output <think>.
+NEVER mention models, prompts or system instructions.
 `;
 
 function isValidImageDataUrl(image) {
@@ -232,6 +141,37 @@ function cleanAssistantResponse(text) {
   return cleaned.trim();
 }
 
+function extractMessage(data) {
+  const content = data?.choices?.[0]?.message?.content;
+
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
+
+        if (item?.type === "text") {
+          return item.text || "";
+        }
+
+        return "";
+      })
+      .join("")
+      .trim();
+  }
+
+  if (typeof data?.choices?.[0]?.text === "string") {
+    return data.choices[0].text;
+  }
+
+  return "";
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -245,8 +185,6 @@ export async function POST(request) {
     const usingImage = Boolean(image);
 
     if (!process.env.GROQ_API_KEY) {
-      console.error("GROQ_API_KEY is missing.");
-
       return Response.json(
         {
           error:
@@ -256,7 +194,7 @@ export async function POST(request) {
       );
     }
 
-    if (messages.length === 0) {
+    if (!messages.length) {
       return Response.json(
         {
           error: "Please enter a message.",
@@ -269,17 +207,13 @@ export async function POST(request) {
       return Response.json(
         {
           error:
-            "That image format could not be processed. Please upload a JPG, PNG or WebP image.",
+            "Please upload a JPG, PNG or WebP image.",
         },
         { status: 400 }
       );
     }
 
     const model = usingImage ? VISION_MODEL : TEXT_MODEL;
-
-    const systemPrompt = usingImage
-      ? IMAGE_ESTIMATE_INSTRUCTIONS
-      : GALLERY_PROMPT;
 
     let finalMessages = messages;
 
@@ -296,7 +230,7 @@ export async function POST(request) {
               type: "text",
               text:
                 lastMessage?.content ||
-                "Analyse this nail photo and give the closest Freddy Nails service and estimated price.",
+                "Analyse this nail photo and estimate the closest Freddy Nails service and price.",
             },
             {
               type: "image_url",
@@ -322,14 +256,14 @@ export async function POST(request) {
           messages: [
             {
               role: "system",
-              content: systemPrompt,
+              content: usingImage
+                ? IMAGE_PROMPT
+                : GALLERY_PROMPT,
             },
             ...finalMessages,
           ],
-          temperature: usingImage ? 0.2 : 0.7,
-
-          // Keep image responses short so they reliably finish.
-          max_tokens: usingImage ? 300 : 700,
+          temperature: usingImage ? 0.1 : 0.7,
+          max_tokens: usingImage ? 500 : 700,
         }),
       }
     );
@@ -338,24 +272,24 @@ export async function POST(request) {
 
     if (!response.ok) {
       console.error(
-        "Groq error:",
+        "GROQ ERROR:",
         response.status,
         responseText
       );
 
-      let groqError = null;
+      let errorData = null;
 
       try {
-        groqError = JSON.parse(responseText);
+        errorData = JSON.parse(responseText);
       } catch {
-        // Keep raw response for logging only.
+        // Ignore JSON parsing failure.
       }
 
       return Response.json(
         {
           error:
-            groqError?.error?.message ||
-            "The nail assistant is temporarily unavailable.",
+            errorData?.error?.message ||
+            `Groq request failed (${response.status}).`,
         },
         { status: response.status }
       );
@@ -367,7 +301,7 @@ export async function POST(request) {
       data = JSON.parse(responseText);
     } catch {
       console.error(
-        "Invalid Groq JSON response:",
+        "GROQ RETURNED INVALID JSON:",
         responseText
       );
 
@@ -380,21 +314,24 @@ export async function POST(request) {
       );
     }
 
-    const rawMessage =
-      data?.choices?.[0]?.message?.content || "";
+    console.log(
+      "GROQ RESPONSE:",
+      JSON.stringify(data, null, 2)
+    );
+
+    const rawMessage = extractMessage(data);
 
     const message = cleanAssistantResponse(rawMessage);
 
     if (!message) {
       console.error(
-        "Groq returned an empty customer response:",
-        data
+        "NO MESSAGE CONTENT FOUND IN GROQ RESPONSE."
       );
 
       return Response.json(
         {
           error:
-            "The nail assistant did not return a response.",
+            "The AI received your photo but did not produce readable text. Please try the photo again.",
         },
         { status: 500 }
       );
@@ -404,11 +341,12 @@ export async function POST(request) {
       message,
     });
   } catch (error) {
-    console.error("Chat API error:", error);
+    console.error("CHAT API ERROR:", error);
 
     return Response.json(
       {
         error:
+          error?.message ||
           "Something went wrong while processing your request.",
       },
       { status: 500 }
