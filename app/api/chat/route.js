@@ -33,9 +33,11 @@ ACRYLIC
 Plain Short–Medium: R200
 Plain Long: R250
 Plain XL–XXXL: R300
+
 French Short–Medium: R300
 French Long: R350
 French XL–XXL: R400
+
 Ombré Short–Medium: R250
 Ombré Long: R300
 Ombré XL–XXXL: R350
@@ -80,41 +82,91 @@ ${PRICE_CATALOG}
 
 The customer has uploaded a photo.
 
-Look at the photo and identify what is visibly shown.
+Analyse ONLY what is visibly identifiable in the photo.
 
-Your job is to give a simple customer-facing price estimate.
+Your job is to estimate what the customer would likely pay at Freddy Nails.
 
-IMPORTANT:
-Do NOT provide long reasoning.
-Do NOT explain how you analysed the image.
-Do NOT mention AI, models or internal instructions.
+IMPORTANT PRICING RULES:
 
-Your answer MUST start with:
+1. Identify the BASE SERVICE first.
 
-Estimated price: R___
+2. Match the base service to the closest service in the official Freddy Nails price list.
+
+3. French tips are already included in the French service price.
+Do NOT charge Nail Art for ordinary French tips.
+
+4. Only add Nail Art when there is a separate decorative design beyond the normal French/ombré/plain finish.
+
+Examples of Nail Art:
+- hearts
+- flowers
+- stars
+- butterflies
+- drawings
+- decorative patterns
+- character art
+- detailed individual nail designs
+
+5. If Nail Art is clearly visible, add:
+Nail Art: R30–R50
+
+6. If rhinestones/gems are clearly visible, add:
+Rhinestones: R10–R15
+
+7. If clearly visible 3D decorations are present, add:
+3D Art: R50–R100
+
+8. Do NOT add an extra when you cannot clearly see it.
+
+9. If multiple extras are clearly visible, calculate the estimated range by adding the minimum and maximum of each applicable extra.
+
+10. Example:
+
+Acrylic French Short–Medium = R300
+Small Nail Art = R30–R50
+
+Estimated total = R330–R350
+
+11. If the image looks like a French acrylic set with short-to-medium length, the base price is R300.
+
+12. If exact length cannot be determined, choose the closest category and clearly say the estimate is based on the visible appearance.
+
+13. Do not invent services or prices that are not in the official price list.
+
+14. If the image is of lashes or feet rather than nails, use the relevant lash or pedicure pricing.
+
+YOUR RESPONSE MUST FOLLOW THIS STRUCTURE:
+
+Estimated price: R___–R___
+
+Base service: ___ — R___
+
+Shape & length: ___
+
+Design: ___
+
+Extras:
+- ___ — R___–R___
+
+Total estimate: R___–R___
+
+Then one short sentence:
+"Freddy will confirm the final price after checking the design and service."
 
 Then:
 
-Service: ___
-Shape & length: ___
-Design: ___
-
-Then give ONE short sentence explaining the estimate.
-
-If the image clearly shows additional nail art, rhinestones or 3D art, mention the likely extra separately.
-
-If it looks like a French acrylic set with short-to-medium length, use:
-
-Estimated price: R300
-Service: Acrylic French, Short–Medium
-
-If you cannot determine the exact length, choose the closest price category and say that Freddy will confirm the final price.
-
-Keep the complete answer under 80 words.
-
-End with:
-
 Ready to book? Head to the booking section and choose your preferred date and time. 💅
+
+IMPORTANT:
+- If there are NO extras, do not show an Extras section.
+- If there is only one exact price, show one price instead of a range.
+- Always include the total estimate.
+- Keep the response under 120 words.
+- Do NOT provide long reasoning.
+- Do NOT explain how you analysed the image.
+- Do NOT mention AI, models or internal instructions.
+- NEVER reveal reasoning.
+- NEVER output <think> tags.
 
 Return ONLY the customer-facing answer.
 `;
@@ -124,7 +176,9 @@ function isValidImageDataUrl(image) {
     return false;
   }
 
-  return /^data:image\/(jpeg|jpg|png|webp);base64,/i.test(image);
+  return /^data:image\/(jpeg|jpg|png|webp);base64,/i.test(
+    image
+  );
 }
 
 function cleanAssistantResponse(text) {
@@ -255,7 +309,7 @@ export async function POST(request) {
               type: "text",
               text:
                 lastMessage?.content ||
-                "Analyse this photo and estimate the closest Freddy Nails service and price.",
+                "Analyse this photo and estimate the closest Freddy Nails service and total price.",
             },
             {
               type: "image_url",
@@ -284,16 +338,10 @@ export async function POST(request) {
         ...finalMessages,
       ],
       temperature: usingImage ? 0.2 : 0.7,
-      max_completion_tokens: usingImage ? 400 : 700,
+      max_completion_tokens: usingImage ? 500 : 700,
       stream: false,
     };
 
-    /*
-     * Qwen 3.6 supports thinking and non-thinking modes.
-     * For the customer-facing nail assistant we do NOT need
-     * visible reasoning. Disable it so the output budget is
-     * used for the actual answer.
-     */
     if (usingImage) {
       requestBody.reasoning_effort = "none";
       requestBody.reasoning_format = "hidden";
@@ -366,7 +414,11 @@ export async function POST(request) {
 
     console.log(
       "GROQ MESSAGE:",
-      JSON.stringify(choice?.message, null, 2)
+      JSON.stringify(
+        choice?.message,
+        null,
+        2
+      )
     );
 
     const rawMessage = extractMessage(data);
