@@ -46,10 +46,6 @@ const SERVICE_OPTIONS = {
   "Lashes — Cluster (R130)": 45,
   "Lashes — Cateye (R150)": 60,
   "Lashes — Classic (R180)": 90,
-  // Hybrid, Volume, and Mega Volume are intentionally left out here —
-  // they're shown but disabled on the booking form since they're not
-  // offered yet. Leaving them out of this object means the server
-  // rejects them too, not just the UI.
 
   "Foot Spa — Basic (R200)": 30,
   "Foot Spa — Luxury (R280)": 45,
@@ -62,6 +58,7 @@ const SERVICE_OPTIONS = {
   "Extra — Rhinestones (R10–R15)": 10,
   "Extra — 3D Art (R50–R100)": 30,
 };
+
 function timeToMinutes(time) {
   const [hours, minutes] = time.split(":").map(Number);
 
@@ -101,11 +98,69 @@ function datesAreSame(dateA, dateB) {
   return dateA === dateB;
 }
 
+/*
+ * Verify the logged-in client if the browser
+ * supplied a Supabase Bearer token.
+ *
+ * Guests are still allowed to continue without
+ * an Authorization header.
+ */
+async function getAuthenticatedUser(request) {
+  const authorization =
+    request.headers.get("authorization");
+
+  if (!authorization) {
+    return null;
+  }
+
+  if (
+    !authorization.toLowerCase().startsWith("bearer ")
+  ) {
+    return null;
+  }
+
+  const accessToken =
+    authorization.slice(7).trim();
+
+  if (!accessToken) {
+    return null;
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(accessToken);
+
+  if (error || !user) {
+    console.error(
+      "Supabase authentication error:",
+      error
+    );
+
+    return null;
+  }
+
+  return user;
+}
+
 export async function POST(request) {
   let appointmentId = null;
   let insertedClientIds = [];
 
   try {
+    /*
+     * Identify the authenticated account.
+     *
+     * This is deliberately obtained from the
+     * verified Supabase token rather than trusting
+     * a profile_id supplied by the browser.
+     */
+    const authenticatedUser =
+      await getAuthenticatedUser(request);
+
+    const profileId =
+      authenticatedUser?.id || null;
+
     const body = await request.json();
 
     const {
@@ -119,11 +174,7 @@ export async function POST(request) {
       notes,
     } = body;
 
-    if (
-      !name ||
-      !phone ||
-      !email
-    ) {
+    if (!name || !phone || !email) {
       return Response.json(
         {
           error:
@@ -355,39 +406,48 @@ export async function POST(request) {
      * Validate each client's time against
      * business hours.
      */
-    const clientEndTimes =
-      clientStartTimes.map(
-        (startTime, clientIndex) => {
-          const startMinutes =
-            timeToMinutes(startTime);
+    let clientEndTimes;
 
-          const endMinutes =
-            startMinutes +
-            clientDurations[clientIndex];
+    try {
+      clientEndTimes =
+        clientStartTimes.map(
+          (startTime, clientIndex) => {
+            const startMinutes =
+              timeToMinutes(startTime);
 
-          if (
-            startMinutes < OPEN_MINUTES ||
-            endMinutes > CLOSE_MINUTES
-          ) {
-            throw new Error(
-              `Client ${
-                clientIndex + 1
-              }'s appointment is outside business hours.`
+            const endMinutes =
+              startMinutes +
+              clientDurations[clientIndex];
+
+            if (
+              startMinutes < OPEN_MINUTES ||
+              endMinutes > CLOSE_MINUTES
+            ) {
+              throw new Error(
+                `Client ${
+                  clientIndex + 1
+                }'s appointment is outside business hours.`
+              );
+            }
+
+            return minutesToTime(
+              endMinutes
             );
           }
-
-          return minutesToTime(
-            endMinutes
-          );
-        }
+        );
+    } catch (timeError) {
+      return Response.json(
+        {
+          error:
+            timeError.message ||
+            "One or more appointments are outside business hours.",
+        },
+        { status: 400 }
       );
+    }
 
     /*
-     * If multiple clients chose the same date,
-     * they can be scheduled consecutively.
-     *
-     * If they chose different dates, there is no
-     * consecutive-time requirement between them.
+     * Same-day clients need a 15-minute gap.
      */
     for (
       let clientIndex = 0;
@@ -488,14 +548,6 @@ export async function POST(request) {
         )
         .join(" | ");
 
-    /*
-     * The existing appointments table still needs
-     * a booking date/time.
-     *
-     * We use Client 1's date/time for the parent
-     * payment record. The real individual schedules
-     * are stored in appointment_clients below.
-     */
     const parentStartTime =
       clientStartTimes[0];
 
@@ -510,31 +562,38 @@ export async function POST(request) {
     ).toISOString();
 
     /*
-     * Create the main payment/booking record.
+     * Create the main booking/payment record.
+     *
+     * profile_id is null for guests.
+     * Logged-in clients receive their verified
+     * Supabase profile ID here.
      */
+    const appointmentInsert = {
+      customer_name: name,
+      customer_phone: phone,
+      customer_email: email,
+      service_name: serviceSummary,
+      client_count: clientCount,
+      booking_date: clientDates[0],
+      start_time: parentStartTime,
+      end_time: parentEndTime,
+      duration_minutes: parentDuration,
+      deposit_per_client:
+        DEPOSIT_PER_CLIENT,
+      deposit_amount: depositAmount,
+      payment_status: "pending",
+      booking_status: "pending",
+      expires_at: expiresAt,
+      notes: notes || null,
+      profile_id: profileId,
+    };
+
     const {
       data: appointment,
       error: appointmentError,
     } = await supabase
       .from("appointments")
-      .insert({
-        customer_name: name,
-        customer_phone: phone,
-        customer_email: email,
-        service_name: serviceSummary,
-        client_count: clientCount,
-        booking_date: clientDates[0],
-        start_time: parentStartTime,
-        end_time: parentEndTime,
-        duration_minutes: parentDuration,
-        deposit_per_client:
-          DEPOSIT_PER_CLIENT,
-        deposit_amount: depositAmount,
-        payment_status: "pending",
-        booking_status: "pending",
-        expires_at: expiresAt,
-        notes: notes || null,
-      })
+      .insert(appointmentInsert)
       .select("id")
       .single();
 
@@ -571,10 +630,6 @@ export async function POST(request) {
 
     /*
      * Create the individual client appointments.
-     *
-     * The database exclusion constraint on
-     * appointment_clients provides the final
-     * race-condition protection.
      */
     const clientRows =
       clientServices.map(
@@ -619,11 +674,6 @@ export async function POST(request) {
         clientInsertError
       );
 
-      /*
-       * Cancel the parent booking because the
-       * individual appointment slots could not
-       * all be reserved.
-       */
       await supabase
         .from("appointments")
         .update({
@@ -658,9 +708,6 @@ export async function POST(request) {
         (client) => client.id
       );
 
-    /*
-     * Use the live Freddy Nails domain from Vercel.
-     */
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ||
       new URL(request.url).origin;
@@ -676,10 +723,6 @@ export async function POST(request) {
 
     /*
      * Create Yoco checkout.
-     *
-     * IMPORTANT: Yoco's Checkout API expects the field
-     * to be named "amount", not "amountInCents". The
-     * value itself is still in cents.
      */
     const yocoResponse =
       await fetch(
@@ -816,12 +859,6 @@ export async function POST(request) {
       error
     );
 
-    /*
-     * If something failed after the parent
-     * appointment was created, clean up the
-     * individual client rows and cancel the
-     * parent booking.
-     */
     if (appointmentId) {
       await supabase
         .from("appointment_clients")
