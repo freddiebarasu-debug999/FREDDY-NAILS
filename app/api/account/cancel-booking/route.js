@@ -34,17 +34,13 @@ export async function POST(request) {
     const supabaseAdmin =
       getSupabaseAdmin();
     const {
-      data: {
-        user,
-      },
+      data: { user },
       error: userError,
-    } = await supabaseAdmin.auth.getUser(
-      accessToken
-    );
-    if (
-      userError ||
-      !user
-    ) {
+    } =
+      await supabaseAdmin.auth.getUser(
+        accessToken
+      );
+    if (userError || !user) {
       return NextResponse.json(
         {
           error: "Unauthorized.",
@@ -52,8 +48,7 @@ export async function POST(request) {
         { status: 401 }
       );
     }
-    const body =
-      await request.json();
+    const body = await request.json();
     const appointmentId =
       body?.appointmentId;
     if (!appointmentId) {
@@ -80,14 +75,8 @@ export async function POST(request) {
             google_event_id
           `
         )
-        .eq(
-          "id",
-          appointmentId
-        )
-        .eq(
-          "profile_id",
-          user.id
-        )
+        .eq("id", appointmentId)
+        .eq("profile_id", user.id)
         .maybeSingle();
     if (appointmentError) {
       console.error(
@@ -111,9 +100,13 @@ export async function POST(request) {
         { status: 404 }
       );
     }
+    const bookingStatus =
+      String(
+        appointment.booking_status || ""
+      ).toLowerCase();
     if (
-      appointment.booking_status ===
-      "cancelled"
+      bookingStatus === "cancelled" ||
+      bookingStatus === "canceled"
     ) {
       return NextResponse.json({
         success: true,
@@ -121,32 +114,14 @@ export async function POST(request) {
           "This appointment is already cancelled.",
       });
     }
-    if (
-      appointment.booking_status ===
-        "confirmed" ||
-      appointment.payment_status ===
-        "paid" ||
-      appointment.booking_status ===
-        "deposit_paid"
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "This appointment cannot be cancelled from your account. Please contact Freddy Nails.",
-        },
-        { status: 400 }
-      );
-    }
     /*
-     * Delete the matching Google Calendar event
-     * before marking the appointment cancelled.
+     * Paid and confirmed bookings are intentionally
+     * allowed to be cancelled.
      *
-     * If there is no Google event, this safely
-     * returns without doing anything.
+     * Cancelling does NOT automatically refund the
+     * deposit. Any refund decision remains separate.
      */
-    if (
-      appointment.google_event_id
-    ) {
+    if (appointment.google_event_id) {
       try {
         const calendarResult =
           await deleteGoogleCalendarEvent(
@@ -164,7 +139,7 @@ export async function POST(request) {
         return NextResponse.json(
           {
             error:
-              "The booking could not be cancelled because the Google Calendar event could not be removed. Please try again.",
+              "The booking could not be cancelled because the Google Calendar appointment could not be removed. Please try again.",
           },
           { status: 500 }
         );
@@ -181,14 +156,8 @@ export async function POST(request) {
           updated_at:
             new Date().toISOString(),
         })
-        .eq(
-          "id",
-          appointmentId
-        )
-        .eq(
-          "profile_id",
-          user.id
-        );
+        .eq("id", appointmentId)
+        .eq("profile_id", user.id);
     if (updateError) {
       console.error(
         "Appointment cancellation failed:",
@@ -206,9 +175,7 @@ export async function POST(request) {
       error: clientsError,
     } =
       await supabaseAdmin
-        .from(
-          "appointment_clients"
-        )
+        .from("appointment_clients")
         .update({
           booking_status:
             "cancelled",
@@ -227,6 +194,10 @@ export async function POST(request) {
       success: true,
       message:
         "Appointment cancelled successfully.",
+      calendarEventDeleted:
+        Boolean(
+          appointment.google_event_id
+        ),
     });
   } catch (error) {
     console.error(
