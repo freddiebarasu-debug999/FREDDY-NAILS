@@ -713,13 +713,13 @@ export async function POST(request) {
       new URL(request.url).origin;
 
     const successUrl =
-      `${baseUrl}/?booking=success&appointment=${appointmentId}`;
+      `${baseUrl}/?booking=success&appointment=${appointmentId}#booking`;
 
     const cancelUrl =
-      `${baseUrl}/?booking=cancelled&appointment=${appointmentId}`;
+      `${baseUrl}/?booking=cancelled&appointment=${appointmentId}#booking`;
 
     const failureUrl =
-      `${baseUrl}/?booking=failed&appointment=${appointmentId}`;
+      `${baseUrl}/?booking=failed&appointment=${appointmentId}#booking`;
 
     /*
      * Create Yoco checkout.
