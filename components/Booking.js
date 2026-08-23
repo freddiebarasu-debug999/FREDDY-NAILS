@@ -937,6 +937,13 @@ export default function Booking() {
     const appointmentId =
       params.get("appointment");
 
+    // Make sure the confirmation card is actually visible —
+    // the redirect back from Yoco can otherwise land the
+    // visitor at the very top of the page.
+    document
+      .getElementById("booking")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
     async function loadConfirmedBooking(
       attempt = 1
     ) {
