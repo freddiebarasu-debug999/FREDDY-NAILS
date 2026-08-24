@@ -113,6 +113,26 @@ function isShapeEligibleService(serviceName) {
   );
 }
 
+function extractServicePrice(serviceName) {
+  if (!serviceName) return 0;
+
+  const match = serviceName.match(
+    /\(R(\d+)(?:–\d+)?\)/
+  );
+
+  if (!match) return 0;
+
+  return Number(match[1]) || 0;
+}
+
+function calculateServicesTotal(services) {
+  return services.reduce(
+    (total, serviceName) =>
+      total + extractServicePrice(serviceName),
+    0
+  );
+}
+
 function timeToMinutes(time) {
   if (!time) return null;
 
@@ -249,19 +269,55 @@ export default function Booking() {
     [form.clientServices]
   );
 
-  const totalDeposit = clientCount * DEPOSIT_PER_CLIENT;
+  /*
+   * SERVICE TOTAL
+   *
+   * This is the actual value of the services.
+   * The promo discount applies here.
+   */
+  const totalServiceAmount = useMemo(
+    () =>
+      form.clientServices.reduce(
+        (total, services) =>
+          total + calculateServicesTotal(services),
+        0
+      ),
+    [form.clientServices]
+  );
 
-  const discountedDeposit = appliedPromo
+  const discountedServiceTotal = appliedPromo
     ? appliedPromo.discountType === "percent"
-      ? Math.round(
-          totalDeposit *
-            (1 - appliedPromo.discountValue / 100)
+      ? Math.max(
+          0,
+          Math.round(
+            totalServiceAmount *
+              (1 - appliedPromo.discountValue / 100)
+          )
         )
       : Math.max(
           0,
-          totalDeposit - appliedPromo.discountValue
+          totalServiceAmount -
+            appliedPromo.discountValue
         )
-    : totalDeposit;
+    : totalServiceAmount;
+
+  const serviceDiscountAmount =
+    Math.max(
+      0,
+      totalServiceAmount -
+        discountedServiceTotal
+    );
+
+  /*
+   * IMPORTANT:
+   *
+   * The booking deposit is NEVER discounted.
+   *
+   * It remains R90 per client and is the amount
+   * sent to Yoco.
+   */
+  const depositAmount =
+    clientCount * DEPOSIT_PER_CLIENT;
 
   async function applyPromoCode() {
     const code = promoCode.trim();
@@ -273,7 +329,9 @@ export default function Booking() {
 
     try {
       const response = await fetch(
-        `/api/promo/validate?code=${encodeURIComponent(code)}`
+        `/api/promo/validate?code=${encodeURIComponent(
+          code
+        )}`
       );
 
       const data = await response.json();
@@ -302,11 +360,6 @@ export default function Booking() {
     setPromoError("");
   }
 
-  /*
-   * Load the logged-in client's profile.
-   *
-   * Guests are still allowed to book.
-   */
   useEffect(() => {
     let mounted = true;
 
@@ -374,9 +427,6 @@ export default function Booking() {
     };
   }, []);
 
-  /*
-   * AI / Shape Guide preselection
-   */
   useEffect(() => {
     const params = new URLSearchParams(
       window.location.search
@@ -437,6 +487,10 @@ export default function Booking() {
         clientServices: updated,
       };
     });
+
+    setAppliedPromo((current) =>
+      current ? { ...current } : current
+    );
 
     setError("");
   }
@@ -908,12 +962,6 @@ export default function Booking() {
     setSubmitting(true);
 
     try {
-      /*
-       * Get the current authenticated session.
-       *
-       * Guests simply continue without an
-       * Authorization header.
-       */
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -1856,37 +1904,63 @@ export default function Booking() {
             )}
           </div>
 
-          <div className="flex gap-10 border-t border-white/[0.09] pt-6 mt-6">
-            <div>
-              <span className="block text-xs uppercase tracking-[0.12em] text-[#8f877e] mb-1">
-                Clients
+          {/* PRICE SUMMARY */}
+          <div className="border-t border-white/[0.09] pt-6 mt-6 space-y-4">
+
+            <div className="flex justify-between items-center">
+              <span className="text-xs uppercase tracking-[0.12em] text-[#8f877e]">
+                Service total
               </span>
 
-              <strong className="font-serif text-2xl text-[#f4eee6]">
-                {clientCount}
+              <strong className="font-serif text-xl text-[#f4eee6]">
+                R{totalServiceAmount}
               </strong>
             </div>
 
-            <div>
-              <span className="block text-xs uppercase tracking-[0.12em] text-[#8f877e] mb-1">
-                Deposit
-              </span>
+            {appliedPromo && (
+              <>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs uppercase tracking-[0.12em] text-gold">
+                    Promo discount
+                  </span>
 
-              {appliedPromo ? (
-                <div className="flex items-baseline gap-2.5">
-                  <strong className="font-serif text-lg text-[#8f877e] line-through">
-                    R{totalDeposit}
-                  </strong>
-
-                  <strong className="font-serif text-2xl text-gold">
-                    R{discountedDeposit}
+                  <strong className="text-gold">
+                    −R{serviceDiscountAmount}
                   </strong>
                 </div>
-              ) : (
-                <strong className="font-serif text-2xl text-gold">
-                  R{totalDeposit}
-                </strong>
-              )}
+
+                <div className="flex justify-between items-center">
+                  <span className="text-xs uppercase tracking-[0.12em] text-[#8f877e]">
+                    Discounted service total
+                  </span>
+
+                  <strong className="font-serif text-2xl text-gold">
+                    R{discountedServiceTotal}
+                  </strong>
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-between items-center pt-4 border-t border-white/[0.08]">
+              <div>
+                <span className="block text-xs uppercase tracking-[0.12em] text-[#8f877e] mb-1">
+                  Booking deposit
+                </span>
+
+                <span className="text-xs text-[#8f877e]">
+                  R90 per client
+                </span>
+              </div>
+
+              <strong className="font-serif text-2xl text-gold">
+                R{depositAmount}
+              </strong>
+            </div>
+
+            <div className="text-xs text-[#8f877e] leading-relaxed">
+              The booking deposit is separate from
+              your service total and remains R90 per
+              client even when a promo code is applied.
             </div>
           </div>
 
@@ -1897,12 +1971,13 @@ export default function Booking() {
           >
             {submitting
               ? "Preparing secure payment..."
-              : `Pay R${discountedDeposit} deposit`}
+              : `Pay R${depositAmount} deposit`}
           </button>
 
           <p className="text-xs text-[#8f877e] text-center mt-3">
             You&apos;ll be securely redirected to
-            Yoco to complete your deposit payment.
+            Yoco to pay your R90-per-client booking
+            deposit.
           </p>
         </form>
       </div>
