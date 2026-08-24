@@ -1,19 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import Script from "next/script";
 
 export default function Reviews() {
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://elfsightcdn.com/platform.js";
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      // Keep the Elfsight script loaded for the site
-    };
-  }, []);
-
   return (
     <section
       id="reviews"
@@ -34,8 +23,15 @@ export default function Reviews() {
       </div>
 
       <div
-        className="elfsight-app-fbd66433-9d6c-4b79-81fc-d7c22d0c5ea9"
-        data-elfsight-app-lazy
+        className="famewall-embed"
+        data-src="freddynails"
+        data-format="slider"
+        style={{ width: "100%", display: "block" }}
+      />
+
+      <Script
+        src="https://embed.famewall.io/newFrame.js"
+        strategy="afterInteractive"
       />
     </section>
   );
