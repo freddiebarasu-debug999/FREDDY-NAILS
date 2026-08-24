@@ -233,6 +233,11 @@ export default function Booking() {
   const [confirmedBooking, setConfirmedBooking] = useState(null);
   const [confirmingBooking, setConfirmingBooking] = useState(false);
 
+  const [promoCode, setPromoCode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoChecking, setPromoChecking] = useState(false);
+  const [promoError, setPromoError] = useState("");
+
   const clientCount = Number(form.clients);
   const todayString = getTodayString();
 
@@ -245,6 +250,57 @@ export default function Booking() {
   );
 
   const totalDeposit = clientCount * DEPOSIT_PER_CLIENT;
+
+  const discountedDeposit = appliedPromo
+    ? appliedPromo.discountType === "percent"
+      ? Math.round(
+          totalDeposit *
+            (1 - appliedPromo.discountValue / 100)
+        )
+      : Math.max(
+          0,
+          totalDeposit - appliedPromo.discountValue
+        )
+    : totalDeposit;
+
+  async function applyPromoCode() {
+    const code = promoCode.trim();
+
+    if (!code) return;
+
+    setPromoChecking(true);
+    setPromoError("");
+
+    try {
+      const response = await fetch(
+        `/api/promo/validate?code=${encodeURIComponent(code)}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "That code isn't valid."
+        );
+      }
+
+      setAppliedPromo(data);
+    } catch (err) {
+      setAppliedPromo(null);
+      setPromoError(
+        err?.message ||
+          "Unable to check that code."
+      );
+    } finally {
+      setPromoChecking(false);
+    }
+  }
+
+  function removePromoCode() {
+    setAppliedPromo(null);
+    setPromoCode("");
+    setPromoError("");
+  }
 
   /*
    * Load the logged-in client's profile.
@@ -322,7 +378,9 @@ export default function Booking() {
    * AI / Shape Guide preselection
    */
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(
+      window.location.search
+    );
 
     const shapeParam = params.get("shape");
     const serviceParam = params.get("service");
@@ -347,7 +405,8 @@ export default function Booking() {
     const validService = normalisedService
       ? SERVICE_OPTIONS.find(
           (option) =>
-            normalise(option.name) === normalisedService
+            normalise(option.name) ===
+            normalisedService
         )
       : null;
 
@@ -892,6 +951,8 @@ export default function Booking() {
             clientStartTimes: form.clientTimes,
             clientEndTimes,
             notes: form.notes.trim(),
+            promoCode:
+              appliedPromo?.code || null,
           }),
         }
       );
@@ -937,12 +998,12 @@ export default function Booking() {
     const appointmentId =
       params.get("appointment");
 
-    // Make sure the confirmation card is actually visible —
-    // the redirect back from Yoco can otherwise land the
-    // visitor at the very top of the page.
     document
       .getElementById("booking")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
 
     async function loadConfirmedBooking(
       attempt = 1
@@ -1737,7 +1798,65 @@ export default function Booking() {
             </div>
           )}
 
-          <div className="flex gap-10 border-t border-white/[0.09] pt-6 mt-8">
+          <div className="mt-8 pt-6 border-t border-white/[0.09]">
+            <span className="block text-xs font-bold tracking-[0.12em] uppercase mb-2 text-[#c9c0b6]">
+              Promo code
+            </span>
+
+            {appliedPromo ? (
+              <div className="flex items-center gap-3 border border-gold/40 bg-gold/10 px-4 py-3">
+                <span className="text-sm text-gold font-bold">
+                  {appliedPromo.code}
+                </span>
+
+                <span className="text-xs text-[#c9c0b6] flex-1">
+                  {appliedPromo.description}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={removePromoCode}
+                  className="text-xs text-[#8f877e] hover:text-gold underline"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(event) =>
+                    setPromoCode(event.target.value)
+                  }
+                  placeholder="Enter code"
+                  className={`${inputClass} flex-1`}
+                />
+
+                <button
+                  type="button"
+                  onClick={applyPromoCode}
+                  disabled={
+                    promoChecking ||
+                    !promoCode.trim()
+                  }
+                  className="shrink-0 border border-gold/50 text-gold px-5 py-3 text-xs font-bold uppercase tracking-wide hover:bg-gold/10 transition-colors disabled:opacity-50"
+                >
+                  {promoChecking
+                    ? "Checking..."
+                    : "Apply"}
+                </button>
+              </div>
+            )}
+
+            {promoError && (
+              <p className="text-xs text-red-400 mt-2">
+                {promoError}
+              </p>
+            )}
+          </div>
+
+          <div className="flex gap-10 border-t border-white/[0.09] pt-6 mt-6">
             <div>
               <span className="block text-xs uppercase tracking-[0.12em] text-[#8f877e] mb-1">
                 Clients
@@ -1753,9 +1872,21 @@ export default function Booking() {
                 Deposit
               </span>
 
-              <strong className="font-serif text-2xl text-gold">
-                R{totalDeposit}
-              </strong>
+              {appliedPromo ? (
+                <div className="flex items-baseline gap-2.5">
+                  <strong className="font-serif text-lg text-[#8f877e] line-through">
+                    R{totalDeposit}
+                  </strong>
+
+                  <strong className="font-serif text-2xl text-gold">
+                    R{discountedDeposit}
+                  </strong>
+                </div>
+              ) : (
+                <strong className="font-serif text-2xl text-gold">
+                  R{totalDeposit}
+                </strong>
+              )}
             </div>
           </div>
 
@@ -1766,7 +1897,7 @@ export default function Booking() {
           >
             {submitting
               ? "Preparing secure payment..."
-              : `Pay R${totalDeposit} deposit`}
+              : `Pay R${discountedDeposit} deposit`}
           </button>
 
           <p className="text-xs text-[#8f877e] text-center mt-3">
