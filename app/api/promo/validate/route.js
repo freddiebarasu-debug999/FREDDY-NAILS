@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -13,208 +14,131 @@ const supabase = createClient(
   }
 );
 
-/*
- * Built-in Freddy Nails promos.
- *
- * These work even if the promo_codes table has a problem.
- * Supabase promos can still override these when the same
- * code exists in the database.
- */
-const BUILT_IN_PROMOS = {
-  FIRSTVISIT: {
-    code: "FIRSTVISIT",
-    discount_type: "percent",
-    discount_value: 15,
-    description: "15% off your first visit",
-    active: true,
-  },
-
-  FRIEND50: {
-    code: "FRIEND50",
-    discount_type: "fixed",
-    discount_value: 50,
-    description: "R50 off when you bring a friend",
-    active: true,
-  },
-
-  BIRTHDAY: {
-    code: "BIRTHDAY",
-    discount_type: "fixed",
-    discount_value: 50,
-    description: "Birthday special — R50 off",
-    active: true,
-  },
-};
-
-function calculateDiscount(amount, promo) {
-  const discountValue = Number(
-    promo.discount_value
-  );
-
-  if (
-    !Number.isFinite(discountValue) ||
-    discountValue < 0
-  ) {
-    return {
-      discountAmount: 0,
-      finalAmount: amount,
-    };
-  }
-
-  let finalAmount = amount;
-
-  if (promo.discount_type === "percent") {
-    const percentage = Math.min(
-      discountValue,
-      100
-    );
-
-    finalAmount = Math.round(
-      amount * (1 - percentage / 100)
-    );
-  }
-
-  if (promo.discount_type === "fixed") {
-    finalAmount = Math.max(
-      0,
-      amount - discountValue
-    );
-  }
-
-  return {
-    discountAmount: Math.max(
-      0,
-      Math.round(amount - finalAmount)
-    ),
-    finalAmount: Math.max(
-      0,
-      Math.round(finalAmount)
-    ),
-  };
+function json(data, status = 200) {
+  return NextResponse.json(data, {
+    status,
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json",
+    },
+  });
 }
 
-export async function POST(request) {
+export async function GET(request) {
   try {
-    const body = await request.json();
+    const { searchParams } = new URL(request.url);
 
-    const rawCode = body?.code;
-    const amount = Number(body?.amount);
+    const rawCode = searchParams.get("code");
 
-    if (
-      typeof rawCode !== "string" ||
-      !rawCode.trim()
-    ) {
-      return Response.json(
+    if (!rawCode || !rawCode.trim()) {
+      return json(
         {
           valid: false,
           error: "Please enter a promo code.",
         },
-        { status: 400 }
+        400
       );
     }
 
-    if (
-      !Number.isFinite(amount) ||
-      amount < 0
-    ) {
-      return Response.json(
-        {
-          valid: false,
-          error: "Invalid booking amount.",
-        },
-        { status: 400 }
-      );
-    }
+    const code = rawCode.trim().toUpperCase();
 
-    const normalizedCode =
-      rawCode.trim().toUpperCase();
-
-    /*
-     * First try Supabase.
-     */
-    let promo = null;
-
-    const {
-      data,
-      error,
-    } = await supabase
+    const { data: promo, error } = await supabase
       .from("promo_codes")
       .select(
         "code, discount_type, discount_value, description, active"
       )
-      .eq(
-        "code",
-        normalizedCode
-      )
+      .eq("code", code)
       .maybeSingle();
 
-    if (!error && data) {
-      promo = data;
-    }
+    if (error) {
+      console.error("Promo validation error:", error);
 
-    /*
-     * If Supabase doesn't contain the code,
-     * use the built-in Freddy Nails promos.
-     */
-    if (!promo) {
-      promo =
-        BUILT_IN_PROMOS[
-          normalizedCode
-        ] || null;
-    }
-
-    if (!promo || !promo.active) {
-      return Response.json(
+      return json(
         {
           valid: false,
           error:
-            "That promo code isn't valid.",
+            "Unable to verify the promo code. Please try again.",
         },
-        { status: 400 }
+        500
       );
     }
 
-    const discount =
-      calculateDiscount(
-        amount,
+    if (!promo) {
+      return json(
+        {
+          valid: false,
+          error: "That promo code isn't valid.",
+        },
+        400
+      );
+    }
+
+    if (!promo.active) {
+      return json(
+        {
+          valid: false,
+          error: "That promo code is no longer active.",
+        },
+        400
+      );
+    }
+
+    const discountValue = Number(promo.discount_value);
+
+    if (
+      !Number.isFinite(discountValue) ||
+      discountValue < 0
+    ) {
+      console.error(
+        "Invalid promo discount value:",
         promo
       );
 
-    return Response.json({
+      return json(
+        {
+          valid: false,
+          error:
+            "This promo code is configured incorrectly.",
+        },
+        500
+      );
+    }
+
+    if (
+      promo.discount_type !== "percent" &&
+      promo.discount_type !== "fixed"
+    ) {
+      return json(
+        {
+          valid: false,
+          error:
+            "This promo code has an invalid discount type.",
+        },
+        500
+      );
+    }
+
+    return json({
       valid: true,
-
       code: promo.code,
-
-      description:
-        promo.description || null,
-
-      discountType:
-        promo.discount_type,
-
-      discountValue:
-        Number(
-          promo.discount_value
-        ),
-
-      discountAmount:
-        discount.discountAmount,
-
-      finalAmount:
-        discount.finalAmount,
+      discountType: promo.discount_type,
+      discountValue,
+      description: promo.description || "",
+      active: true,
     });
   } catch (error) {
     console.error(
-      "Promo validation error:",
+      "Unexpected promo validation error:",
       error
     );
 
-    return Response.json(
+    return json(
       {
         valid: false,
         error:
           "Unable to verify the promo code. Please try again.",
       },
-      { status: 500 }
+      500
     );
   }
 }
