@@ -172,6 +172,7 @@ export async function POST(request) {
       clientDates,
       clientStartTimes,
       notes,
+      promoCode,
     } = body;
 
     if (!name || !phone || !email) {
@@ -531,6 +532,52 @@ export async function POST(request) {
       clientCount;
 
     /*
+     * Apply a promo code if one was provided.
+     * Always re-validated server-side here —
+     * never trust a discount calculated only
+     * in the browser.
+     */
+    let finalDepositAmount = depositAmount;
+    let appliedPromoCode = null;
+
+    if (promoCode) {
+      const normalizedCode = String(promoCode)
+        .trim()
+        .toUpperCase();
+
+      const { data: promo, error: promoError } =
+        await supabase
+          .from("promo_codes")
+          .select(
+            "code, discount_type, discount_value, active"
+          )
+          .eq("code", normalizedCode)
+          .maybeSingle();
+
+      if (promoError) {
+        console.error(
+          "Promo lookup error:",
+          promoError
+        );
+      } else if (promo && promo.active) {
+        appliedPromoCode = promo.code;
+
+        if (promo.discount_type === "percent") {
+          finalDepositAmount = Math.round(
+            depositAmount *
+              (1 - Number(promo.discount_value) / 100)
+          );
+        } else {
+          finalDepositAmount = Math.max(
+            0,
+            depositAmount -
+              Number(promo.discount_value)
+          );
+        }
+      }
+    }
+
+    /*
      * Store a readable summary in the existing
      * appointments table.
      */
@@ -580,12 +627,13 @@ export async function POST(request) {
       duration_minutes: parentDuration,
       deposit_per_client:
         DEPOSIT_PER_CLIENT,
-      deposit_amount: depositAmount,
+      deposit_amount: finalDepositAmount,
       payment_status: "pending",
       booking_status: "pending",
       expires_at: expiresAt,
       notes: notes || null,
       profile_id: profileId,
+      promo_code: appliedPromoCode,
     };
 
     const {
@@ -738,7 +786,7 @@ export async function POST(request) {
 
           body: JSON.stringify({
             amount:
-              depositAmount * 100,
+              finalDepositAmount * 100,
 
             currency: "ZAR",
 
