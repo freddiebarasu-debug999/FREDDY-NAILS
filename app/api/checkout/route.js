@@ -61,7 +61,6 @@ const SERVICE_OPTIONS = {
 
 function timeToMinutes(time) {
   const [hours, minutes] = time.split(":").map(Number);
-
   return hours * 60 + minutes;
 }
 
@@ -69,9 +68,10 @@ function minutesToTime(minutes) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
 
-  return `${String(hours).padStart(2, "0")}:${String(
-    mins
-  ).padStart(2, "0")}`;
+  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(
+    2,
+    "0"
+  )}`;
 }
 
 function isValidDate(date) {
@@ -88,8 +88,7 @@ function isValidEmail(email) {
 
 function calculateClientDuration(services) {
   return services.reduce(
-    (total, serviceName) =>
-      total + SERVICE_OPTIONS[serviceName],
+    (total, serviceName) => total + SERVICE_OPTIONS[serviceName],
     0
   );
 }
@@ -98,13 +97,47 @@ function datesAreSame(dateA, dateB) {
   return dateA === dateB;
 }
 
-/*
- * Verify the logged-in client if the browser
- * supplied a Supabase Bearer token.
- *
- * Guests are still allowed to continue without
- * an Authorization header.
- */
+function calculateDiscountedAmount(amount, promo) {
+  if (!promo || !promo.active) {
+    return {
+      finalAmount: amount,
+      discountAmount: 0,
+    };
+  }
+
+  const discountValue = Number(promo.discount_value);
+
+  if (!Number.isFinite(discountValue) || discountValue < 0) {
+    return {
+      finalAmount: amount,
+      discountAmount: 0,
+    };
+  }
+
+  let finalAmount = amount;
+
+  if (promo.discount_type === "percent") {
+    const percentage = Math.min(discountValue, 100);
+
+    finalAmount = Math.round(
+      amount * (1 - percentage / 100)
+    );
+  } else if (promo.discount_type === "fixed") {
+    finalAmount = Math.max(
+      0,
+      amount - discountValue
+    );
+  }
+
+  return {
+    finalAmount: Math.max(0, Math.round(finalAmount)),
+    discountAmount: Math.max(
+      0,
+      Math.round(amount - finalAmount)
+    ),
+  };
+}
+
 async function getAuthenticatedUser(request) {
   const authorization =
     request.headers.get("authorization");
@@ -145,16 +178,8 @@ async function getAuthenticatedUser(request) {
 
 export async function POST(request) {
   let appointmentId = null;
-  let insertedClientIds = [];
 
   try {
-    /*
-     * Identify the authenticated account.
-     *
-     * This is deliberately obtained from the
-     * verified Supabase token rather than trusting
-     * a profile_id supplied by the browser.
-     */
     const authenticatedUser =
       await getAuthenticatedUser(request);
 
@@ -248,9 +273,6 @@ export async function POST(request) {
       );
     }
 
-    /*
-     * Validate every client's services.
-     */
     for (
       let clientIndex = 0;
       clientIndex < clientCount;
@@ -309,9 +331,6 @@ export async function POST(request) {
       }
     }
 
-    /*
-     * Validate every client's date and time.
-     */
     for (
       let clientIndex = 0;
       clientIndex < clientCount;
@@ -364,7 +383,6 @@ export async function POST(request) {
       }
 
       const today = new Date();
-
       today.setHours(0, 0, 0, 0);
 
       const bookingDate =
@@ -381,9 +399,7 @@ export async function POST(request) {
         );
       }
 
-      if (
-        selectedDate.getDay() === 0
-      ) {
+      if (selectedDate.getDay() === 0) {
         return Response.json(
           {
             error: `Client ${
@@ -395,18 +411,11 @@ export async function POST(request) {
       }
     }
 
-    /*
-     * Calculate each client's duration.
-     */
     const clientDurations =
       clientServices.map(
         calculateClientDuration
       );
 
-    /*
-     * Validate each client's time against
-     * business hours.
-     */
     let clientEndTimes;
 
     try {
@@ -431,9 +440,7 @@ export async function POST(request) {
               );
             }
 
-            return minutesToTime(
-              endMinutes
-            );
+            return minutesToTime(endMinutes);
           }
         );
     } catch (timeError) {
@@ -447,9 +454,6 @@ export async function POST(request) {
       );
     }
 
-    /*
-     * Same-day clients need a 15-minute gap.
-     */
     for (
       let clientIndex = 0;
       clientIndex < clientCount;
@@ -459,32 +463,20 @@ export async function POST(request) {
         continue;
       }
 
-      const currentDate =
-        clientDates[clientIndex];
-
-      const previousDate =
-        clientDates[
-          clientIndex - 1
-        ];
-
       if (
         datesAreSame(
-          currentDate,
-          previousDate
+          clientDates[clientIndex],
+          clientDates[clientIndex - 1]
         )
       ) {
         const previousEnd =
           timeToMinutes(
-            clientEndTimes[
-              clientIndex - 1
-            ]
+            clientEndTimes[clientIndex - 1]
           );
 
         const currentStart =
           timeToMinutes(
-            clientStartTimes[
-              clientIndex
-            ]
+            clientStartTimes[clientIndex]
           );
 
         if (
@@ -505,9 +497,6 @@ export async function POST(request) {
       }
     }
 
-    /*
-     * Clean up expired pending parent bookings.
-     */
     const { error: expiryError } =
       await supabase
         .from("appointments")
@@ -527,60 +516,93 @@ export async function POST(request) {
       );
     }
 
+    /*
+     * Base deposit.
+     *
+     * R90 per client:
+     * 1 client = R90
+     * 2 clients = R180
+     * 3 clients = R270
+     * 4 clients = R360
+     */
     const depositAmount =
       DEPOSIT_PER_CLIENT *
       clientCount;
 
     /*
-     * Apply a promo code if one was provided.
-     * Always re-validated server-side here —
-     * never trust a discount calculated only
-     * in the browser.
+     * PROMO CODE
+     *
+     * The browser is never trusted to calculate
+     * the amount charged by Yoco.
+     *
+     * The promo is looked up again directly
+     * from Supabase here.
      */
-    let finalDepositAmount = depositAmount;
+    let finalDepositAmount =
+      depositAmount;
+
     let appliedPromoCode = null;
+    let promoDiscountAmount = 0;
 
-    if (promoCode) {
-      const normalizedCode = String(promoCode)
-        .trim()
-        .toUpperCase();
+    if (
+      typeof promoCode === "string" &&
+      promoCode.trim()
+    ) {
+      const normalizedCode =
+        promoCode.trim().toUpperCase();
 
-      const { data: promo, error: promoError } =
-        await supabase
-          .from("promo_codes")
-          .select(
-            "code, discount_type, discount_value, active"
-          )
-          .eq("code", normalizedCode)
-          .maybeSingle();
+      const {
+        data: promo,
+        error: promoError,
+      } = await supabase
+        .from("promo_codes")
+        .select(
+          "code, discount_type, discount_value, description, active"
+        )
+        .eq("code", normalizedCode)
+        .maybeSingle();
 
       if (promoError) {
         console.error(
           "Promo lookup error:",
           promoError
         );
-      } else if (promo && promo.active) {
-        appliedPromoCode = promo.code;
 
-        if (promo.discount_type === "percent") {
-          finalDepositAmount = Math.round(
-            depositAmount *
-              (1 - Number(promo.discount_value) / 100)
-          );
-        } else {
-          finalDepositAmount = Math.max(
-            0,
-            depositAmount -
-              Number(promo.discount_value)
-          );
-        }
+        return Response.json(
+          {
+            error:
+              "Unable to verify the promo code. Please try again.",
+          },
+          { status: 500 }
+        );
       }
+
+      if (!promo || !promo.active) {
+        return Response.json(
+          {
+            error:
+              "That promo code isn't valid.",
+          },
+          { status: 400 }
+        );
+      }
+
+      const discount =
+        calculateDiscountedAmount(
+          depositAmount,
+          promo
+        );
+
+      finalDepositAmount =
+        discount.finalAmount;
+
+      promoDiscountAmount =
+        discount.discountAmount;
+
+      appliedPromoCode =
+        promo.code;
     }
 
-    /*
-     * Store a readable summary in the existing
-     * appointments table.
-     */
     const serviceSummary =
       clientServices
         .map(
@@ -605,16 +627,10 @@ export async function POST(request) {
       clientDurations[0];
 
     const expiresAt = new Date(
-      Date.now() + 15 * 60 * 1000
+      Date.now() +
+        15 * 60 * 1000
     ).toISOString();
 
-    /*
-     * Create the main booking/payment record.
-     *
-     * profile_id is null for guests.
-     * Logged-in clients receive their verified
-     * Supabase profile ID here.
-     */
     const appointmentInsert = {
       customer_name: name,
       customer_phone: phone,
@@ -625,15 +641,21 @@ export async function POST(request) {
       start_time: parentStartTime,
       end_time: parentEndTime,
       duration_minutes: parentDuration,
+
       deposit_per_client:
         DEPOSIT_PER_CLIENT,
-      deposit_amount: finalDepositAmount,
+
+      deposit_amount:
+        finalDepositAmount,
+
       payment_status: "pending",
       booking_status: "pending",
       expires_at: expiresAt,
       notes: notes || null,
       profile_id: profileId,
-      promo_code: appliedPromoCode,
+
+      promo_code:
+        appliedPromoCode,
     };
 
     const {
@@ -673,12 +695,9 @@ export async function POST(request) {
       );
     }
 
-    appointmentId =
+    const appointmentId =
       appointment.id;
 
-    /*
-     * Create the individual client appointments.
-     */
     const clientRows =
       clientServices.map(
         (services, index) => ({
@@ -709,12 +728,10 @@ export async function POST(request) {
       );
 
     const {
-      data: insertedClients,
       error: clientInsertError,
     } = await supabase
       .from("appointment_clients")
-      .insert(clientRows)
-      .select("id");
+      .insert(clientRows);
 
     if (clientInsertError) {
       console.error(
@@ -725,9 +742,13 @@ export async function POST(request) {
       await supabase
         .from("appointments")
         .update({
-          booking_status: "cancelled",
+          booking_status:
+            "cancelled",
         })
-        .eq("id", appointmentId);
+        .eq(
+          "id",
+          appointmentId
+        );
 
       if (
         clientInsertError.code ===
@@ -751,11 +772,6 @@ export async function POST(request) {
       );
     }
 
-    insertedClientIds =
-      (insertedClients || []).map(
-        (client) => client.id
-      );
-
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ||
       new URL(request.url).origin;
@@ -770,30 +786,39 @@ export async function POST(request) {
       `${baseUrl}/?booking=failed&appointment=${appointmentId}#booking`;
 
     /*
-     * Create Yoco checkout.
+     * Yoco receives the FINAL discounted deposit.
+     *
+     * Example:
+     * R360 deposit + 20% promo = R288
+     * Yoco receives 28800 cents.
      */
+    const yocoAmountCents =
+      Math.round(
+        finalDepositAmount * 100
+      );
+
     const yocoResponse =
       await fetch(
         "https://payments.yoco.com/api/checkouts",
         {
           method: "POST",
+
           headers: {
             "Content-Type":
               "application/json",
 
-            Authorization: `Bearer ${process.env.YOCO_SECRET_KEY}`,
+            Authorization:
+              `Bearer ${process.env.YOCO_SECRET_KEY}`,
           },
 
           body: JSON.stringify({
             amount:
-              finalDepositAmount * 100,
+              yocoAmountCents,
 
             currency: "ZAR",
 
             successUrl,
-
             cancelUrl,
-
             failureUrl,
           }),
         }
@@ -879,17 +904,18 @@ export async function POST(request) {
       );
     }
 
-    const { error: updateError } =
-      await supabase
-        .from("appointments")
-        .update({
-          yoco_checkout_id:
-            checkoutId,
-        })
-        .eq(
-          "id",
-          appointmentId
-        );
+    const {
+      error: updateError,
+    } = await supabase
+      .from("appointments")
+      .update({
+        yoco_checkout_id:
+          checkoutId,
+      })
+      .eq(
+        "id",
+        appointmentId
+      );
 
     if (updateError) {
       console.error(
@@ -900,6 +926,18 @@ export async function POST(request) {
 
     return Response.json({
       redirectUrl,
+
+      appointmentId,
+
+      depositAmount,
+
+      discountAmount:
+        promoDiscountAmount,
+
+      finalDepositAmount,
+
+      promoCode:
+        appliedPromoCode,
     });
   } catch (error) {
     console.error(
