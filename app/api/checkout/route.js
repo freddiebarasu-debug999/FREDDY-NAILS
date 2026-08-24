@@ -21,46 +21,142 @@ const OPEN_MINUTES = 9 * 60 + 30;
 const CLOSE_MINUTES = 17 * 60 + 30;
 
 const SERVICE_OPTIONS = {
-  "Acrylic — Plain Short–Medium (R200)": 90,
-  "Acrylic — Plain Long (R250)": 105,
-  "Acrylic — Plain XL–XXXL (R300)": 120,
-  "Acrylic — French Short–Medium (R300)": 100,
-  "Acrylic — French Long (R350)": 115,
-  "Acrylic — French XL–XXL (R400)": 130,
-  "Acrylic — Ombré Short–Medium (R250)": 120,
-  "Acrylic — Ombré Long (R300)": 135,
-  "Acrylic — Ombré XL–XXXL (R350)": 150,
+  "Acrylic — Plain Short–Medium (R200)": {
+    duration: 90,
+    price: 200,
+  },
+  "Acrylic — Plain Long (R250)": {
+    duration: 105,
+    price: 250,
+  },
+  "Acrylic — Plain XL–XXXL (R300)": {
+    duration: 120,
+    price: 300,
+  },
+  "Acrylic — French Short–Medium (R300)": {
+    duration: 100,
+    price: 300,
+  },
+  "Acrylic — French Long (R350)": {
+    duration: 115,
+    price: 350,
+  },
+  "Acrylic — French XL–XXL (R400)": {
+    duration: 130,
+    price: 400,
+  },
+  "Acrylic — Ombré Short–Medium (R250)": {
+    duration: 120,
+    price: 250,
+  },
+  "Acrylic — Ombré Long (R300)": {
+    duration: 135,
+    price: 300,
+  },
+  "Acrylic — Ombré XL–XXXL (R350)": {
+    duration: 150,
+    price: 350,
+  },
 
-  "Gel — Overlay (R200)": 75,
-  "Gel — Plain Short–Medium (R250)": 90,
-  "Gel — Plain Long (R300)": 100,
-  "Gel — French Short–Medium (R300)": 95,
-  "Gel — French Long (R350)": 110,
+  "Gel — Overlay (R200)": {
+    duration: 75,
+    price: 200,
+  },
+  "Gel — Plain Short–Medium (R250)": {
+    duration: 90,
+    price: 250,
+  },
+  "Gel — Plain Long (R300)": {
+    duration: 100,
+    price: 300,
+  },
+  "Gel — French Short–Medium (R300)": {
+    duration: 95,
+    price: 300,
+  },
+  "Gel — French Long (R350)": {
+    duration: 110,
+    price: 350,
+  },
 
-  "Pedicure — Gel Overlay (R150)": 45,
-  "Pedicure — Gel Full Tips (R200)": 60,
-  "Pedicure — Acrylic Overlay (R180)": 55,
-  "Pedicure — Acrylic Full Tips (R200)": 65,
-  "Pedicure — Acrylic French Tips (R250)": 75,
+  "Pedicure — Gel Overlay (R150)": {
+    duration: 45,
+    price: 150,
+  },
+  "Pedicure — Gel Full Tips (R200)": {
+    duration: 60,
+    price: 200,
+  },
+  "Pedicure — Acrylic Overlay (R180)": {
+    duration: 55,
+    price: 180,
+  },
+  "Pedicure — Acrylic Full Tips (R200)": {
+    duration: 65,
+    price: 200,
+  },
+  "Pedicure — Acrylic French Tips (R250)": {
+    duration: 75,
+    price: 250,
+  },
 
-  "Lashes — Cluster (R130)": 45,
-  "Lashes — Cateye (R150)": 60,
-  "Lashes — Classic (R180)": 90,
+  "Lashes — Cluster (R130)": {
+    duration: 45,
+    price: 130,
+  },
+  "Lashes — Cateye (R150)": {
+    duration: 60,
+    price: 150,
+  },
+  "Lashes — Classic (R180)": {
+    duration: 90,
+    price: 180,
+  },
 
-  "Foot Spa — Basic (R200)": 30,
-  "Foot Spa — Luxury (R280)": 45,
+  "Foot Spa — Basic (R200)": {
+    duration: 30,
+    price: 200,
+  },
+  "Foot Spa — Luxury (R280)": {
+    duration: 45,
+    price: 280,
+  },
 
-  "Extra — Buff & Shine (R150)": 30,
-  "Extra — Fill-in @3 weeks (R180)": 75,
-  "Extra — Nail Repair (R20–R30)": 15,
-  "Extra — Soak Off (R50)": 20,
-  "Extra — Nail Art (R30–R50)": 20,
-  "Extra — Rhinestones (R10–R15)": 10,
-  "Extra — 3D Art (R50–R100)": 30,
+  "Extra — Buff & Shine (R150)": {
+    duration: 30,
+    price: 150,
+  },
+  "Extra — Fill-in @3 weeks (R180)": {
+    duration: 75,
+    price: 180,
+  },
+  "Extra — Nail Repair (R20–R30)": {
+    duration: 15,
+    price: 30,
+  },
+  "Extra — Soak Off (R50)": {
+    duration: 20,
+    price: 50,
+  },
+  "Extra — Nail Art (R30–R50)": {
+    duration: 20,
+    price: 50,
+  },
+  "Extra — Rhinestones (R10–R15)": {
+    duration: 10,
+    price: 15,
+  },
+  "Extra — 3D Art (R50–R100)": {
+    duration: 30,
+    price: 100,
+  },
 };
 
 function timeToMinutes(time) {
-  const [hours, minutes] = time.split(":").map(Number);
+  const [hours, minutes] = time
+    .split(":")
+    .map(Number);
+
   return hours * 60 + minutes;
 }
 
@@ -68,10 +164,9 @@ function minutesToTime(minutes) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
 
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(
-    2,
-    "0"
-  )}`;
+  return `${String(hours).padStart(2, "0")}:${String(
+    mins
+  ).padStart(2, "0")}`;
 }
 
 function isValidDate(date) {
@@ -83,58 +178,73 @@ function isValidTime(time) {
 }
 
 function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    email
+  );
 }
 
 function calculateClientDuration(services) {
   return services.reduce(
-    (total, serviceName) => total + SERVICE_OPTIONS[serviceName],
+    (total, serviceName) =>
+      total +
+      (SERVICE_OPTIONS[serviceName]?.duration || 0),
     0
   );
 }
 
-function datesAreSame(dateA, dateB) {
-  return dateA === dateB;
+function calculateClientPrice(services) {
+  return services.reduce(
+    (total, serviceName) =>
+      total +
+      (SERVICE_OPTIONS[serviceName]?.price || 0),
+    0
+  );
 }
 
-function calculateDiscountedAmount(amount, promo) {
+function calculateDiscount(amount, promo) {
   if (!promo || !promo.active) {
     return {
-      finalAmount: amount,
+      discountedTotal: amount,
       discountAmount: 0,
     };
   }
 
-  const discountValue = Number(promo.discount_value);
+  const value = Number(
+    promo.discount_value
+  );
 
-  if (!Number.isFinite(discountValue) || discountValue < 0) {
+  if (!Number.isFinite(value) || value < 0) {
     return {
-      finalAmount: amount,
+      discountedTotal: amount,
       discountAmount: 0,
     };
   }
 
-  let finalAmount = amount;
+  let discountedTotal = amount;
 
   if (promo.discount_type === "percent") {
-    const percentage = Math.min(discountValue, 100);
-
-    finalAmount = Math.round(
-      amount * (1 - percentage / 100)
-    );
-  } else if (promo.discount_type === "fixed") {
-    finalAmount = Math.max(
-      0,
-      amount - discountValue
+    discountedTotal = Math.round(
+      amount *
+        (1 - Math.min(value, 100) / 100)
     );
   }
 
-  return {
-    finalAmount: Math.max(0, Math.round(finalAmount)),
-    discountAmount: Math.max(
+  if (promo.discount_type === "fixed") {
+    discountedTotal = Math.max(
       0,
-      Math.round(amount - finalAmount)
-    ),
+      amount - value
+    );
+  }
+
+  discountedTotal = Math.max(
+    0,
+    Math.round(discountedTotal)
+  );
+
+  return {
+    discountedTotal,
+    discountAmount:
+      amount - discountedTotal,
   };
 }
 
@@ -147,7 +257,9 @@ async function getAuthenticatedUser(request) {
   }
 
   if (
-    !authorization.toLowerCase().startsWith("bearer ")
+    !authorization
+      .toLowerCase()
+      .startsWith("bearer ")
   ) {
     return null;
   }
@@ -162,14 +274,11 @@ async function getAuthenticatedUser(request) {
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser(accessToken);
+  } = await supabase.auth.getUser(
+    accessToken
+  );
 
   if (error || !user) {
-    console.error(
-      "Supabase authentication error:",
-      error
-    );
-
     return null;
   }
 
@@ -274,50 +383,48 @@ export async function POST(request) {
     }
 
     for (
-      let clientIndex = 0;
-      clientIndex < clientCount;
-      clientIndex++
+      let i = 0;
+      i < clientCount;
+      i++
     ) {
       const services =
-        clientServices[clientIndex];
+        clientServices[i];
 
       if (
         !Array.isArray(services) ||
         services.length < 1 ||
-        services.length > MAX_SERVICES_PER_CLIENT
+        services.length >
+          MAX_SERVICES_PER_CLIENT
       ) {
         return Response.json(
           {
             error: `Client ${
-              clientIndex + 1
+              i + 1
             } must have between 1 and 4 services.`,
           },
           { status: 400 }
         );
       }
 
-      const uniqueServices =
-        new Set(services);
-
       if (
-        uniqueServices.size !==
+        new Set(services).size !==
         services.length
       ) {
         return Response.json(
           {
             error: `Client ${
-              clientIndex + 1
+              i + 1
             } cannot have the same service selected more than once.`,
           },
           { status: 400 }
         );
       }
 
-      for (const serviceName of services) {
+      for (const service of services) {
         if (
           !Object.prototype.hasOwnProperty.call(
             SERVICE_OPTIONS,
-            serviceName
+            service
           )
         ) {
           return Response.json(
@@ -332,50 +439,47 @@ export async function POST(request) {
     }
 
     for (
-      let clientIndex = 0;
-      clientIndex < clientCount;
-      clientIndex++
+      let i = 0;
+      i < clientCount;
+      i++
     ) {
-      const clientDate =
-        clientDates[clientIndex];
+      const date = clientDates[i];
+      const time = clientStartTimes[i];
 
-      const clientTime =
-        clientStartTimes[clientIndex];
-
-      if (!isValidDate(clientDate)) {
+      if (!isValidDate(date)) {
         return Response.json(
           {
             error: `Please choose a valid date for Client ${
-              clientIndex + 1
+              i + 1
             }.`,
           },
           { status: 400 }
         );
       }
 
-      if (!isValidTime(clientTime)) {
+      if (!isValidTime(time)) {
         return Response.json(
           {
             error: `Please choose a valid time for Client ${
-              clientIndex + 1
+              i + 1
             }.`,
           },
           { status: 400 }
         );
       }
 
-      const selectedDate =
-        new Date(`${clientDate}T12:00:00`);
+      const dateObject =
+        new Date(`${date}T12:00:00`);
 
       if (
         Number.isNaN(
-          selectedDate.getTime()
+          dateObject.getTime()
         )
       ) {
         return Response.json(
           {
             error: `Please choose a valid date for Client ${
-              clientIndex + 1
+              i + 1
             }.`,
           },
           { status: 400 }
@@ -386,25 +490,25 @@ export async function POST(request) {
       today.setHours(0, 0, 0, 0);
 
       const bookingDate =
-        new Date(`${clientDate}T00:00:00`);
+        new Date(`${date}T00:00:00`);
 
       if (bookingDate < today) {
         return Response.json(
           {
             error: `Client ${
-              clientIndex + 1
+              i + 1
             } cannot be booked for a date in the past.`,
           },
           { status: 400 }
         );
       }
 
-      if (selectedDate.getDay() === 0) {
+      if (dateObject.getDay() === 0) {
         return Response.json(
           {
             error: `Client ${
-              clientIndex + 1
-            } cannot be booked on Sunday because Freddy Nails is closed.`,
+              i + 1
+            } cannot be booked on Sunday.`,
           },
           { status: 400 }
         );
@@ -416,67 +520,58 @@ export async function POST(request) {
         calculateClientDuration
       );
 
-    let clientEndTimes;
-
-    try {
-      clientEndTimes =
-        clientStartTimes.map(
-          (startTime, clientIndex) => {
-            const startMinutes =
-              timeToMinutes(startTime);
-
-            const endMinutes =
-              startMinutes +
-              clientDurations[clientIndex];
-
-            if (
-              startMinutes < OPEN_MINUTES ||
-              endMinutes > CLOSE_MINUTES
-            ) {
-              throw new Error(
-                `Client ${
-                  clientIndex + 1
-                }'s appointment is outside business hours.`
-              );
-            }
-
-            return minutesToTime(endMinutes);
-          }
-        );
-    } catch (timeError) {
-      return Response.json(
-        {
-          error:
-            timeError.message ||
-            "One or more appointments are outside business hours.",
-        },
-        { status: 400 }
+    const clientPrices =
+      clientServices.map(
+        calculateClientPrice
       );
-    }
+
+    const serviceTotal =
+      clientPrices.reduce(
+        (sum, price) => sum + price,
+        0
+      );
+
+    const clientEndTimes =
+      clientStartTimes.map(
+        (startTime, i) => {
+          const start =
+            timeToMinutes(startTime);
+
+          const end =
+            start + clientDurations[i];
+
+          if (
+            start < OPEN_MINUTES ||
+            end > CLOSE_MINUTES
+          ) {
+            throw new Error(
+              `Client ${
+                i + 1
+              }'s appointment is outside business hours.`
+            );
+          }
+
+          return minutesToTime(end);
+        }
+      );
 
     for (
-      let clientIndex = 0;
-      clientIndex < clientCount;
-      clientIndex++
+      let i = 1;
+      i < clientCount;
+      i++
     ) {
-      if (clientIndex === 0) {
-        continue;
-      }
-
       if (
-        datesAreSame(
-          clientDates[clientIndex],
-          clientDates[clientIndex - 1]
-        )
+        clientDates[i] ===
+        clientDates[i - 1]
       ) {
         const previousEnd =
           timeToMinutes(
-            clientEndTimes[clientIndex - 1]
+            clientEndTimes[i - 1]
           );
 
         const currentStart =
           timeToMinutes(
-            clientStartTimes[clientIndex]
+            clientStartTimes[i]
           );
 
         if (
@@ -486,10 +581,10 @@ export async function POST(request) {
           return Response.json(
             {
               error: `Client ${
-                clientIndex + 1
+                i + 1
               } must start at least 15 minutes after Client ${
-                clientIndex
-              } finishes when they are booked on the same date.`,
+                i
+              } finishes.`,
             },
             { status: 400 }
           );
@@ -497,52 +592,21 @@ export async function POST(request) {
       }
     }
 
-    const { error: expiryError } =
-      await supabase
-        .from("appointments")
-        .update({
-          booking_status: "cancelled",
-        })
-        .eq("booking_status", "pending")
-        .lt(
-          "expires_at",
-          new Date().toISOString()
-        );
-
-    if (expiryError) {
-      console.error(
-        "Pending booking expiry error:",
-        expiryError
-      );
-    }
-
     /*
-     * Base deposit.
+     * IMPORTANT:
      *
-     * R90 per client:
-     * 1 client = R90
-     * 2 clients = R180
-     * 3 clients = R270
-     * 4 clients = R360
+     * Yoco deposit is NEVER discounted.
      */
     const depositAmount =
       DEPOSIT_PER_CLIENT *
       clientCount;
 
-    /*
-     * PROMO CODE
-     *
-     * The browser is never trusted to calculate
-     * the amount charged by Yoco.
-     *
-     * The promo is looked up again directly
-     * from Supabase here.
-     */
-    let finalDepositAmount =
-      depositAmount;
+    let discountedServiceTotal =
+      serviceTotal;
+
+    let promoDiscountAmount = 0;
 
     let appliedPromoCode = null;
-    let promoDiscountAmount = 0;
 
     if (
       typeof promoCode === "string" &&
@@ -559,7 +623,10 @@ export async function POST(request) {
         .select(
           "code, discount_type, discount_value, description, active"
         )
-        .eq("code", normalizedCode)
+        .eq(
+          "code",
+          normalizedCode
+        )
         .maybeSingle();
 
       if (promoError) {
@@ -571,7 +638,7 @@ export async function POST(request) {
         return Response.json(
           {
             error:
-              "Unable to verify the promo code. Please try again.",
+              "Unable to verify the promo code.",
           },
           { status: 500 }
         );
@@ -588,13 +655,13 @@ export async function POST(request) {
       }
 
       const discount =
-        calculateDiscountedAmount(
-          depositAmount,
+        calculateDiscount(
+          serviceTotal,
           promo
         );
 
-      finalDepositAmount =
-        discount.finalAmount;
+      discountedServiceTotal =
+        discount.discountedTotal;
 
       promoDiscountAmount =
         discount.discountAmount;
@@ -606,30 +673,19 @@ export async function POST(request) {
     const serviceSummary =
       clientServices
         .map(
-          (services, index) =>
+          (services, i) =>
             `Client ${
-              index + 1
+              i + 1
             }: ${services.join(
               " + "
-            )} — ${
-              clientDates[index]
-            } ${clientStartTimes[index]}–${clientEndTimes[index]}`
+            )} — ${clientDates[i]} ${clientStartTimes[i]}–${clientEndTimes[i]}`
         )
         .join(" | ");
 
-    const parentStartTime =
-      clientStartTimes[0];
-
-    const parentEndTime =
-      clientEndTimes[0];
-
-    const parentDuration =
-      clientDurations[0];
-
-    const expiresAt = new Date(
-      Date.now() +
-        15 * 60 * 1000
-    ).toISOString();
+    const expiresAt =
+      new Date(
+        Date.now() + 15 * 60 * 1000
+      ).toISOString();
 
     const appointmentInsert = {
       customer_name: name,
@@ -638,22 +694,25 @@ export async function POST(request) {
       service_name: serviceSummary,
       client_count: clientCount,
       booking_date: clientDates[0],
-      start_time: parentStartTime,
-      end_time: parentEndTime,
-      duration_minutes: parentDuration,
+      start_time: clientStartTimes[0],
+      end_time: clientEndTimes[0],
+      duration_minutes: clientDurations[0],
 
       deposit_per_client:
         DEPOSIT_PER_CLIENT,
 
+      /*
+       * This remains the actual Yoco
+       * payment amount.
+       */
       deposit_amount:
-        finalDepositAmount,
+        depositAmount,
 
       payment_status: "pending",
       booking_status: "pending",
       expires_at: expiresAt,
       notes: notes || null,
       profile_id: profileId,
-
       promo_code:
         appliedPromoCode,
     };
@@ -695,32 +754,32 @@ export async function POST(request) {
       );
     }
 
-    const appointmentId =
+    appointmentId =
       appointment.id;
 
     const clientRows =
       clientServices.map(
-        (services, index) => ({
+        (services, i) => ({
           appointment_id:
             appointmentId,
 
           client_number:
-            index + 1,
+            i + 1,
 
           service_name:
             services.join(" + "),
 
           booking_date:
-            clientDates[index],
+            clientDates[i],
 
           start_time:
-            clientStartTimes[index],
+            clientStartTimes[i],
 
           end_time:
-            clientEndTimes[index],
+            clientEndTimes[i],
 
           duration_minutes:
-            clientDurations[index],
+            clientDurations[i],
 
           booking_status:
             "pending",
@@ -750,19 +809,6 @@ export async function POST(request) {
           appointmentId
         );
 
-      if (
-        clientInsertError.code ===
-        "23P01"
-      ) {
-        return Response.json(
-          {
-            error:
-              "One of the selected client times was just booked by someone else. Please choose another available time.",
-          },
-          { status: 409 }
-        );
-      }
-
       return Response.json(
         {
           error:
@@ -786,16 +832,12 @@ export async function POST(request) {
       `${baseUrl}/?booking=failed&appointment=${appointmentId}#booking`;
 
     /*
-     * Yoco receives the FINAL discounted deposit.
+     * Yoco ALWAYS receives R90 per client.
      *
-     * Example:
-     * R360 deposit + 20% promo = R288
-     * Yoco receives 28800 cents.
+     * Promo discounts service price only.
      */
     const yocoAmountCents =
-      Math.round(
-        finalDepositAmount * 100
-      );
+      depositAmount * 100;
 
     const yocoResponse =
       await fetch(
@@ -871,30 +913,6 @@ export async function POST(request) {
       !checkoutId ||
       !redirectUrl
     ) {
-      console.error(
-        "Yoco returned incomplete checkout data:",
-        yocoData
-      );
-
-      await supabase
-        .from("appointment_clients")
-        .delete()
-        .eq(
-          "appointment_id",
-          appointmentId
-        );
-
-      await supabase
-        .from("appointments")
-        .update({
-          booking_status:
-            "cancelled",
-        })
-        .eq(
-          "id",
-          appointmentId
-        );
-
       return Response.json(
         {
           error:
@@ -904,9 +922,7 @@ export async function POST(request) {
       );
     }
 
-    const {
-      error: updateError,
-    } = await supabase
+    await supabase
       .from("appointments")
       .update({
         yoco_checkout_id:
@@ -917,24 +933,22 @@ export async function POST(request) {
         appointmentId
       );
 
-    if (updateError) {
-      console.error(
-        "Yoco checkout ID update error:",
-        updateError
-      );
-    }
-
     return Response.json({
       redirectUrl,
-
       appointmentId,
 
+      /*
+       * What Yoco actually charges.
+       */
       depositAmount,
 
+      /*
+       * Service pricing information.
+       */
+      serviceTotal,
       discountAmount:
         promoDiscountAmount,
-
-      finalDepositAmount,
+      discountedServiceTotal,
 
       promoCode:
         appliedPromoCode,
