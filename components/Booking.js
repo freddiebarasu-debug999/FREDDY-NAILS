@@ -153,7 +153,7 @@ function minutesToTime(minutes) {
 function formatDate(dateString) {
   if (!dateString) return "";
 
-  const date = new Date(${dateString}T12:00:00);
+  const date = new Date(`${dateString}T12:00:00`);
 
   if (Number.isNaN(date.getTime())) return dateString;
 
@@ -186,13 +186,13 @@ function getTodayString() {
   const month = String(today.getMonth() + 1).padStart(2, "0");
   const day = String(today.getDate()).padStart(2, "0");
 
-  return ${year}-${month}-${day};
+  return `${year}-${month}-${day}`;
 }
 
 function isSunday(dateString) {
   if (!dateString) return false;
 
-  const date = new Date(${dateString}T12:00:00);
+  const date = new Date(`${dateString}T12:00:00`);
 
   if (Number.isNaN(date.getTime())) return false;
 
@@ -269,12 +269,6 @@ export default function Booking() {
     [form.clientServices]
   );
 
-  /*
-   * SERVICE TOTAL
-   *
-   * This is the actual value of the services.
-   * The promo discount applies here.
-   */
   const totalServiceAmount = useMemo(
     () =>
       form.clientServices.reduce(
@@ -307,31 +301,17 @@ export default function Booking() {
       discountedServiceTotal
   );
 
-  /*
-   * IMPORTANT:
-   *
-   * The booking deposit is NEVER discounted.
-   *
-   * It remains R90 per client and is the amount
-   * sent to Yoco.
-   */
   const depositAmount =
     clientCount * DEPOSIT_PER_CLIENT;
 
   /*
-   * Apply a promo code through the validation API.
+   * Validate and apply a promo code.
    *
-   * This is shared by:
-   *
-   * 1. The normal manual promo-code button.
-   * 2. Offers clicked elsewhere on the website.
-   * 3. URL links such as:
-   *
-   *    /booking?promo=FIRSTVISIT
-   *
-   *    /booking?offer=BIRTHDAY
-   *
-   *    /booking?promoCode=BRINGAFRIEND
+   * IMPORTANT:
+   * The response is read as text first rather than
+   * calling response.json() directly. This prevents
+   * "Unexpected end of JSON input" when the API returns
+   * an empty response or a non-JSON response.
    */
   async function applyPromoCodeValue(code) {
     const cleanCode = code?.trim();
@@ -348,11 +328,6 @@ export default function Booking() {
         )}`
       );
 
-      /*
-       * Read as text first so empty/non-JSON responses
-       * do not cause an "Unexpected end of JSON input"
-       * crash.
-       */
       const rawText = await response.text();
 
       let data = null;
@@ -377,10 +352,6 @@ export default function Booking() {
         );
       }
 
-      /*
-       * Only accept a promo if the API actually returned
-       * complete promo information.
-       */
       if (
         !data ||
         !data.code ||
@@ -410,9 +381,6 @@ export default function Booking() {
     }
   }
 
-  /*
-   * Manual promo-code application.
-   */
   async function applyPromoCode() {
     const code = promoCode.trim();
 
@@ -427,9 +395,6 @@ export default function Booking() {
     setPromoError("");
   }
 
-  /*
-   * Load logged-in client details.
-   */
   useEffect(() => {
     let mounted = true;
 
@@ -497,19 +462,6 @@ export default function Booking() {
     };
   }, []);
 
-  /*
-   * Handle information passed into the booking page
-   * from clickable services, shapes and offers.
-   *
-   * Supported:
-   *
-   * /booking?service=...
-   * /booking?shape=...
-   *
-   * /booking?promo=FIRSTVISIT
-   * /booking?offer=FIRSTVISIT
-   * /booking?promoCode=FIRSTVISIT
-   */
   useEffect(() => {
     const params = new URLSearchParams(
       window.location.search
@@ -518,9 +470,6 @@ export default function Booking() {
     const shapeParam = params.get("shape");
     const serviceParam = params.get("service");
 
-    /*
-     * Offers can use any of these parameter names.
-     */
     const promoParam =
       params.get("promo") ||
       params.get("offer") ||
@@ -552,10 +501,6 @@ export default function Booking() {
         )
       : null;
 
-    /*
-     * Insert a linked service or shape into the
-     * booking form.
-     */
     if (validShape || validService) {
       setForm((current) => ({
         ...current,
@@ -573,15 +518,6 @@ export default function Booking() {
       }));
     }
 
-    /*
-     * Automatically apply a clicked offer.
-     *
-     * Example:
-     *
-     * /booking?promo=FIRSTVISIT
-     *
-     * The client does not have to type the code.
-     */
     if (promoParam) {
       const cleanPromo =
         promoParam.trim();
@@ -872,9 +808,6 @@ export default function Booking() {
     setError("");
   }
 
-  /*
-   * Availability.
-   */
   useEffect(() => {
     let cancelled = false;
 
@@ -1073,9 +1006,6 @@ export default function Booking() {
     return times;
   }
 
-  /*
-   * Submit booking.
-   */
   async function handleSubmit(
     event
   ) {
@@ -1269,7 +1199,7 @@ export default function Booking() {
         session?.access_token
       ) {
         headers.Authorization =
-          Bearer ${session.access_token};
+          `Bearer ${session.access_token}`;
       }
 
       const clientEndTimes =
@@ -1318,11 +1248,6 @@ export default function Booking() {
               notes:
                 form.notes.trim(),
 
-              /*
-               * The automatically selected
-               * offer ends up here exactly
-               * like a manually entered promo.
-               */
               promoCode:
                 appliedPromo?.code ||
                 null,
@@ -1360,9 +1285,6 @@ export default function Booking() {
     }
   }
 
-  /*
-   * Load booking confirmation after Yoco.
-   */
   useEffect(() => {
     const params =
       new URLSearchParams(
@@ -2342,7 +2264,6 @@ export default function Booking() {
             </div>
           )}
 
-          {/* PROMO / OFFER */}
           <div className="mt-8 pt-6 border-t border-white/[0.09]">
             <span className="block text-xs font-bold tracking-[0.12em] uppercase mb-2 text-[#c9c0b6]">
               Promo code / Offer
@@ -2428,7 +2349,6 @@ export default function Booking() {
             )}
           </div>
 
-          {/* PRICE SUMMARY */}
           <div className="border-t border-white/[0.09] pt-6 mt-6 space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-xs uppercase tracking-[0.12em] text-[#8f877e]">
