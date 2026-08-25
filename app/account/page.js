@@ -1,40 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
-type Profile = {
-  full_name: string | null;
-  phone: string | null;
-  email: string | null;
-};
-
-type Appointment = {
-  id: string;
-  customer_name: string | null;
-  customer_phone: string | null;
-  customer_email: string | null;
-  service_name: string | null;
-  client_count: number | null;
-  booking_date: string | null;
-  start_time: string | null;
-  end_time: string | null;
-  duration_minutes: number | null;
-  deposit_per_client: number | null;
-  deposit_amount: number | null;
-  payment_status: string | null;
-  booking_status: string | null;
-  notes: string | null;
-  created_at: string | null;
-  expires_at: string | null;
-};
-
-type ErrorLike = {
-  message?: string;
-};
-
-function formatDate(dateString: string | null) {
+function formatDate(dateString) {
   if (!dateString) return "—";
 
   const date = new Date(`${dateString}T12:00:00`);
@@ -51,12 +20,10 @@ function formatDate(dateString: string | null) {
   });
 }
 
-function formatTime(timeString: string | null) {
+function formatTime(timeString) {
   if (!timeString) return "—";
 
-  const [hours, minutes] = timeString
-    .split(":")
-    .map(Number);
+  const [hours, minutes] = timeString.split(":").map(Number);
 
   if (Number.isNaN(hours) || Number.isNaN(minutes)) {
     return timeString;
@@ -72,7 +39,7 @@ function formatTime(timeString: string | null) {
   });
 }
 
-function formatStatus(status: string | null) {
+function formatStatus(status) {
   if (!status) return "Pending";
 
   const value = String(status)
@@ -84,7 +51,7 @@ function formatStatus(status: string | null) {
   );
 }
 
-function statusClass(status: string | null) {
+function statusClass(status) {
   const value = String(status || "").toLowerCase();
 
   if (value === "confirmed") {
@@ -112,7 +79,7 @@ function statusClass(status: string | null) {
   return "border-white/[0.12] bg-white/[0.04] text-[#c9c0b6]";
 }
 
-function paymentLabel(status: string | null) {
+function paymentLabel(status) {
   const value = String(status || "").toLowerCase();
 
   if (
@@ -126,16 +93,17 @@ function paymentLabel(status: string | null) {
     return "Payment Failed";
   }
 
-  if (value === "cancelled") {
+  if (
+    value === "cancelled" ||
+    value === "canceled"
+  ) {
     return "Cancelled";
   }
 
   return "Deposit Pending";
 }
 
-function isUnpaidBooking(
-  appointment: Appointment
-) {
+function isUnpaidBooking(appointment) {
   const bookingStatus = String(
     appointment?.booking_status || ""
   ).toLowerCase();
@@ -152,9 +120,7 @@ function isUnpaidBooking(
   );
 }
 
-function isCancelledBooking(
-  appointment: Appointment
-) {
+function isCancelledBooking(appointment) {
   const bookingStatus = String(
     appointment?.booking_status || ""
   ).toLowerCase();
@@ -165,24 +131,17 @@ function isCancelledBooking(
   );
 }
 
-function getErrorMessage(
-  error: unknown,
-  fallback: string
-) {
+function getErrorMessage(error, fallback) {
   if (
     typeof error === "object" &&
     error !== null &&
     "message" in error
   ) {
-    const possibleError =
-      error as ErrorLike;
-
     if (
-      typeof possibleError.message ===
-        "string" &&
-      possibleError.message
+      typeof error.message === "string" &&
+      error.message
     ) {
-      return possibleError.message;
+      return error.message;
     }
   }
 
@@ -194,31 +153,16 @@ function getErrorMessage(
 }
 
 export default function AccountPage() {
-  const [user, setUser] =
-    useState<User | null>(null);
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null);
+  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [message, setMessage] = useState("");
 
-  const [profile, setProfile] =
-    useState<Profile | null>(null);
-
-  const [appointments, setAppointments] =
-    useState<Appointment[]>([]);
-
-  const [loading, setLoading] =
-    useState<boolean>(true);
-
-  const [actionLoading, setActionLoading] =
-    useState<string | null>(null);
-
-  const [error, setError] =
-    useState<string>("");
-
-  const [actionError, setActionError] =
-    useState<string>("");
-
-  const [message, setMessage] =
-    useState<string>("");
-
-  async function loadAccount(): Promise<void> {
+  async function loadAccount() {
     setLoading(true);
     setError("");
 
@@ -234,16 +178,12 @@ export default function AccountPage() {
           sessionError
         );
 
-        window.location.href =
-          "/account/login";
-
+        window.location.href = "/account/login";
         return;
       }
 
       if (!session?.user) {
-        window.location.href =
-          "/account/login";
-
+        window.location.href = "/account/login";
         return;
       }
 
@@ -257,9 +197,7 @@ export default function AccountPage() {
       ] = await Promise.all([
         supabase
           .from("profiles")
-          .select(
-            "full_name, phone, email"
-          )
+          .select("full_name, phone, email")
           .eq("id", currentUser.id)
           .maybeSingle(),
 
@@ -284,10 +222,7 @@ export default function AccountPage() {
             created_at,
             expires_at
           `)
-          .eq(
-            "profile_id",
-            currentUser.id
-          )
+          .eq("profile_id", currentUser.id)
           .order("booking_date", {
             ascending: true,
           })
@@ -307,36 +242,27 @@ export default function AccountPage() {
         throw appointmentsResult.error;
       }
 
-      setProfile(
-        profileResult.data as Profile | null
-      );
-
+      setProfile(profileResult.data || null);
       setAppointments(
-        (appointmentsResult.data ||
-          []) as Appointment[]
+        appointmentsResult.data || []
       );
-    } catch (err: unknown) {
+    } catch (err) {
       console.error(
         "Account loading error:",
         err
       );
 
-      const errorMessage =
-        getErrorMessage(
-          err,
-          "Unable to load your account."
-        );
+      const errorMessage = getErrorMessage(
+        err,
+        "Unable to load your account."
+      );
 
       if (
         errorMessage
           .toLowerCase()
-          .includes(
-            "auth session missing"
-          )
+          .includes("auth session missing")
       ) {
-        window.location.href =
-          "/account/login";
-
+        window.location.href = "/account/login";
         return;
       }
 
@@ -350,7 +276,7 @@ export default function AccountPage() {
     void loadAccount();
   }, []);
 
-  async function getAccessToken(): Promise<string> {
+  async function getAccessToken() {
     const {
       data: { session },
       error: sessionError,
@@ -362,8 +288,7 @@ export default function AccountPage() {
       );
     }
 
-    const accessToken =
-      session?.access_token;
+    const accessToken = session?.access_token;
 
     if (!accessToken) {
       throw new Error(
@@ -374,43 +299,32 @@ export default function AccountPage() {
     return accessToken;
   }
 
-  async function handlePayDeposit(
-    appointment: Appointment
-  ): Promise<void> {
+  async function handlePayDeposit(appointment) {
     if (!appointment?.id) return;
 
     setActionError("");
     setMessage("");
 
-    setActionLoading(
-      `pay-${appointment.id}`
-    );
+    setActionLoading(`pay-${appointment.id}`);
 
     try {
-      const accessToken =
-        await getAccessToken();
+      const accessToken = await getAccessToken();
 
       const response = await fetch(
         "/api/account/checkout",
         {
           method: "POST",
           headers: {
-            "Content-Type":
-              "application/json",
-            Authorization:
-              `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            appointmentId:
-              appointment.id,
+            appointmentId: appointment.id,
           }),
         }
       );
 
-      const data: {
-        error?: string;
-        redirectUrl?: string;
-      } = await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -427,7 +341,7 @@ export default function AccountPage() {
 
       window.location.href =
         data.redirectUrl;
-    } catch (err: unknown) {
+    } catch (err) {
       console.error(
         "Deposit payment error:",
         err
@@ -444,9 +358,7 @@ export default function AccountPage() {
     }
   }
 
-  async function handleCancelBooking(
-    appointment: Appointment
-  ): Promise<void> {
+  async function handleCancelBooking(appointment) {
     if (!appointment?.id) return;
 
     const paymentStatus = String(
@@ -461,10 +373,9 @@ export default function AccountPage() {
       ? "Are you sure you want to cancel this confirmed appointment?\n\nYour Google Calendar appointment will be removed and your time slot will be released.\n\nYour deposit will NOT be automatically refunded. If you need to discuss your deposit, please contact Freddy Nails directly.\n\nContinue with cancellation?"
       : "Are you sure you want to cancel this booking?\n\nYour selected time will be released and you will need to make a new booking if you change your mind.\n\nContinue with cancellation?";
 
-    const confirmed =
-      window.confirm(
-        confirmationMessage
-      );
+    const confirmed = window.confirm(
+      confirmationMessage
+    );
 
     if (!confirmed) {
       return;
@@ -498,9 +409,8 @@ export default function AccountPage() {
         }
       );
 
-      const data: {
-        error?: string;
-      } = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -518,7 +428,7 @@ export default function AccountPage() {
       setActionLoading(null);
 
       await loadAccount();
-    } catch (err: unknown) {
+    } catch (err) {
       console.error(
         "Cancel booking error:",
         err
@@ -535,7 +445,7 @@ export default function AccountPage() {
     }
   }
 
-  async function handleLogout(): Promise<void> {
+  async function handleLogout() {
     await supabase.auth.signOut();
 
     window.location.href = "/";
@@ -608,9 +518,7 @@ export default function AccountPage() {
             `${appointment.booking_date}T00:00:00`
           );
 
-        return (
-          appointmentDate >= today
-        );
+        return appointmentDate >= today;
       }
     );
 
@@ -639,14 +547,14 @@ export default function AccountPage() {
 
   const displayName =
     profile?.full_name ||
-    user?.user_metadata
-      ?.full_name ||
+    user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
     "Client";
 
   return (
     <main className="min-h-screen bg-[#11100f] px-5 py-12 text-[#f4eee6]">
       <div className="mx-auto max-w-[1180px]">
+
         <div className="flex flex-wrap items-center justify-between gap-5">
           <div>
             <a
@@ -717,6 +625,7 @@ export default function AccountPage() {
           {upcoming ? (
             <div className="border border-white/[0.10] bg-[#181614]">
               <div className="p-6 md:p-8">
+
                 <div className="flex flex-wrap items-start justify-between gap-5">
                   <div>
                     <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
@@ -763,6 +672,7 @@ export default function AccountPage() {
                 </div>
 
                 <div className="mt-7 grid gap-5 border-t border-white/[0.08] pt-6 sm:grid-cols-3">
+
                   <div>
                     <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
                       Clients
@@ -805,6 +715,7 @@ export default function AccountPage() {
                   upcoming
                 ) && (
                   <div className="mt-7 border-t border-[#d6b36a]/20 pt-6">
+
                     <p className="text-sm leading-relaxed text-[#a79a87]">
                       Your booking is being
                       held for you. Complete
@@ -818,6 +729,7 @@ export default function AccountPage() {
                     </p>
 
                     <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+
                       <button
                         type="button"
                         onClick={() => {
@@ -836,9 +748,7 @@ export default function AccountPage() {
                           : `Pay R${Number(
                               upcoming.deposit_amount ||
                                 0
-                            ).toFixed(
-                              0
-                            )} Deposit →`}
+                            ).toFixed(0)} Deposit →`}
                       </button>
 
                       <button
@@ -858,6 +768,7 @@ export default function AccountPage() {
                           ? "Cancelling..."
                           : "Cancel Booking"}
                       </button>
+
                     </div>
                   </div>
                 )}
@@ -871,6 +782,7 @@ export default function AccountPage() {
                   ).toLowerCase() ===
                     "confirmed" && (
                     <div className="mt-7 border-t border-emerald-400/20 pt-6">
+
                       <p className="text-sm text-emerald-300">
                         Your appointment is
                         confirmed. We look
@@ -902,6 +814,7 @@ export default function AccountPage() {
                         are not automatically
                         refunded.
                       </p>
+
                     </div>
                   )}
 
@@ -914,6 +827,7 @@ export default function AccountPage() {
                   ).toLowerCase() ===
                     "approved" && (
                     <div className="mt-7 border-t border-[#d6b36a]/20 pt-6">
+
                       <p className="text-sm text-[#d6b36a]">
                         Your booking has been
                         approved.
@@ -936,12 +850,15 @@ export default function AccountPage() {
                           ? "Cancelling..."
                           : "Cancel Booking"}
                       </button>
+
                     </div>
                   )}
+
               </div>
             </div>
           ) : (
             <div className="border border-white/[0.10] bg-[#181614] p-7 md:p-8">
+
               <p className="font-serif text-xl text-[#f4eee6]">
                 No upcoming appointment.
               </p>
@@ -958,12 +875,14 @@ export default function AccountPage() {
               >
                 Book an appointment →
               </a>
+
             </div>
           )}
         </section>
 
         <section className="mt-12">
           <div className="border border-white/[0.10] bg-[#181614] p-6 md:p-8">
+
             <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[#d6b36a]">
               Profile
             </p>
@@ -973,6 +892,7 @@ export default function AccountPage() {
             </h2>
 
             <div className="mt-7 grid gap-6 sm:grid-cols-3">
+
               <div>
                 <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
                   Full name
@@ -991,8 +911,7 @@ export default function AccountPage() {
 
                 <p className="mt-1 text-sm text-[#f4eee6]">
                   {profile?.phone ||
-                    user?.user_metadata
-                      ?.phone ||
+                    user?.user_metadata?.phone ||
                     "—"}
                 </p>
               </div>
@@ -1008,11 +927,13 @@ export default function AccountPage() {
                     "—"}
                 </p>
               </div>
+
             </div>
           </div>
         </section>
 
         <section className="mt-12 pb-16">
+
           <div className="mb-5">
             <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[#d6b36a]">
               Past bookings
@@ -1025,80 +946,79 @@ export default function AccountPage() {
 
           {history.length > 0 ? (
             <div className="space-y-3">
+
               {history
                 .slice()
                 .reverse()
-                .map(
-                  (
-                    appointment
-                  ) => (
-                    <div
-                      key={
-                        appointment.id
-                      }
-                      className="border border-white/[0.08] bg-[#181614] p-5"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div>
-                          <p className="text-sm font-semibold text-[#f4eee6]">
-                            {formatDate(
-                              appointment.booking_date
-                            )}
-                          </p>
+                .map((appointment) => (
+                  <div
+                    key={appointment.id}
+                    className="border border-white/[0.08] bg-[#181614] p-5"
+                  >
 
-                          <p className="mt-1 text-xs text-[#8f877e]">
-                            {formatTime(
-                              appointment.start_time
-                            )}{" "}
-                            –{" "}
-                            {formatTime(
-                              appointment.end_time
-                            )}
-                          </p>
-                        </div>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
 
-                        <span
-                          className={`border px-3 py-1.5 text-[0.6rem] font-bold uppercase tracking-[0.14em] ${statusClass(
-                            appointment.booking_status
-                          )}`}
-                        >
-                          {formatStatus(
-                            appointment.booking_status
+                      <div>
+                        <p className="text-sm font-semibold text-[#f4eee6]">
+                          {formatDate(
+                            appointment.booking_date
+                          )}
+                        </p>
+
+                        <p className="mt-1 text-xs text-[#8f877e]">
+                          {formatTime(
+                            appointment.start_time
+                          )}{" "}
+                          –{" "}
+                          {formatTime(
+                            appointment.end_time
+                          )}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`border px-3 py-1.5 text-[0.6rem] font-bold uppercase tracking-[0.14em] ${statusClass(
+                          appointment.booking_status
+                        )}`}
+                      >
+                        {formatStatus(
+                          appointment.booking_status
+                        )}
+                      </span>
+
+                    </div>
+
+                    <p className="mt-4 text-xs leading-relaxed text-[#a79a87]">
+                      {appointment.service_name ||
+                        "—"}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[0.68rem] text-[#817970]">
+
+                      <span>
+                        Deposit:{" "}
+                        <span className="text-[#c9c0b6]">
+                          R
+                          {Number(
+                            appointment.deposit_amount ||
+                              0
+                          ).toFixed(2)}
+                        </span>
+                      </span>
+
+                      <span>
+                        Payment:{" "}
+                        <span className="text-[#c9c0b6]">
+                          {paymentLabel(
+                            appointment.payment_status
                           )}
                         </span>
-                      </div>
+                      </span>
 
-                      <p className="mt-4 text-xs leading-relaxed text-[#a79a87]">
-                        {appointment.service_name ||
-                          "—"}
-                      </p>
-
-                      <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[0.68rem] text-[#817970]">
-                        <span>
-                          Deposit:{" "}
-                          <span className="text-[#c9c0b6]">
-                            R
-                            {Number(
-                              appointment.deposit_amount ||
-                                0
-                            ).toFixed(
-                              2
-                            )}
-                          </span>
-                        </span>
-
-                        <span>
-                          Payment:{" "}
-                          <span className="text-[#c9c0b6]">
-                            {paymentLabel(
-                              appointment.payment_status
-                            )}
-                          </span>
-                        </span>
-                      </div>
                     </div>
-                  )
-                )}
+                  </div>
+                ))}
+
             </div>
           ) : (
             <div className="border border-white/[0.08] bg-[#181614] p-6">
@@ -1107,6 +1027,7 @@ export default function AccountPage() {
               </p>
             </div>
           )}
+
         </section>
 
         <div className="pb-10 sm:hidden">
@@ -1117,6 +1038,7 @@ export default function AccountPage() {
             Book an appointment →
           </a>
         </div>
+
       </div>
     </main>
   );
