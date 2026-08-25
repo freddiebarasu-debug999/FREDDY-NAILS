@@ -1,14 +1,17 @@
 export const dynamic = "force-dynamic";
+
 import { createClient } from "@supabase/supabase-js";
-import type { NextRequest } from "next/server";
+
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 if (!supabaseUrl || !supabaseServiceRoleKey) {
   throw new Error(
     "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variable."
   );
 }
+
 const supabase = createClient(
   supabaseUrl,
   supabaseServiceRoleKey,
@@ -19,12 +22,15 @@ const supabase = createClient(
     },
   }
 );
+
 const DEPOSIT_PER_CLIENT = 90;
 const MAX_CLIENTS = 4;
 const MAX_SERVICES_PER_CLIENT = 4;
+
 const OPEN_MINUTES = 9 * 60 + 30;
 const CLOSE_MINUTES = 17 * 60 + 30;
-const SERVICE_OPTIONS: Record<string, number> = {
+
+const SERVICE_OPTIONS = {
   "Acrylic — Plain Short–Medium (R200)": 90,
   "Acrylic — Plain Long (R250)": 105,
   "Acrylic — Plain XL–XXXL (R300)": 120,
@@ -34,21 +40,26 @@ const SERVICE_OPTIONS: Record<string, number> = {
   "Acrylic — Ombré Short–Medium (R250)": 120,
   "Acrylic — Ombré Long (R300)": 135,
   "Acrylic — Ombré XL–XXXL (R350)": 150,
+
   "Gel — Overlay (R200)": 75,
   "Gel — Plain Short–Medium (R250)": 90,
   "Gel — Plain Long (R300)": 100,
   "Gel — French Short–Medium (R300)": 95,
   "Gel — French Long (R350)": 110,
+
   "Pedicure — Gel Overlay (R150)": 45,
   "Pedicure — Gel Full Tips (R200)": 60,
   "Pedicure — Acrylic Overlay (R180)": 55,
   "Pedicure — Acrylic Full Tips (R200)": 65,
   "Pedicure — Acrylic French Tips (R250)": 75,
+
   "Lashes — Cluster (R130)": 45,
   "Lashes — Cateye (R150)": 60,
   "Lashes — Classic (R180)": 90,
+
   "Foot Spa — Basic (R200)": 30,
   "Foot Spa — Luxury (R280)": 45,
+
   "Extra — Buff & Shine (R150)": 30,
   "Extra — Fill-in @3 weeks (R180)": 75,
   "Extra — Nail Repair (R20–R30)": 15,
@@ -57,47 +68,8 @@ const SERVICE_OPTIONS: Record<string, number> = {
   "Extra — Rhinestones (R10–R15)": 10,
   "Extra — 3D Art (R50–R100)": 30,
 };
-type Promo = {
-  code: string;
-  discount_type: "percent" | "fixed";
-  discount_value: number;
-  description: string | null;
-  active: boolean;
-};
-type BookingBody = {
-  name?: string;
-  phone?: string;
-  email?: string;
-  clientServices?: string[][];
-  clientCount?: number;
-  clientDates?: string[];
-  clientStartTimes?: string[];
-  notes?: string;
-  promoCode?: string;
-};
-type AppointmentInsert = {
-  customer_name: string;
-  customer_phone: string;
-  customer_email: string;
-  service_name: string;
-  client_count: number;
-  booking_date: string;
-  start_time: string;
-  end_time: string;
-  duration_minutes: number;
-  deposit_per_client: number;
-  deposit_amount: number;
-  payment_status: string;
-  booking_status: string;
-  expires_at: string;
-  notes: string | null;
-  profile_id: string | null;
-  promo_code: string | null;
-};
-const BUILT_IN_PROMOS: Record<
-  string,
-  Promo
-> = {
+
+const BUILT_IN_PROMOS = {
   FIRSTVISIT: {
     code: "FIRSTVISIT",
     discount_type: "percent",
@@ -105,162 +77,132 @@ const BUILT_IN_PROMOS: Record<
     description: "15% off your first visit",
     active: true,
   },
+
   FRIEND50: {
     code: "FRIEND50",
     discount_type: "fixed",
     discount_value: 50,
-    description:
-      "R50 off when you bring a friend",
+    description: "R50 off when you bring a friend",
     active: true,
   },
+
   BIRTHDAY: {
     code: "BIRTHDAY",
     discount_type: "fixed",
     discount_value: 50,
-    description:
-      "Birthday special — R50 off",
+    description: "Birthday special — R50 off",
     active: true,
   },
 };
-function timeToMinutes(time: string): number {
-  const [hours, minutes] =
-    time.split(":").map(Number);
+
+function timeToMinutes(time) {
+  const [hours, minutes] = time.split(":").map(Number);
   return hours * 60 + minutes;
 }
-function minutesToTime(minutes: number): string {
+
+function minutesToTime(minutes) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  return `${String(hours).padStart(
-    2,
-    "0"
-  )}:${String(mins).padStart(2, "0")}`;
+
+  return `${String(hours).padStart(2, "0")}:${String(
+    mins
+  ).padStart(2, "0")}`;
 }
-function isValidDate(
-  date: string
-): boolean {
+
+function isValidDate(date) {
   return /^\d{4}-\d{2}-\d{2}$/.test(date);
 }
-function isValidTime(
-  time: string
-): boolean {
+
+function isValidTime(time) {
   return /^\d{2}:\d{2}$/.test(time);
 }
-function isValidEmail(
-  email: string
-): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-    email
-  );
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
-function calculateClientDuration(
-  services: string[]
-): number {
+
+function calculateClientDuration(services) {
   return services.reduce(
     (total, serviceName) =>
-      total +
-      (SERVICE_OPTIONS[serviceName] ?? 0),
+      total + (SERVICE_OPTIONS[serviceName] ?? 0),
     0
   );
 }
-function extractServicePrice(
-  serviceName: string
-): number {
+
+function extractServicePrice(serviceName) {
   if (!serviceName) return 0;
-  const match =
-    serviceName.match(
-      /\(R(\d+)(?:–\d+)?\)/
-    );
+
+  const match = serviceName.match(/\(R(\d+)(?:–\d+)?\)/);
+
   if (!match) return 0;
+
   return Number(match[1]) || 0;
 }
-function calculateServiceTotal(
-  clientServices: string[][]
-): number {
+
+function calculateServiceTotal(clientServices) {
   return clientServices.reduce(
     (total, services) =>
       total +
       services.reduce(
         (clientTotal, serviceName) =>
-          clientTotal +
-          extractServicePrice(
-            serviceName
-          ),
+          clientTotal + extractServicePrice(serviceName),
         0
       ),
     0
   );
 }
-function calculateDiscountedAmount(
-  amount: number,
-  promo: Promo | null
-): {
-  finalAmount: number;
-  discountAmount: number;
-} {
+
+function calculateDiscountedAmount(amount, promo) {
   if (!promo || !promo.active) {
     return {
       finalAmount: amount,
       discountAmount: 0,
     };
   }
-  const discountValue = Number(
-    promo.discount_value
-  );
-  if (
-    !Number.isFinite(discountValue) ||
-    discountValue < 0
-  ) {
+
+  const discountValue = Number(promo.discount_value);
+
+  if (!Number.isFinite(discountValue) || discountValue < 0) {
     return {
       finalAmount: amount,
       discountAmount: 0,
     };
   }
+
   let finalAmount = amount;
-  if (
-    promo.discount_type ===
-    "percent"
-  ) {
-    const percentage = Math.min(
-      discountValue,
-      100
-    );
+
+  if (promo.discount_type === "percent") {
+    const percentage = Math.min(discountValue, 100);
+
     finalAmount = Math.round(
-      amount *
-        (1 - percentage / 100)
+      amount * (1 - percentage / 100)
     );
-  } else if (
-    promo.discount_type ===
-    "fixed"
-  ) {
+  } else if (promo.discount_type === "fixed") {
     finalAmount = Math.max(
       0,
       amount - discountValue
     );
   }
-  finalAmount = Math.max(
-    0,
-    Math.round(finalAmount)
-  );
+
+  finalAmount = Math.max(0, Math.round(finalAmount));
+
   return {
     finalAmount,
     discountAmount: Math.max(
       0,
-      Math.round(
-        amount - finalAmount
-      )
+      Math.round(amount - finalAmount)
     ),
   };
 }
-async function getAuthenticatedUser(
-  request: NextRequest
-) {
+
+async function getAuthenticatedUser(request) {
   const authorization =
-    request.headers.get(
-      "authorization"
-    );
+    request.headers.get("authorization");
+
   if (!authorization) {
     return null;
   }
+
   if (
     !authorization
       .toLowerCase()
@@ -268,34 +210,36 @@ async function getAuthenticatedUser(
   ) {
     return null;
   }
-  const accessToken =
-    authorization
-      .slice(7)
-      .trim();
+
+  const accessToken = authorization
+    .slice(7)
+    .trim();
+
   if (!accessToken) {
     return null;
   }
+
   const {
     data: { user },
     error,
-  } =
-    await supabase.auth.getUser(
-      accessToken
-    );
+  } = await supabase.auth.getUser(accessToken);
+
   if (error || !user) {
     console.error(
       "Supabase authentication error:",
       error
     );
+
     return null;
   }
+
   return user;
 }
-async function getPromo(
-  code: string
-): Promise<Promo | null> {
+
+async function getPromo(code) {
   const normalizedCode =
     code.trim().toUpperCase();
+
   const {
     data,
     error,
@@ -304,36 +248,28 @@ async function getPromo(
     .select(
       "code, discount_type, discount_value, description, active"
     )
-    .eq(
-      "code",
-      normalizedCode
-    )
+    .eq("code", normalizedCode)
     .maybeSingle();
+
   if (!error && data) {
-    return data as Promo;
+    return data;
   }
-  return (
-    BUILT_IN_PROMOS[
-      normalizedCode
-    ] ?? null
-  );
+
+  return BUILT_IN_PROMOS[normalizedCode] ?? null;
 }
+
 async function cancelExpiredPendingBookings() {
-  const { error } =
-    await supabase
-      .from("appointments")
-      .update({
-        booking_status:
-          "cancelled",
-      })
-      .eq(
-        "booking_status",
-        "pending"
-      )
-      .lt(
-        "expires_at",
-        new Date().toISOString()
-      );
+  const { error } = await supabase
+    .from("appointments")
+    .update({
+      booking_status: "cancelled",
+    })
+    .eq("booking_status", "pending")
+    .lt(
+      "expires_at",
+      new Date().toISOString()
+    );
+
   if (error) {
     console.error(
       "Expired booking cleanup error:",
@@ -341,53 +277,44 @@ async function cancelExpiredPendingBookings() {
     );
   }
 }
-async function cancelAppointment(
-  appointmentId: string
-) {
+
+async function cancelAppointment(appointmentId) {
   await supabase
     .from("appointment_clients")
     .delete()
-    .eq(
-      "appointment_id",
-      appointmentId
-    );
+    .eq("appointment_id", appointmentId);
+
   await supabase
     .from("appointments")
     .update({
-      booking_status:
-        "cancelled",
+      booking_status: "cancelled",
     })
-    .eq(
-      "id",
-      appointmentId
-    );
+    .eq("id", appointmentId);
 }
-export async function POST(
-  request: NextRequest
-) {
-  let appointmentId: string | null =
-    null;
+
+export async function POST(request) {
+  let appointmentId = null;
+
   try {
     const authenticatedUser =
-      await getAuthenticatedUser(
-        request
-      );
+      await getAuthenticatedUser(request);
+
     const profileId =
-      authenticatedUser?.id ??
-      null;
-    let body: BookingBody;
+      authenticatedUser?.id ?? null;
+
+    let body;
+
     try {
-      body =
-        (await request.json()) as BookingBody;
+      body = await request.json();
     } catch {
       return Response.json(
         {
-          error:
-            "Invalid booking request.",
+          error: "Invalid booking request.",
         },
         { status: 400 }
       );
     }
+
     const {
       name,
       phone,
@@ -399,11 +326,8 @@ export async function POST(
       notes,
       promoCode,
     } = body;
-    if (
-      !name ||
-      !phone ||
-      !email
-    ) {
+
+    if (!name || !phone || !email) {
       return Response.json(
         {
           error:
@@ -412,9 +336,8 @@ export async function POST(
         { status: 400 }
       );
     }
-    if (
-      !isValidEmail(email)
-    ) {
+
+    if (!isValidEmail(email)) {
       return Response.json(
         {
           error:
@@ -423,10 +346,9 @@ export async function POST(
         { status: 400 }
       );
     }
+
     if (
-      !Number.isInteger(
-        clientCount
-      ) ||
+      !Number.isInteger(clientCount) ||
       clientCount < 1 ||
       clientCount > MAX_CLIENTS
     ) {
@@ -438,12 +360,10 @@ export async function POST(
         { status: 400 }
       );
     }
+
     if (
-      !Array.isArray(
-        clientServices
-      ) ||
-      clientServices.length !==
-        clientCount
+      !Array.isArray(clientServices) ||
+      clientServices.length !== clientCount
     ) {
       return Response.json(
         {
@@ -453,12 +373,10 @@ export async function POST(
         { status: 400 }
       );
     }
+
     if (
-      !Array.isArray(
-        clientDates
-      ) ||
-      clientDates.length !==
-        clientCount
+      !Array.isArray(clientDates) ||
+      clientDates.length !== clientCount
     ) {
       return Response.json(
         {
@@ -468,12 +386,10 @@ export async function POST(
         { status: 400 }
       );
     }
+
     if (
-      !Array.isArray(
-        clientStartTimes
-      ) ||
-      clientStartTimes.length !==
-        clientCount
+      !Array.isArray(clientStartTimes) ||
+      clientStartTimes.length !== clientCount
     ) {
       return Response.json(
         {
@@ -483,22 +399,19 @@ export async function POST(
         { status: 400 }
       );
     }
+
     for (
       let clientIndex = 0;
       clientIndex < clientCount;
       clientIndex++
     ) {
       const services =
-        clientServices[
-          clientIndex
-        ];
+        clientServices[clientIndex];
+
       if (
-        !Array.isArray(
-          services
-        ) ||
+        !Array.isArray(services) ||
         services.length < 1 ||
-        services.length >
-          MAX_SERVICES_PER_CLIENT
+        services.length > MAX_SERVICES_PER_CLIENT
       ) {
         return Response.json(
           {
@@ -509,8 +422,10 @@ export async function POST(
           { status: 400 }
         );
       }
+
       const uniqueServices =
         new Set(services);
+
       if (
         uniqueServices.size !==
         services.length
@@ -524,9 +439,8 @@ export async function POST(
           { status: 400 }
         );
       }
-      for (
-        const serviceName of services
-      ) {
+
+      for (const serviceName of services) {
         if (
           !Object.prototype.hasOwnProperty.call(
             SERVICE_OPTIONS,
@@ -543,24 +457,19 @@ export async function POST(
         }
       }
     }
+
     for (
       let clientIndex = 0;
       clientIndex < clientCount;
       clientIndex++
     ) {
       const clientDate =
-        clientDates[
-          clientIndex
-        ];
+        clientDates[clientIndex];
+
       const clientTime =
-        clientStartTimes[
-          clientIndex
-        ];
-      if (
-        !isValidDate(
-          clientDate
-        )
-      ) {
+        clientStartTimes[clientIndex];
+
+      if (!isValidDate(clientDate)) {
         return Response.json(
           {
             error: `Please choose a valid date for Client ${
@@ -570,11 +479,8 @@ export async function POST(
           { status: 400 }
         );
       }
-      if (
-        !isValidTime(
-          clientTime
-        )
-      ) {
+
+      if (!isValidTime(clientTime)) {
         return Response.json(
           {
             error: `Please choose a valid time for Client ${
@@ -584,25 +490,18 @@ export async function POST(
           { status: 400 }
         );
       }
+
       const selectedDate =
-        new Date(
-          `${clientDate}T12:00:00`
-        );
-      const today =
-        new Date();
-      today.setHours(
-        0,
-        0,
-        0,
-        0
-      );
+        new Date(`${clientDate}T12:00:00`);
+
+      const today = new Date();
+
+      today.setHours(0, 0, 0, 0);
+
       const bookingDate =
-        new Date(
-          `${clientDate}T00:00:00`
-        );
-      if (
-        bookingDate < today
-      ) {
+        new Date(`${clientDate}T00:00:00`);
+
+      if (bookingDate < today) {
         return Response.json(
           {
             error: `Client ${
@@ -612,10 +511,8 @@ export async function POST(
           { status: 400 }
         );
       }
-      if (
-        selectedDate.getDay() ===
-        0
-      ) {
+
+      if (selectedDate.getDay() === 0) {
         return Response.json(
           {
             error: `Client ${
@@ -626,32 +523,28 @@ export async function POST(
         );
       }
     }
+
     const clientDurations =
       clientServices.map(
         calculateClientDuration
       );
-    let clientEndTimes: string[];
+
+    let clientEndTimes;
+
     try {
       clientEndTimes =
         clientStartTimes.map(
-          (
-            startTime,
-            clientIndex
-          ) => {
+          (startTime, clientIndex) => {
             const startMinutes =
-              timeToMinutes(
-                startTime
-              );
+              timeToMinutes(startTime);
+
             const endMinutes =
               startMinutes +
-              clientDurations[
-                clientIndex
-              ];
+              clientDurations[clientIndex];
+
             if (
-              startMinutes <
-                OPEN_MINUTES ||
-              endMinutes >
-                CLOSE_MINUTES
+              startMinutes < OPEN_MINUTES ||
+              endMinutes > CLOSE_MINUTES
             ) {
               throw new Error(
                 `Client ${
@@ -659,37 +552,30 @@ export async function POST(
                 }'s appointment is outside business hours.`
               );
             }
-            return minutesToTime(
-              endMinutes
-            );
+
+            return minutesToTime(endMinutes);
           }
         );
-    } catch (
-      timeError
-    ) {
+    } catch (timeError) {
       return Response.json(
         {
           error:
-            timeError instanceof
-            Error
+            timeError instanceof Error
               ? timeError.message
               : "One or more appointments are outside business hours.",
         },
         { status: 400 }
       );
     }
+
     for (
       let clientIndex = 1;
       clientIndex < clientCount;
       clientIndex++
     ) {
       if (
-        clientDates[
-          clientIndex
-        ] ===
-        clientDates[
-          clientIndex - 1
-        ]
+        clientDates[clientIndex] ===
+        clientDates[clientIndex - 1]
       ) {
         const previousEnd =
           timeToMinutes(
@@ -697,12 +583,14 @@ export async function POST(
               clientIndex - 1
             ]
           );
+
         const currentStart =
           timeToMinutes(
             clientStartTimes[
               clientIndex
             ]
           );
+
         if (
           currentStart <
           previousEnd + 15
@@ -720,36 +608,37 @@ export async function POST(
         }
       }
     }
+
     await cancelExpiredPendingBookings();
+
     /*
      * SERVICE TOTAL
      */
+
     const serviceTotalAmount =
       calculateServiceTotal(
         clientServices
       );
+
     let discountedServiceTotal =
       serviceTotalAmount;
-    let serviceDiscountAmount =
-      0;
-    let appliedPromoCode:
-      string | null = null;
+
+    let serviceDiscountAmount = 0;
+
+    let appliedPromoCode = null;
+
     /*
      * PROMO
      */
+
     if (
-      typeof promoCode ===
-        "string" &&
+      typeof promoCode === "string" &&
       promoCode.trim()
     ) {
       const promo =
-        await getPromo(
-          promoCode
-        );
-      if (
-        !promo ||
-        !promo.active
-      ) {
+        await getPromo(promoCode);
+
+      if (!promo || !promo.active) {
         return Response.json(
           {
             error:
@@ -758,120 +647,102 @@ export async function POST(
           { status: 400 }
         );
       }
+
       const discount =
         calculateDiscountedAmount(
           serviceTotalAmount,
           promo
         );
+
       discountedServiceTotal =
         discount.finalAmount;
+
       serviceDiscountAmount =
         discount.discountAmount;
+
       appliedPromoCode =
         promo.code;
     }
+
     /*
      * DEPOSIT
      *
      * PROMOS NEVER DISCOUNT THE DEPOSIT.
      */
+
     const depositAmount =
       DEPOSIT_PER_CLIENT *
       clientCount;
+
     const serviceSummary =
       clientServices
         .map(
-          (
-            services,
-            index
-          ) =>
+          (services, index) =>
             `Client ${
               index + 1
             }: ${services.join(
               " + "
             )} — ${
-              clientDates[
-                index
-              ]
+              clientDates[index]
             } ${
-              clientStartTimes[
-                index
-              ]
+              clientStartTimes[index]
             }–${
-              clientEndTimes[
-                index
-              ]
+              clientEndTimes[index]
             }`
         )
         .join(" | ");
+
     const parentStartTime =
       clientStartTimes[0];
+
     const parentEndTime =
       clientEndTimes[0];
+
     const parentDuration =
       clientDurations[0];
+
     const expiresAt =
       new Date(
         Date.now() +
           15 * 60 * 1000
       ).toISOString();
-    const appointmentInsert: AppointmentInsert =
-      {
-        customer_name: name,
-        customer_phone:
-          phone,
-        customer_email:
-          email,
-        service_name:
-          serviceSummary,
-        client_count:
-          clientCount,
-        booking_date:
-          clientDates[0],
-        start_time:
-          parentStartTime,
-        end_time:
-          parentEndTime,
-        duration_minutes:
-          parentDuration,
-        deposit_per_client:
-          DEPOSIT_PER_CLIENT,
-        deposit_amount:
-          depositAmount,
-        payment_status:
-          "pending",
-        booking_status:
-          "pending",
-        expires_at:
-          expiresAt,
-        notes:
-          notes || null,
-        profile_id:
-          profileId,
-        promo_code:
-          appliedPromoCode,
-      };
+
+    const appointmentInsert = {
+      customer_name: name,
+      customer_phone: phone,
+      customer_email: email,
+      service_name: serviceSummary,
+      client_count: clientCount,
+      booking_date: clientDates[0],
+      start_time: parentStartTime,
+      end_time: parentEndTime,
+      duration_minutes: parentDuration,
+      deposit_per_client:
+        DEPOSIT_PER_CLIENT,
+      deposit_amount: depositAmount,
+      payment_status: "pending",
+      booking_status: "pending",
+      expires_at: expiresAt,
+      notes: notes || null,
+      profile_id: profileId,
+      promo_code: appliedPromoCode,
+    };
+
     const {
       data: appointment,
-      error:
-        appointmentError,
-    } =
-      await supabase
-        .from(
-          "appointments"
-        )
-        .insert(
-          appointmentInsert
-        )
-        .select("id")
-        .single();
-    if (
-      appointmentError
-    ) {
+      error: appointmentError,
+    } = await supabase
+      .from("appointments")
+      .insert(appointmentInsert)
+      .select("id")
+      .single();
+
+    if (appointmentError) {
       console.error(
         "Appointment insert error:",
         appointmentError
       );
+
       if (
         appointmentError.code ===
         "23P01"
@@ -884,6 +755,7 @@ export async function POST(
           { status: 409 }
         );
       }
+
       return Response.json(
         {
           error:
@@ -892,61 +764,48 @@ export async function POST(
         { status: 500 }
       );
     }
+
     appointmentId =
-      appointment.id as string;
+      appointment.id;
+
     const clientRows =
       clientServices.map(
-        (
-          services,
-          index
-        ) => ({
+        (services, index) => ({
           appointment_id:
             appointmentId,
           client_number:
             index + 1,
           service_name:
-            services.join(
-              " + "
-            ),
+            services.join(" + "),
           booking_date:
             clientDates[index],
           start_time:
-            clientStartTimes[
-              index
-            ],
+            clientStartTimes[index],
           end_time:
-            clientEndTimes[
-              index
-            ],
+            clientEndTimes[index],
           duration_minutes:
-            clientDurations[
-              index
-            ],
+            clientDurations[index],
           booking_status:
             "pending",
         })
       );
+
     const {
-      error:
-        clientInsertError,
-    } =
-      await supabase
-        .from(
-          "appointment_clients"
-        )
-        .insert(
-          clientRows
-        );
-    if (
-      clientInsertError
-    ) {
+      error: clientInsertError,
+    } = await supabase
+      .from("appointment_clients")
+      .insert(clientRows);
+
+    if (clientInsertError) {
       console.error(
         "Client appointment insert error:",
         clientInsertError
       );
+
       await cancelAppointment(
         appointmentId
       );
+
       return Response.json(
         {
           error:
@@ -955,18 +814,20 @@ export async function POST(
         { status: 500 }
       );
     }
+
     const baseUrl =
-      process.env
-        .NEXT_PUBLIC_SITE_URL ||
-      new URL(
-        request.url
-      ).origin;
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      new URL(request.url).origin;
+
     const successUrl =
       `${baseUrl}/?booking=success&appointment=${appointmentId}#booking`;
+
     const cancelUrl =
       `${baseUrl}/?booking=cancelled&appointment=${appointmentId}#booking`;
+
     const failureUrl =
       `${baseUrl}/?booking=failed&appointment=${appointmentId}#booking`;
+
     /*
      * YOCO
      *
@@ -976,16 +837,20 @@ export async function POST(
      *
      * Promo codes do not change this amount.
      */
+
     const yocoAmountCents =
       Math.round(
         depositAmount * 100
       );
+
     const yocoSecretKey =
       process.env.YOCO_SECRET_KEY;
+
     if (!yocoSecretKey) {
       await cancelAppointment(
         appointmentId
       );
+
       return Response.json(
         {
           error:
@@ -994,52 +859,56 @@ export async function POST(
         { status: 500 }
       );
     }
+
     const yocoResponse =
       await fetch(
         "https://payments.yoco.com/api/checkouts",
         {
           method: "POST",
+
           headers: {
             "Content-Type":
               "application/json",
+
             Authorization:
               `Bearer ${yocoSecretKey}`,
           },
+
           body: JSON.stringify({
             amount:
               yocoAmountCents,
-            currency: "ZAR",
+
+            currency:
+              "ZAR",
+
             successUrl,
+
             cancelUrl,
+
             failureUrl,
           }),
         }
       );
-    let yocoData: {
-      id?: string;
-      redirectUrl?: string;
-      [key: string]: unknown;
-    };
+
+    let yocoData;
+
     try {
       yocoData =
-        (await yocoResponse.json()) as {
-          id?: string;
-          redirectUrl?: string;
-          [key: string]: unknown;
-        };
+        await yocoResponse.json();
     } catch {
       yocoData = {};
     }
-    if (
-      !yocoResponse.ok
-    ) {
+
+    if (!yocoResponse.ok) {
       console.error(
         "Yoco checkout error:",
         yocoData
       );
+
       await cancelAppointment(
         appointmentId
       );
+
       return Response.json(
         {
           error:
@@ -1048,10 +917,13 @@ export async function POST(
         { status: 500 }
       );
     }
+
     const checkoutId =
       yocoData.id;
+
     const redirectUrl =
       yocoData.redirectUrl;
+
     if (
       !checkoutId ||
       !redirectUrl
@@ -1060,9 +932,11 @@ export async function POST(
         "Yoco returned incomplete checkout data:",
         yocoData
       );
+
       await cancelAppointment(
         appointmentId
       );
+
       return Response.json(
         {
           error:
@@ -1071,6 +945,7 @@ export async function POST(
         { status: 500 }
       );
     }
+
     await supabase
       .from("appointments")
       .update({
@@ -1081,6 +956,7 @@ export async function POST(
         "id",
         appointmentId
       );
+
     return Response.json({
       redirectUrl,
       appointmentId,
@@ -1094,23 +970,22 @@ export async function POST(
       yocoAmount:
         depositAmount,
     });
-  } catch (
-    error: unknown
-  ) {
+  } catch (error) {
     console.error(
       "Checkout API error:",
       error
     );
+
     if (appointmentId) {
       await cancelAppointment(
         appointmentId
       );
     }
+
     return Response.json(
       {
         error:
-          error instanceof
-          Error
+          error instanceof Error
             ? error.message
             : "Something went wrong starting your booking.",
       },
