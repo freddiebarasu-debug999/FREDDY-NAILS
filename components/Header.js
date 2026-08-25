@@ -1,41 +1,34 @@
 "use client";
-
 import { useState } from "react";
-
 const LINKS = [
-  { href: "#about", label: "Gallery" },
+  { href: "#gallery", label: "Gallery" },
   { href: "#services", label: "Services" },
-  { href: "#gallery", label: "Offers" },
-  { href: "#offers", label: "Reviews" },
-  { href: "#reviews", label: "About" },
+  { href: "#offers", label: "Offers" },
+  { href: "#reviews", label: "Reviews" },
+  { href: "#about", label: "About" },
   { href: "#contact", label: "Contact" },
 ];
-
 export default function Header() {
   const [open, setOpen] = useState(false);
-
   return (
     <header className="sticky top-0 z-50 border-b border-[#d6b36a]/20 bg-[#11100f]/95 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1180px] items-center justify-between px-5 py-4">
-
         {/* Logo */}
         <div className="font-serif text-xl tracking-tight text-[#f4eee6]">
           Freddy <span className="text-[#d6b36a]">Nails</span>
         </div>
-
         {/* Desktop Navigation */}
         <nav className="hidden gap-7 text-sm font-semibold md:flex">
-          {LINKS.map((l) => (
+          {LINKS.map((link) => (
             <a
-              key={l.href}
-              href={l.href}
+              key={link.href}
+              href={link.href}
               className="nav-link text-[#f4eee6]/85 transition-colors hover:text-[#d6b36a] hover:opacity-100"
             >
-              {l.label}
+              {link.label}
             </a>
           ))}
         </nav>
-
         {/* Desktop Actions */}
         <div className="hidden items-center gap-3 md:flex">
           <a
@@ -44,7 +37,6 @@ export default function Header() {
           >
             My Account
           </a>
-
           <a
             href="/account/signup"
             className="rounded-sm bg-[#d6b36a] px-5 py-[11px] text-xs font-bold uppercase tracking-wide text-[#11100f] transition-colors hover:bg-[#ad8a4e]"
@@ -52,7 +44,6 @@ export default function Header() {
             Book now
           </a>
         </div>
-
         {/* Mobile Menu Button */}
         <button
           onClick={() => setOpen((o) => !o)}
@@ -66,24 +57,22 @@ export default function Header() {
           <span className="block h-[1.5px] w-[22px] bg-[#f4eee6]" />
         </button>
       </div>
-
       {/* Mobile Menu */}
       {open && (
         <div
           id="mobile-menu"
           className="flex flex-col gap-3 border-t border-[#d6b36a]/20 bg-[#151311] px-5 pb-6 pt-4"
         >
-          {LINKS.map((l) => (
+          {LINKS.map((link) => (
             <a
-              key={l.href}
-              href={l.href}
+              key={link.href}
+              href={link.href}
               onClick={() => setOpen(false)}
               className="py-1.5 text-[0.95rem] font-semibold text-[#f4eee6] transition-colors hover:text-[#d6b36a]"
             >
-              {l.label}
+              {link.label}
             </a>
           ))}
-
           {/* Mobile Account */}
           <a
             href="/account"
@@ -92,7 +81,6 @@ export default function Header() {
           >
             My Account
           </a>
-
           {/* Mobile Book Button */}
           <a
             href="/account/signup"
