@@ -16,20 +16,21 @@ import WelcomePopup from "@/components/WelcomePopup";
 
 function ClientAccountPrompt() {
   return (
-    <section className="mx-auto max-w-[1180px] px-5 py-14 md:py-20">
-      <div className="border border-[#d6b36a]/25 bg-[#181614] px-6 py-10 text-center md:px-12 md:py-14">
+    <section className="mx-auto max-w-[1180px] px-5 py-10 md:py-14">
+      <div className="border border-[#d6b36a]/25 bg-[#181614] px-6 py-9 text-center md:px-12 md:py-12">
         <p className="text-[0.68rem] font-bold uppercase tracking-[0.22em] text-[#d6b36a]">
           Freddy Nails Client Portal
         </p>
 
         <h2 className="mx-auto mt-3 max-w-[700px] font-serif text-3xl text-[#f4eee6] md:text-4xl">
-          Your nails deserve their own account.
+          Ready to book your next set?
         </h2>
 
         <p className="mx-auto mt-4 max-w-[650px] text-sm leading-relaxed text-[#a79a87]">
-          Create your Freddy Nails client account to manage your
-          appointments, view your booking history, access specials and
-          promo codes, and keep your client profile in one place.
+          All Freddy Nails appointments are booked through your
+          personal client account. Create an account to book, manage
+          your appointments, view your booking history and access
+          exclusive specials and promo codes.
         </p>
 
         <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
@@ -44,13 +45,12 @@ function ClientAccountPrompt() {
             href="/account/login"
             className="inline-flex items-center justify-center border border-white/[0.12] px-7 py-3.5 text-xs font-bold uppercase tracking-[0.12em] text-[#c9c0b6] transition-colors hover:border-[#d6b36a]/40 hover:text-[#d6b36a]"
           >
-            Client Login
+            Already Have an Account? Log In
           </a>
         </div>
 
         <p className="mt-5 text-xs text-[#817970]">
-          Already a client? Log in to your portal to book your next
-          appointment.
+          New client? Creating your account takes just a moment.
         </p>
       </div>
     </section>
@@ -64,7 +64,7 @@ export default function Home() {
       <OfferTab />
       <Header />
 
-      {/* Hero — intentionally kept unchanged */}
+      {/* Hero — kept exactly as requested */}
       <Hero />
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
@@ -93,7 +93,7 @@ export default function Home() {
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
 
-      {/* Client account invitation */}
+      {/* Client booking / account prompt */}
       <Reveal>
         <ClientAccountPrompt />
       </Reveal>
