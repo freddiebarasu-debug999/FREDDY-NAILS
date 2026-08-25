@@ -334,12 +334,41 @@ export default function Booking() {
         )}`
       );
 
-      const data = await response.json();
+      // Read the response as plain text first, then attempt
+      // to parse it. This avoids "Unexpected end of JSON
+      // input" crashes when the response body is empty or
+      // isn't valid JSON (e.g. a cold start, timeout, or a
+      // gateway error page instead of a real JSON reply).
+      const rawText = await response.text();
+      let data = null;
+
+      if (rawText) {
+        try {
+          data = JSON.parse(rawText);
+        } catch (parseError) {
+          console.error(
+            "Promo validate response was not valid JSON:",
+            rawText
+          );
+          data = null;
+        }
+      }
 
       if (!response.ok) {
         throw new Error(
-          data.error || "That code isn't valid."
+          data?.error || "That code isn't valid."
         );
+      }
+
+      // Only apply the promo if the API actually returned
+      // usable promo information.
+      if (
+        !data ||
+        !data.code ||
+        !data.discountType ||
+        typeof data.discountValue !== "number"
+      ) {
+        throw new Error("That code isn't valid.");
       }
 
       setAppliedPromo(data);
