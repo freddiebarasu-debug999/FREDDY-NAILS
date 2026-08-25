@@ -3,8 +3,8 @@ export const dynamic = "force-dynamic";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
     auth: {
       autoRefreshToken: false,
@@ -20,7 +20,7 @@ const MAX_SERVICES_PER_CLIENT = 4;
 const OPEN_MINUTES = 9 * 60 + 30;
 const CLOSE_MINUTES = 17 * 60 + 30;
 
-const SERVICE_OPTIONS = {
+const SERVICE_OPTIONS: Record<string, number> = {
   "Acrylic — Plain Short–Medium (R200)": 90,
   "Acrylic — Plain Long (R250)": 105,
   "Acrylic — Plain XL–XXXL (R300)": 120,
@@ -85,57 +85,50 @@ const BUILT_IN_PROMOS = {
   },
 };
 
-function timeToMinutes(time) {
-  const [hours, minutes] =
-    time.split(":").map(Number);
-
+function timeToMinutes(time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
   return hours * 60 + minutes;
 }
 
-function minutesToTime(minutes) {
+function minutesToTime(minutes: number) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
 
-  return `${String(hours).padStart(
-    2,
-    "0"
-  )}:${String(mins).padStart(2, "0")}`;
+  return `${String(hours).padStart(2, "0")}:${String(
+    mins
+  ).padStart(2, "0")}`;
 }
 
-function isValidDate(date) {
+function isValidDate(date: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(date);
 }
 
-function isValidTime(time) {
+function isValidTime(time: string) {
   return /^\d{2}:\d{2}$/.test(time);
 }
 
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-    email
-  );
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function calculateClientDuration(
-  services
+  services: string[]
 ) {
   return services.reduce(
     (total, serviceName) =>
-      total +
-      SERVICE_OPTIONS[serviceName],
+      total + SERVICE_OPTIONS[serviceName],
     0
   );
 }
 
 function extractServicePrice(
-  serviceName
+  serviceName: string
 ) {
   if (!serviceName) return 0;
 
-  const match =
-    serviceName.match(
-      /\(R(\d+)(?:–\d+)?\)/
-    );
+  const match = serviceName.match(
+    /\(R(\d+)(?:–\d+)?\)/
+  );
 
   if (!match) return 0;
 
@@ -143,7 +136,7 @@ function extractServicePrice(
 }
 
 function calculateServiceTotal(
-  clientServices
+  clientServices: string[][]
 ) {
   return clientServices.reduce(
     (total, services) =>
@@ -151,9 +144,7 @@ function calculateServiceTotal(
       services.reduce(
         (clientTotal, serviceName) =>
           clientTotal +
-          extractServicePrice(
-            serviceName
-          ),
+          extractServicePrice(serviceName),
         0
       ),
     0
@@ -161,8 +152,8 @@ function calculateServiceTotal(
 }
 
 function calculateDiscountedAmount(
-  amount,
-  promo
+  amount: number,
+  promo: any
 ) {
   if (!promo || !promo.active) {
     return {
@@ -171,15 +162,12 @@ function calculateDiscountedAmount(
     };
   }
 
-  const discountValue =
-    Number(
-      promo.discount_value
-    );
+  const discountValue = Number(
+    promo.discount_value
+  );
 
   if (
-    !Number.isFinite(
-      discountValue
-    ) ||
+    !Number.isFinite(discountValue) ||
     discountValue < 0
   ) {
     return {
@@ -190,63 +178,45 @@ function calculateDiscountedAmount(
 
   let finalAmount = amount;
 
-  if (
-    promo.discount_type ===
-    "percent"
-  ) {
-    const percentage =
-      Math.min(
-        discountValue,
-        100
-      );
+  if (promo.discount_type === "percent") {
+    const percentage = Math.min(
+      discountValue,
+      100
+    );
 
-    finalAmount =
-      Math.round(
-        amount *
-          (1 -
-            percentage /
-              100)
-      );
-  } else if (
-    promo.discount_type ===
-    "fixed"
-  ) {
-    finalAmount =
-      Math.max(
-        0,
-        amount -
-          discountValue
-      );
+    finalAmount = Math.round(
+      amount * (1 - percentage / 100)
+    );
   }
 
-  return {
-    finalAmount: Math.max(
+  if (promo.discount_type === "fixed") {
+    finalAmount = Math.max(
       0,
-      Math.round(finalAmount)
-    ),
+      amount - discountValue
+    );
+  }
 
-    discountAmount:
-      Math.max(
-        0,
-        Math.round(
-          amount -
-            finalAmount
-        )
-      ),
+  finalAmount = Math.max(
+    0,
+    Math.round(finalAmount)
+  );
+
+  return {
+    finalAmount,
+    discountAmount: Math.max(
+      0,
+      Math.round(amount - finalAmount)
+    ),
   };
 }
 
 async function getAuthenticatedUser(
-  request
+  request: Request
 ) {
   const authorization =
-    request.headers.get(
-      "authorization"
-    );
+    request.headers.get("authorization");
 
-  if (!authorization) {
-    return null;
-  }
+  if (!authorization) return null;
 
   if (
     !authorization
@@ -257,21 +227,16 @@ async function getAuthenticatedUser(
   }
 
   const accessToken =
-    authorization
-      .slice(7)
-      .trim();
+    authorization.slice(7).trim();
 
-  if (!accessToken) {
-    return null;
-  }
+  if (!accessToken) return null;
 
   const {
     data: { user },
     error,
-  } =
-    await supabase.auth.getUser(
-      accessToken
-    );
+  } = await supabase.auth.getUser(
+    accessToken
+  );
 
   if (error || !user) {
     console.error(
@@ -285,15 +250,10 @@ async function getAuthenticatedUser(
   return user;
 }
 
-async function getPromo(
-  code
-) {
+async function getPromo(code: string) {
   const normalizedCode =
     code.trim().toUpperCase();
 
-  /*
-   * Try database first.
-   */
   const {
     data,
     error,
@@ -302,33 +262,112 @@ async function getPromo(
     .select(
       "code, discount_type, discount_value, description, active"
     )
-    .eq(
-      "code",
-      normalizedCode
-    )
+    .eq("code", normalizedCode)
     .maybeSingle();
 
   if (!error && data) {
     return data;
   }
 
-  /*
-   * Fallback promos.
-   *
-   * This prevents a database promo lookup
-   * problem from stopping the booking.
-   */
   return (
     BUILT_IN_PROMOS[
-      normalizedCode
+      normalizedCode as keyof typeof BUILT_IN_PROMOS
     ] || null
   );
 }
 
-export async function POST(
-  request
+async function hasUsedPromo(
+  profileId: string | null,
+  code: string
 ) {
-  let appointmentId = null;
+  if (!profileId) return false;
+
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("appointments")
+    .select("id")
+    .eq("profile_id", profileId)
+    .eq("promo_code", code)
+    .neq("booking_status", "cancelled")
+    .limit(1);
+
+  if (error) {
+    console.error(
+      "Promo usage lookup error:",
+      error
+    );
+
+    return false;
+  }
+
+  return Boolean(data?.length);
+}
+
+async function getAutomaticPromo(
+  profileId: string | null,
+  clientCount: number
+) {
+  if (!profileId) return null;
+
+  /*
+   * FIRST VISIT
+   *
+   * Automatically applies when the authenticated
+   * client has never made a non-cancelled booking.
+   */
+  if (clientCount >= 1) {
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("appointments")
+      .select("id")
+      .eq("profile_id", profileId)
+      .neq("booking_status", "cancelled")
+      .limit(1);
+
+    if (!error && !data?.length) {
+      const promo =
+        await getPromo("FIRSTVISIT");
+
+      if (promo?.active) {
+        return promo;
+      }
+    }
+  }
+
+  /*
+   * FRIEND50
+   *
+   * Automatically applies when the account
+   * books two or more clients.
+   */
+  if (clientCount >= 2) {
+    const alreadyUsed =
+      await hasUsedPromo(
+        profileId,
+        "FRIEND50"
+      );
+
+    if (!alreadyUsed) {
+      const promo =
+        await getPromo("FRIEND50");
+
+      if (promo?.active) {
+        return promo;
+      }
+    }
+  }
+
+  return null;
+}
+
+export async function POST(
+  request: Request
+) {
+  let appointmentId: string | null = null;
 
   try {
     const authenticatedUser =
@@ -337,11 +376,9 @@ export async function POST(
       );
 
     const profileId =
-      authenticatedUser?.id ||
-      null;
+      authenticatedUser?.id || null;
 
-    const body =
-      await request.json();
+    const body = await request.json();
 
     const {
       name,
@@ -355,11 +392,7 @@ export async function POST(
       promoCode,
     } = body;
 
-    if (
-      !name ||
-      !phone ||
-      !email
-    ) {
+    if (!name || !phone || !email) {
       return Response.json(
         {
           error:
@@ -369,9 +402,7 @@ export async function POST(
       );
     }
 
-    if (
-      !isValidEmail(email)
-    ) {
+    if (!isValidEmail(email)) {
       return Response.json(
         {
           error:
@@ -382,9 +413,7 @@ export async function POST(
     }
 
     if (
-      !Number.isInteger(
-        clientCount
-      ) ||
+      !Number.isInteger(clientCount) ||
       clientCount < 1 ||
       clientCount > MAX_CLIENTS
     ) {
@@ -398,11 +427,8 @@ export async function POST(
     }
 
     if (
-      !Array.isArray(
-        clientServices
-      ) ||
-      clientServices.length !==
-        clientCount
+      !Array.isArray(clientServices) ||
+      clientServices.length !== clientCount
     ) {
       return Response.json(
         {
@@ -414,11 +440,8 @@ export async function POST(
     }
 
     if (
-      !Array.isArray(
-        clientDates
-      ) ||
-      clientDates.length !==
-        clientCount
+      !Array.isArray(clientDates) ||
+      clientDates.length !== clientCount
     ) {
       return Response.json(
         {
@@ -430,11 +453,8 @@ export async function POST(
     }
 
     if (
-      !Array.isArray(
-        clientStartTimes
-      ) ||
-      clientStartTimes.length !==
-        clientCount
+      !Array.isArray(clientStartTimes) ||
+      clientStartTimes.length !== clientCount
     ) {
       return Response.json(
         {
@@ -451,14 +471,10 @@ export async function POST(
       clientIndex++
     ) {
       const services =
-        clientServices[
-          clientIndex
-        ];
+        clientServices[clientIndex];
 
       if (
-        !Array.isArray(
-          services
-        ) ||
+        !Array.isArray(services) ||
         services.length < 1 ||
         services.length >
           MAX_SERVICES_PER_CLIENT
@@ -490,9 +506,7 @@ export async function POST(
         );
       }
 
-      for (
-        const serviceName of services
-      ) {
+      for (const serviceName of services) {
         if (
           !Object.prototype.hasOwnProperty.call(
             SERVICE_OPTIONS,
@@ -516,20 +530,12 @@ export async function POST(
       clientIndex++
     ) {
       const clientDate =
-        clientDates[
-          clientIndex
-        ];
+        clientDates[clientIndex];
 
       const clientTime =
-        clientStartTimes[
-          clientIndex
-        ];
+        clientStartTimes[clientIndex];
 
-      if (
-        !isValidDate(
-          clientDate
-        )
-      ) {
+      if (!isValidDate(clientDate)) {
         return Response.json(
           {
             error: `Please choose a valid date for Client ${
@@ -540,11 +546,7 @@ export async function POST(
         );
       }
 
-      if (
-        !isValidTime(
-          clientTime
-        )
-      ) {
+      if (!isValidTime(clientTime)) {
         return Response.json(
           {
             error: `Please choose a valid time for Client ${
@@ -560,24 +562,16 @@ export async function POST(
           `${clientDate}T12:00:00`
         );
 
-      const today =
-        new Date();
+      const today = new Date();
 
-      today.setHours(
-        0,
-        0,
-        0,
-        0
-      );
+      today.setHours(0, 0, 0, 0);
 
       const bookingDate =
         new Date(
           `${clientDate}T00:00:00`
         );
 
-      if (
-        bookingDate < today
-      ) {
+      if (bookingDate < today) {
         return Response.json(
           {
             error: `Client ${
@@ -588,10 +582,7 @@ export async function POST(
         );
       }
 
-      if (
-        selectedDate.getDay() ===
-        0
-      ) {
+      if (selectedDate.getDay() === 0) {
         return Response.json(
           {
             error: `Client ${
@@ -608,25 +599,21 @@ export async function POST(
         calculateClientDuration
       );
 
-    let clientEndTimes;
+    let clientEndTimes: string[];
 
     try {
       clientEndTimes =
         clientStartTimes.map(
           (
-            startTime,
-            clientIndex
+            startTime: string,
+            clientIndex: number
           ) => {
             const startMinutes =
-              timeToMinutes(
-                startTime
-              );
+              timeToMinutes(startTime);
 
             const endMinutes =
               startMinutes +
-              clientDurations[
-                clientIndex
-              ];
+              clientDurations[clientIndex];
 
             if (
               startMinutes <
@@ -646,13 +633,11 @@ export async function POST(
             );
           }
         );
-    } catch (
-      timeError
-    ) {
+    } catch (timeError: any) {
       return Response.json(
         {
           error:
-            timeError.message ||
+            timeError?.message ||
             "One or more appointments are outside business hours.",
         },
         { status: 400 }
@@ -660,22 +645,13 @@ export async function POST(
     }
 
     for (
-      let clientIndex = 0;
+      let clientIndex = 1;
       clientIndex < clientCount;
       clientIndex++
     ) {
       if (
-        clientIndex === 0
-      )
-        continue;
-
-      if (
-        clientDates[
-          clientIndex
-        ] ===
-        clientDates[
-          clientIndex - 1
-        ]
+        clientDates[clientIndex] ===
+        clientDates[clientIndex - 1]
       ) {
         const previousEnd =
           timeToMinutes(
@@ -709,16 +685,15 @@ export async function POST(
       }
     }
 
+    /*
+     * RELEASE EXPIRED PENDING BOOKINGS
+     */
     await supabase
       .from("appointments")
       .update({
-        booking_status:
-          "cancelled",
+        booking_status: "cancelled",
       })
-      .eq(
-        "booking_status",
-        "pending"
-      )
+      .eq("booking_status", "pending")
       .lt(
         "expires_at",
         new Date().toISOString()
@@ -735,29 +710,28 @@ export async function POST(
     let discountedServiceTotal =
       serviceTotalAmount;
 
-    let serviceDiscountAmount =
-      0;
+    let serviceDiscountAmount = 0;
 
-    let appliedPromoCode =
+    let appliedPromoCode: string | null =
       null;
 
     /*
-     * PROMO
+     * PROMOTION ENGINE
+     *
+     * Explicit promo code wins.
+     *
+     * If no code was supplied, the server attempts
+     * to automatically apply an eligible account offer.
      */
+    let promo: any = null;
+
     if (
-      typeof promoCode ===
-        "string" &&
+      typeof promoCode === "string" &&
       promoCode.trim()
     ) {
-      const promo =
-        await getPromo(
-          promoCode
-        );
+      promo = await getPromo(promoCode);
 
-      if (
-        !promo ||
-        !promo.active
-      ) {
+      if (!promo || !promo.active) {
         return Response.json(
           {
             error:
@@ -767,6 +741,114 @@ export async function POST(
         );
       }
 
+      /*
+       * FIRSTVISIT may only be used once.
+       */
+      if (
+        promo.code === "FIRSTVISIT" &&
+        profileId
+      ) {
+        const used =
+          await hasUsedPromo(
+            profileId,
+            "FIRSTVISIT"
+          );
+
+        if (used) {
+          return Response.json(
+            {
+              error:
+                "Your first-visit promotion has already been used.",
+            },
+            { status: 400 }
+          );
+        }
+
+        const {
+          data: previousBookings,
+          error: previousError,
+        } = await supabase
+          .from("appointments")
+          .select("id")
+          .eq(
+            "profile_id",
+            profileId
+          )
+          .neq(
+            "booking_status",
+            "cancelled"
+          )
+          .limit(1);
+
+        if (
+          !previousError &&
+          previousBookings?.length
+        ) {
+          return Response.json(
+            {
+              error:
+                "The FIRSTVISIT promotion is only available for your first booking.",
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      /*
+       * FRIEND50 requires 2+ clients.
+       */
+      if (
+        promo.code === "FRIEND50" &&
+        clientCount < 2
+      ) {
+        return Response.json(
+          {
+            error:
+              "FRIEND50 requires two or more clients on the booking.",
+          },
+          { status: 400 }
+        );
+      }
+
+      /*
+       * FRIEND50 is one-time per account.
+       */
+      if (
+        promo.code === "FRIEND50" &&
+        profileId
+      ) {
+        const used =
+          await hasUsedPromo(
+            profileId,
+            "FRIEND50"
+          );
+
+        if (used) {
+          return Response.json(
+            {
+              error:
+                "Your bring-a-friend promotion has already been used.",
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      /*
+       * BIRTHDAY remains available through the
+       * existing promo system. Birthday eligibility
+       * can later be connected to a birthday field
+       * without changing the payment architecture.
+       */
+    } else {
+      promo =
+        await getAutomaticPromo(
+          profileId,
+          clientCount
+        );
+    }
+
+    if (promo?.active) {
       const discount =
         calculateDiscountedAmount(
           serviceTotalAmount,
@@ -786,7 +868,9 @@ export async function POST(
     /*
      * DEPOSIT
      *
-     * PROMOS NEVER DISCOUNT THIS.
+     * NEVER DISCOUNTED.
+     *
+     * R90 × number of clients.
      */
     const depositAmount =
       DEPOSIT_PER_CLIENT *
@@ -796,25 +880,19 @@ export async function POST(
       clientServices
         .map(
           (
-            services,
-            index
+            services: string[],
+            index: number
           ) =>
             `Client ${
               index + 1
             }: ${services.join(
               " + "
             )} — ${
-              clientDates[
-                index
-              ]
+              clientDates[index]
             } ${
-              clientStartTimes[
-                index
-              ]
+              clientStartTimes[index]
             }–${
-              clientEndTimes[
-                index
-              ]
+              clientEndTimes[index]
             }`
         )
         .join(" | ");
@@ -834,50 +912,51 @@ export async function POST(
           15 * 60 * 1000
       ).toISOString();
 
-    const appointmentInsert =
-      {
-        customer_name: name,
-        customer_phone:
-          phone,
-        customer_email:
-          email,
-        service_name:
-          serviceSummary,
-        client_count:
-          clientCount,
-        booking_date:
-          clientDates[0],
-        start_time:
-          parentStartTime,
-        end_time:
-          parentEndTime,
-        duration_minutes:
-          parentDuration,
+    const appointmentInsert = {
+      customer_name: name,
+      customer_phone: phone,
+      customer_email: email,
 
-        deposit_per_client:
-          DEPOSIT_PER_CLIENT,
+      service_name: serviceSummary,
 
-        deposit_amount:
-          depositAmount,
+      client_count: clientCount,
 
-        payment_status:
-          "pending",
+      booking_date:
+        clientDates[0],
 
-        booking_status:
-          "pending",
+      start_time:
+        parentStartTime,
 
-        expires_at:
-          expiresAt,
+      end_time:
+        parentEndTime,
 
-        notes:
-          notes || null,
+      duration_minutes:
+        parentDuration,
 
-        profile_id:
-          profileId,
+      deposit_per_client:
+        DEPOSIT_PER_CLIENT,
 
-        promo_code:
-          appliedPromoCode,
-      };
+      deposit_amount:
+        depositAmount,
+
+      payment_status:
+        "pending",
+
+      booking_status:
+        "pending",
+
+      expires_at:
+        expiresAt,
+
+      notes:
+        notes || null,
+
+      profile_id:
+        profileId,
+
+      promo_code:
+        appliedPromoCode,
+    };
 
     const {
       data: appointment,
@@ -885,18 +964,14 @@ export async function POST(
         appointmentError,
     } =
       await supabase
-        .from(
-          "appointments"
-        )
+        .from("appointments")
         .insert(
           appointmentInsert
         )
         .select("id")
         .single();
 
-    if (
-      appointmentError
-    ) {
+    if (appointmentError) {
       console.error(
         "Appointment insert error:",
         appointmentError
@@ -930,8 +1005,8 @@ export async function POST(
     const clientRows =
       clientServices.map(
         (
-          services,
-          index
+          services: string[],
+          index: number
         ) => ({
           appointment_id:
             appointmentId,
@@ -948,19 +1023,13 @@ export async function POST(
             clientDates[index],
 
           start_time:
-            clientStartTimes[
-              index
-            ],
+            clientStartTimes[index],
 
           end_time:
-            clientEndTimes[
-              index
-            ],
+            clientEndTimes[index],
 
           duration_minutes:
-            clientDurations[
-              index
-            ],
+            clientDurations[index],
 
           booking_status:
             "pending",
@@ -979,9 +1048,7 @@ export async function POST(
           clientRows
         );
 
-    if (
-      clientInsertError
-    ) {
+    if (clientInsertError) {
       console.error(
         "Client appointment insert error:",
         clientInsertError
@@ -1010,9 +1077,7 @@ export async function POST(
     const baseUrl =
       process.env
         .NEXT_PUBLIC_SITE_URL ||
-      new URL(
-        request.url
-      ).origin;
+      new URL(request.url).origin;
 
     const successUrl =
       `${baseUrl}/?booking=success&appointment=${appointmentId}#booking`;
@@ -1026,13 +1091,9 @@ export async function POST(
     /*
      * YOCO
      *
-     * IMPORTANT:
+     * ONLY THE DEPOSIT IS CHARGED.
      *
-     * Always charge ONLY the deposit.
-     *
-     * R90 × number of clients.
-     *
-     * Promo codes do NOT affect this.
+     * Promo discounts do not change this amount.
      */
     const yocoAmountCents =
       Math.round(
@@ -1066,12 +1127,16 @@ export async function POST(
         }
       );
 
-    const yocoData =
-      await yocoResponse.json();
+    let yocoData: any;
 
-    if (
-      !yocoResponse.ok
-    ) {
+    try {
+      yocoData =
+        await yocoResponse.json();
+    } catch {
+      yocoData = null;
+    }
+
+    if (!yocoResponse.ok) {
       console.error(
         "Yoco checkout error:",
         yocoData
@@ -1108,10 +1173,10 @@ export async function POST(
     }
 
     const checkoutId =
-      yocoData.id;
+      yocoData?.id;
 
     const redirectUrl =
-      yocoData.redirectUrl;
+      yocoData?.redirectUrl;
 
     if (
       !checkoutId ||
@@ -1180,12 +1245,14 @@ export async function POST(
 
       depositAmount,
 
+      /*
+       * This is intentionally the deposit,
+       * not the discounted service total.
+       */
       yocoAmount:
         depositAmount,
     });
-  } catch (
-    error
-  ) {
+  } catch (error: any) {
     console.error(
       "Checkout API error:",
       error
@@ -1217,7 +1284,7 @@ export async function POST(
     return Response.json(
       {
         error:
-          error.message ||
+          error?.message ||
           "Something went wrong starting your booking.",
       },
       { status: 500 }
