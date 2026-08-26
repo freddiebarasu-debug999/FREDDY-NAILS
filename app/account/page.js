@@ -564,7 +564,7 @@ export default function AccountPage() {
             </div>
 
             <a
-              href="/#booking"
+              href="/account/book"
               className="hidden sm:inline-flex bg-[#d6b36a] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] transition-colors hover:bg-[#ad8a4e]"
             >
               Book an appointment →
@@ -740,7 +740,7 @@ export default function AccountPage() {
               </p>
 
               <a
-                href="/#booking"
+                href="/account/book"
                 className="mt-6 inline-flex bg-[#d6b36a] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] hover:bg-[#ad8a4e]"
               >
                 Book an appointment →
@@ -886,7 +886,7 @@ export default function AccountPage() {
 
         <div className="pb-10 sm:hidden">
           <a
-            href="/#booking"
+            href="/account/book"
             className="flex w-full items-center justify-center bg-[#d6b36a] px-5 py-3.5 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] hover:bg-[#ad8a4e]"
           >
             Book an appointment →
