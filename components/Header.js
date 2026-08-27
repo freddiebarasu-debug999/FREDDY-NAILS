@@ -1,184 +1,131 @@
 "use client";
 
-import { useState } from "react";
-
-const MENU_LINKS = [
-  { href: "/services", label: "Services" },
-  { href: "/offers", label: "Specials & Promos" },
-  { href: "/shape-guide", label: "Shape Guide" },
-  { href: "/about", label: "About Freddy Nails" },
-  { href: "/faq", label: "FAQs" },
-];
-
-const HOME_LINKS = [
-  { href: "/#gallery", label: "Gallery" },
-  { href: "/#reviews", label: "Reviews" },
-  { href: "/#contact", label: "Contact" },
-];
+import Image from "next/image";
+import Link from "next/link";
 
 export default function Header() {
-  const [open, setOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  function closeMenus() {
-    setOpen(false);
-    setMenuOpen(false);
-  }
-
   return (
-    <header className="sticky top-0 z-50 border-b border-[#d6b36a]/20 bg-[#11100f]/95 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-[1180px] items-center justify-between px-5 py-4">
-        {/* Logo */}
-        <a
-          href="/"
-          onClick={closeMenus}
-          className="font-serif text-xl tracking-tight text-[#f4eee6]"
-        >
-          Freddy <span className="text-[#d6b36a]">Nails</span>
-        </a>
+    <header className="w-full bg-black text-white">
+      {/* Account announcement */}
+      <div className="border-b border-white/10 bg-[#171514]">
+        <div className="max-w-[1400px] mx-auto px-5 py-3 flex items-center justify-center gap-3 text-center">
+          <span className="text-[#d9b86c] text-lg">✦</span>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-6 text-sm font-semibold md:flex">
-          {HOME_LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="nav-link text-[#f4eee6]/85 transition-colors hover:text-[#d6b36a]"
-            >
-              {link.label}
-            </a>
-          ))}
+          <p className="text-sm md:text-base text-[#eadfca]">
+            Create your Freddy Nails account to book your appointment,
+            manage your bookings and enjoy a seamless experience.
+          </p>
 
-          {/* Menu */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setMenuOpen((value) => !value)}
-              className="flex items-center gap-1.5 text-[#f4eee6]/85 transition-colors hover:text-[#d6b36a]"
-              aria-expanded={menuOpen}
-            >
-              Menu
-              <span
-                className={`text-[0.65rem] transition-transform duration-300 ${
-                  menuOpen ? "rotate-180" : ""
-                }`}
-              >
-                ▼
-              </span>
-            </button>
-
-            {menuOpen && (
-              <div className="absolute right-0 top-[calc(100%+18px)] w-56 overflow-hidden border border-[#d6b36a]/20 bg-[#151311] shadow-2xl">
-                {MENU_LINKS.map((link) => (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMenuOpen(false)}
-                    className="block border-b border-white/[0.06] px-5 py-3.5 text-[0.8rem] font-semibold text-[#f4eee6] transition-colors last:border-b-0 hover:bg-[#211e1a] hover:text-[#d6b36a]"
-                  >
-                    {link.label}
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-        </nav>
-
-        {/* Desktop Actions */}
-        <div className="hidden items-center gap-3 md:flex">
-          <a
-            href="/account"
-            className="px-3 py-[10px] text-xs font-bold uppercase tracking-wide text-[#f4eee6]/90 transition-colors hover:text-[#d6b36a]"
+          <Link
+            href="/account/register"
+            className="shrink-0 text-sm md:text-base font-medium text-[#e5c56f] underline underline-offset-4 hover:text-white transition-colors"
           >
-            My Account
-          </a>
+            Create Account
+          </Link>
 
-          <a
-            href="/account/signup"
-            className="rounded-sm bg-[#d6b36a] px-5 py-[11px] text-xs font-bold uppercase tracking-wide text-[#11100f] transition-colors hover:bg-[#ad8a4e]"
+          <button
+            type="button"
+            aria-label="Close announcement"
+            className="ml-4 hidden sm:block text-[#e5c56f] text-2xl leading-none hover:text-white transition-colors"
           >
-            Book now
-          </a>
+            ×
+          </button>
         </div>
-
-        {/* Mobile Menu Button */}
-        <button
-          onClick={() => setOpen((value) => !value)}
-          aria-label={open ? "Close menu" : "Open menu"}
-          aria-expanded={open}
-          aria-controls="mobile-menu"
-          className="flex flex-col gap-[5px] p-2 md:hidden"
-        >
-          <span className="block h-[1.5px] w-[22px] bg-[#f4eee6]" />
-          <span className="block h-[1.5px] w-[22px] bg-[#f4eee6]" />
-          <span className="block h-[1.5px] w-[22px] bg-[#f4eee6]" />
-        </button>
       </div>
 
-      {/* Mobile Menu */}
-      {open && (
-        <div
-          id="mobile-menu"
-          className="border-t border-[#d6b36a]/20 bg-[#151311] px-5 pb-6 pt-4"
-        >
-          <div className="flex flex-col">
-            <a
-              href="/#gallery"
-              onClick={closeMenus}
-              className="border-b border-white/[0.06] py-3.5 text-[0.95rem] font-semibold text-[#f4eee6] hover:text-[#d6b36a]"
+      {/* Main navigation */}
+      <nav className="border-b border-white/15">
+        <div className="max-w-[1400px] mx-auto px-5 py-5">
+          <div className="flex items-center justify-between gap-6">
+
+            {/* Logo + Freddy Nails */}
+            <Link
+              href="/"
+              className="flex items-center gap-4 shrink-0 group"
+              aria-label="Freddy Nails Home"
             >
-              Gallery
-            </a>
+              <div className="relative w-[68px] h-[68px] md:w-[78px] md:h-[78px] rounded-full overflow-hidden shrink-0">
+                <Image
+                  src="/freddy-nails-logo.png"
+                  alt="Freddy Nails"
+                  fill
+                  priority
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  sizes="78px"
+                />
+              </div>
 
-            <a
-              href="/#reviews"
-              onClick={closeMenus}
-              className="border-b border-white/[0.06] py-3.5 text-[0.95rem] font-semibold text-[#f4eee6] hover:text-[#d6b36a]"
-            >
-              Reviews
-            </a>
+              <span className="font-serif text-[2rem] md:text-[2.5rem] text-[#e5c56f] leading-none">
+                Freddy Nails
+              </span>
+            </Link>
 
-            <a
-              href="/#contact"
-              onClick={closeMenus}
-              className="border-b border-white/[0.06] py-3.5 text-[0.95rem] font-semibold text-[#f4eee6] hover:text-[#d6b36a]"
-            >
-              Contact
-            </a>
-
-            <p className="pb-2 pt-5 text-[0.65rem] font-bold uppercase tracking-[0.22em] text-[#d6b36a]">
-              Explore
-            </p>
-
-            {MENU_LINKS.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={closeMenus}
-                className="border-b border-white/[0.06] py-3.5 text-[0.95rem] font-semibold text-[#f4eee6] hover:text-[#d6b36a]"
+            {/* Navigation links */}
+            <div className="hidden lg:flex items-center gap-8">
+              <Link
+                href="/"
+                className="text-[#e5c56f] font-medium border-b-2 border-[#e5c56f] pb-2"
               >
-                {link.label}
-              </a>
-            ))}
+                Home
+              </Link>
 
-            <a
-              href="/account"
-              onClick={closeMenus}
-              className="mt-4 py-3.5 text-[0.95rem] font-semibold text-[#d6b36a] hover:text-[#f4eee6]"
-            >
-              My Account
-            </a>
+              <Link
+                href="/#about"
+                className="text-white hover:text-[#e5c56f] transition-colors"
+              >
+                About
+              </Link>
 
-            <a
-              href="/account/signup"
-              onClick={closeMenus}
-              className="mt-2 inline-flex w-fit items-center justify-center rounded-sm bg-[#d6b36a] px-5 py-[11px] text-xs font-bold uppercase tracking-wide text-[#11100f] transition-colors hover:bg-[#ad8a4e]"
-            >
-              Book now
-            </a>
+              <Link
+                href="/#services"
+                className="text-white hover:text-[#e5c56f] transition-colors"
+              >
+                Services
+              </Link>
+
+              <Link
+                href="/#gallery"
+                className="text-white hover:text-[#e5c56f] transition-colors"
+              >
+                Gallery
+              </Link>
+
+              <Link
+                href="/#reviews"
+                className="text-white hover:text-[#e5c56f] transition-colors"
+              >
+                Reviews
+              </Link>
+
+              <Link
+                href="/#contact"
+                className="text-white hover:text-[#e5c56f] transition-colors"
+              >
+                Contact
+              </Link>
+            </div>
+
+            {/* Account + Booking */}
+            <div className="flex items-center gap-3 shrink-0">
+              <Link
+                href="/account"
+                className="hidden sm:flex items-center justify-center gap-2 h-12 px-5 rounded-md border border-[#8f7440] text-white hover:border-[#e5c56f] hover:text-[#e5c56f] transition-colors"
+              >
+                <span className="text-lg">♙</span>
+                <span>My Account</span>
+              </Link>
+
+              <Link
+                href="/book"
+                className="flex items-center justify-center gap-2 h-12 px-6 rounded-md bg-[#e5c56f] text-[#171514] font-semibold hover:bg-[#f0d88f] transition-colors"
+              >
+                <span className="text-lg">▣</span>
+                <span>Book Now</span>
+              </Link>
+            </div>
           </div>
         </div>
-      )}
+      </nav>
     </header>
   );
 }
