@@ -32,9 +32,17 @@ export default function Header() {
         <a
           href="/"
           onClick={closeMenus}
-          className="font-serif text-xl tracking-tight text-[#f4eee6]"
+          className="flex items-center gap-2 font-serif text-xl tracking-tight text-[#f4eee6]"
         >
-          Freddy <span className="text-[#d6b36a]">Nails</span>
+          <img
+            src="/freddy-nails-logo.png"
+            alt="Freddy Nails"
+            className="h-9 w-9 object-contain"
+          />
+
+          <span>
+            Freddy <span className="text-[#d6b36a]">Nails</span>
+          </span>
         </a>
 
         {/* Desktop Navigation */}
