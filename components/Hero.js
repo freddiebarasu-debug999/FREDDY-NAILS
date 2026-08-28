@@ -9,26 +9,28 @@ export default function Hero() {
         <img
           src="/hero-slide-1.jpg"
           alt="Freddy Nails gold leaf signature set"
-          className="absolute inset-0 h-full w-full object-cover object-[62%_center] scale-[0.92] md:scale-[0.96]"
+          className="h-full w-full object-cover"
         />
-        {/* Left fade */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#0c0b0a] via-[#0c0b0a]/70 to-[#0c0b0a]/10" />
-        {/* Bottom fade */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0c0b0a]/60 via-transparent to-transparent" />
       </div>
+
       {/* Content */}
       <div className="relative z-10 max-w-[1180px] mx-auto px-5 w-full">
         <div className="max-w-[620px]">
-          <h1 className="font-serif font-medium leading-[1.05] text-[clamp(2.6rem,6vw,4.2rem)] text-[#d6b36a]">
+          <h1 className="font-serif font-medium leading-[1.05] text-[clamp(2.6rem,6vw,4.2rem)] text-[#f4eee6]">
             Nails by Freddy,
             <br />
             Crafted to Perfection
           </h1>
+
           <div className="mt-6 h-px w-16 bg-[#d6b36a]/70" />
-          <p className="mt-6 text-[1.05rem] leading-relaxed text-[#d6b36a] max-w-[46ch]">
+
+          <p className="mt-6 text-[1.05rem] leading-relaxed text-[#c9c0b6] max-w-[46ch]">
             Luxury nail services designed to elevate your style and
             confidence.
           </p>
+
           <div className="mt-8">
             <a
               href="/account/signup"
