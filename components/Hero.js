@@ -9,9 +9,11 @@ export default function Hero() {
         <img
           src="/hero-slide-1.jpg"
           alt="Freddy Nails gold leaf signature set"
-          className="h-full w-full object-contain object-[65%_center]"
+          className="absolute inset-0 h-full w-full object-cover object-[62%_center] scale-[0.92] md:scale-[0.96]"
         />
+        {/* Left fade */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#0c0b0a] via-[#0c0b0a]/70 to-[#0c0b0a]/10" />
+        {/* Bottom fade */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0c0b0a]/60 via-transparent to-transparent" />
       </div>
       {/* Content */}
