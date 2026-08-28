@@ -32,15 +32,17 @@ export default function Header() {
         <a
           href="/"
           onClick={closeMenus}
-          className="flex items-center gap-2 font-serif text-xl tracking-tight text-[#f4eee6]"
+          className="flex items-center gap-3 font-serif text-xl tracking-tight text-[#f4eee6]"
         >
-          <img
-            src="/freddy-nails-logo.png"
-            alt="Freddy Nails"
-            className="h-9 w-9 object-contain"
-          />
+          <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-[#d6b36a] overflow-hidden shadow-[0_0_0_1px_rgba(214,179,106,0.15)]">
+            <img
+              src="/freddy-nails-logo.png"
+              alt="Freddy Nails"
+              className="h-full w-full object-cover"
+            />
+          </span>
 
-          <span>
+          <span className="text-2xl">
             Freddy <span className="text-[#d6b36a]">Nails</span>
           </span>
         </a>
