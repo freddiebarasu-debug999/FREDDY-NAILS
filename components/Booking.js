@@ -1426,40 +1426,21 @@ export default function Booking() {
   }
 
   if (confirmedBooking) {
-    const whatsappMessage =
-      encodeURIComponent(
-        `Hi Freddy Nails! 💅 My booking is confirmed.\n\nName: ${confirmedBooking.customerName}\nEmail: ${confirmedBooking.customerEmail}\n\n${
-          confirmedBooking.clients
-            ? confirmedBooking.clients
-                .map(
-                  (
-                    client,
-                    index
-                  ) =>
-                    `Client ${index + 1}:\nServices: ${
-                      client.service
-                    }\nDate: ${formatDate(
-                      client.bookingDate
-                    )}\nTime: ${formatTime(
-                      client.startTime
-                    )}`
-                )
-                .join(
-                  "\n\n"
-                )
-            : `Services: ${
-                confirmedBooking.service
-              }\nDate: ${formatDate(
-                confirmedBooking.bookingDate
-              )}\nTime: ${formatTime(
-                confirmedBooking.startTime
-              )}`
-        }\n\nClients: ${
-          confirmedBooking.clientCount
-        }\nDeposit: R${
-          confirmedBooking.depositAmount
-        }`
-      );
+    const firstAppointmentDate =
+      confirmedBooking.clients?.[0]?.bookingDate ||
+      confirmedBooking.bookingDate;
+
+    const firstAppointmentTime =
+      confirmedBooking.clients?.[0]?.startTime ||
+      confirmedBooking.startTime;
+
+    const whatsappMessage = encodeURIComponent(
+      `Hey Freddy! ${confirmedBooking.customerName} here.\nI just booked an appointment for ${formatDate(
+        firstAppointmentDate
+      )} at ${formatTime(
+        firstAppointmentTime
+      )}.\nI can't wait to get this set done💅`
+    );
 
     return (
       <section
