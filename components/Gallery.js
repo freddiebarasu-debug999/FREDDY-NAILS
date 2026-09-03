@@ -14,7 +14,7 @@ const TILES = [
   { src: "/gallery/gallery-10.jpeg", label: "Burgundy Floral French" },
   { src: "/gallery/gallery-11.jpeg", label: "Polka Dot French Tips" },
   { src: "/gallery/gallery-12.jpeg", label: "Red & Black Color Block" },
-  { src: "/gallery/gallery-13.jpeg", label: "Blush French TipSuits & Hearts" },
+  { src: "/gallery/gallery-13.jpeg", label: "Suits & Hearts" },
 ];
 export default function Gallery() {
   const [selectedImage, setSelectedImage] = useState(null);
