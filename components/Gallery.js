@@ -10,6 +10,11 @@ const TILES = [
   { src: "/gallery/gallery-6.jpg", label: "Mauve French Square" },
   { src: "/gallery/gallery-7.jpg", label: "Lilac Square Set" },
   { src: "/gallery/gallery-8.jpg", label: "Leopard French Cherry" },
+  { src: "/gallery/gallery-9.jpeg", label: "Suits & Hearts" },
+  { src: "/gallery/gallery-10.jpeg", label: "Red & Black Color Block" },
+  { src: "/gallery/gallery-11.jpeg", label: "Polka Dot French Tips" },
+  { src: "/gallery/gallery-12.jpeg", label: "Burgundy Floral French" },
+  { src: "/gallery/gallery-13.jpeg", label: "Blush French Tip" },
 ];
 export default function Gallery() {
   const [selectedImage, setSelectedImage] = useState(null);
