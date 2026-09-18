@@ -137,7 +137,7 @@ if (confirmedClients.length > 0) {
     endTime = confirmedClients[0].end_time;
   }
 }
-[2026/09/18 21:25] Fred: const start = formatICSDate(bookingDate, startTime);
+const start = formatICSDate(bookingDate, startTime);
 const end = formatICSDate(bookingDate, endTime);
 const now = formatICSDateUTC();
 
