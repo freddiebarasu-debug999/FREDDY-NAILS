@@ -116,9 +116,7 @@ function isShapeEligibleService(serviceName) {
 function extractServicePrice(serviceName) {
   if (!serviceName) return 0;
 
-  const match = serviceName.match(
-    /\(R(\d+)(?:–\d+)?\)/
-  );
+  const match = serviceName.match(/\(R(\d+)(?:–\d+)?\)/);
 
   if (!match) return 0;
 
@@ -145,9 +143,10 @@ function minutesToTime(minutes) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
 
-  return `${String(hours).padStart(2, "0")}:${String(
-    mins
-  ).padStart(2, "0")}`;
+  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(
+    2,
+    "0"
+  )}`;
 }
 
 function formatDate(dateString) {
@@ -290,29 +289,17 @@ export default function Booking() {
         )
       : Math.max(
           0,
-          totalServiceAmount -
-            appliedPromo.discountValue
+          totalServiceAmount - appliedPromo.discountValue
         )
     : totalServiceAmount;
 
   const serviceDiscountAmount = Math.max(
     0,
-    totalServiceAmount -
-      discountedServiceTotal
+    totalServiceAmount - discountedServiceTotal
   );
 
-  const depositAmount =
-    clientCount * DEPOSIT_PER_CLIENT;
+  const depositAmount = clientCount * DEPOSIT_PER_CLIENT;
 
-  /*
-   * Validate and apply a promo code.
-   *
-   * IMPORTANT:
-   * The response is read as text first rather than
-   * calling response.json() directly. This prevents
-   * "Unexpected end of JSON input" when the API returns
-   * an empty response or a non-JSON response.
-   */
   async function applyPromoCodeValue(code) {
     const cleanCode = code?.trim();
 
@@ -323,9 +310,7 @@ export default function Booking() {
 
     try {
       const response = await fetch(
-        `/api/promo/validate?code=${encodeURIComponent(
-          cleanCode
-        )}`
+        `/api/promo/validate?code=${encodeURIComponent(cleanCode)}`
       );
 
       const rawText = await response.text();
@@ -347,8 +332,7 @@ export default function Booking() {
 
       if (!response.ok) {
         throw new Error(
-          data?.error ||
-            "That code isn't valid."
+          data?.error || "That code isn't valid."
         );
       }
 
@@ -358,9 +342,7 @@ export default function Booking() {
         !data.discountType ||
         typeof data.discountValue !== "number"
       ) {
-        throw new Error(
-          "That code isn't valid."
-        );
+        throw new Error("That code isn't valid.");
       }
 
       setPromoCode(data.code);
@@ -371,8 +353,7 @@ export default function Booking() {
       setAppliedPromo(null);
 
       setPromoError(
-        err?.message ||
-          "Unable to check that code."
+        err?.message || "Unable to check that code."
       );
 
       return false;
@@ -490,8 +471,7 @@ export default function Booking() {
         .trim()
         .toLowerCase();
 
-    const normalisedService =
-      normalise(serviceParam);
+    const normalisedService = normalise(serviceParam);
 
     const validService = normalisedService
       ? SERVICE_OPTIONS.find(
@@ -519,27 +499,19 @@ export default function Booking() {
     }
 
     if (promoParam) {
-      const cleanPromo =
-        promoParam.trim();
+      const cleanPromo = promoParam.trim();
 
       if (cleanPromo) {
         setPromoCode(cleanPromo);
 
-        applyPromoCodeValue(
-          cleanPromo
-        );
+        applyPromoCodeValue(cleanPromo);
       }
     }
   }, []);
 
-  function updateClientServices(
-    clientIndex,
-    services
-  ) {
+  function updateClientServices(clientIndex, services) {
     setForm((current) => {
-      const updated = [
-        ...current.clientServices,
-      ];
+      const updated = [...current.clientServices];
 
       updated[clientIndex] = services;
 
@@ -552,14 +524,9 @@ export default function Booking() {
     setError("");
   }
 
-  function updateClientShape(
-    clientIndex,
-    shape
-  ) {
+  function updateClientShape(clientIndex, shape) {
     setForm((current) => {
-      const updated = [
-        ...current.clientShapes,
-      ];
+      const updated = [...current.clientShapes];
 
       updated[clientIndex] = shape;
 
@@ -574,21 +541,15 @@ export default function Booking() {
 
   function addService(clientIndex) {
     setForm((current) => {
-      const updated = [
-        ...current.clientServices,
-      ];
+      const updated = [...current.clientServices];
 
-      if (
-        updated[clientIndex].length >= 4
-      ) {
+      if (updated[clientIndex].length >= 4) {
         return current;
       }
 
       const unused = SERVICE_OPTIONS.find(
         (option) =>
-          !updated[clientIndex].includes(
-            option.name
-          )
+          !updated[clientIndex].includes(option.name)
       );
 
       if (!unused) return current;
@@ -607,26 +568,17 @@ export default function Booking() {
     setError("");
   }
 
-  function removeService(
-    clientIndex,
-    serviceIndex
-  ) {
+  function removeService(clientIndex, serviceIndex) {
     setForm((current) => {
-      const updated = [
-        ...current.clientServices,
-      ];
+      const updated = [...current.clientServices];
 
-      if (
-        updated[clientIndex].length <= 1
-      ) {
+      if (updated[clientIndex].length <= 1) {
         return current;
       }
 
-      updated[clientIndex] =
-        updated[clientIndex].filter(
-          (_, index) =>
-            index !== serviceIndex
-        );
+      updated[clientIndex] = updated[clientIndex].filter(
+        (_, index) => index !== serviceIndex
+      );
 
       return {
         ...current,
@@ -641,28 +593,13 @@ export default function Booking() {
     const nextCount = Number(value);
 
     setForm((current) => {
-      const services = [
-        ...current.clientServices,
-      ];
+      const services = [...current.clientServices];
+      const shapes = [...current.clientShapes];
+      const dates = [...current.clientDates];
+      const times = [...current.clientTimes];
 
-      const shapes = [
-        ...current.clientShapes,
-      ];
-
-      const dates = [
-        ...current.clientDates,
-      ];
-
-      const times = [
-        ...current.clientTimes,
-      ];
-
-      while (
-        services.length < nextCount
-      ) {
-        services.push([
-          SERVICE_OPTIONS[0].name,
-        ]);
+      while (services.length < nextCount) {
+        services.push([SERVICE_OPTIONS[0].name]);
 
         shapes.push("");
         dates.push("");
@@ -685,46 +622,29 @@ export default function Booking() {
     });
 
     setAvailableTimes(
-      Array.from(
-        { length: nextCount },
-        () => []
-      )
+      Array.from({ length: nextCount }, () => [])
     );
 
     setLoadingAvailability(
-      Array.from(
-        { length: nextCount },
-        () => false
-      )
+      Array.from({ length: nextCount }, () => false)
     );
 
     setAvailabilityErrors(
-      Array.from(
-        { length: nextCount },
-        () => ""
-      )
+      Array.from({ length: nextCount }, () => "")
     );
 
     setError("");
   }
 
-  function updateClientDate(
-    clientIndex,
-    date
-  ) {
+  function updateClientDate(clientIndex, date) {
     if (date && isPastDate(date)) {
       setError(
         "Previous dates cannot be booked. Please choose today or a future date."
       );
 
       setForm((current) => {
-        const dates = [
-          ...current.clientDates,
-        ];
-
-        const times = [
-          ...current.clientTimes,
-        ];
+        const dates = [...current.clientDates];
+        const times = [...current.clientTimes];
 
         dates[clientIndex] = "";
         times[clientIndex] = "";
@@ -745,13 +665,8 @@ export default function Booking() {
       );
 
       setForm((current) => {
-        const dates = [
-          ...current.clientDates,
-        ];
-
-        const times = [
-          ...current.clientTimes,
-        ];
+        const dates = [...current.clientDates];
+        const times = [...current.clientTimes];
 
         dates[clientIndex] = "";
         times[clientIndex] = "";
@@ -767,13 +682,8 @@ export default function Booking() {
     }
 
     setForm((current) => {
-      const dates = [
-        ...current.clientDates,
-      ];
-
-      const times = [
-        ...current.clientTimes,
-      ];
+      const dates = [...current.clientDates];
+      const times = [...current.clientTimes];
 
       dates[clientIndex] = date;
       times[clientIndex] = "";
@@ -788,14 +698,9 @@ export default function Booking() {
     setError("");
   }
 
-  function updateClientTime(
-    clientIndex,
-    time
-  ) {
+  function updateClientTime(clientIndex, time) {
     setForm((current) => {
-      const times = [
-        ...current.clientTimes,
-      ];
+      const times = [...current.clientTimes];
 
       times[clientIndex] = time;
 
@@ -833,14 +738,10 @@ export default function Booking() {
         clientIndex++
       ) {
         const date =
-          form.clientDates[
-            clientIndex
-          ];
+          form.clientDates[clientIndex];
 
         const duration =
-          clientDurations[
-            clientIndex
-          ];
+          clientDurations[clientIndex];
 
         if (
           !date ||
@@ -854,30 +755,19 @@ export default function Booking() {
       }
 
       if (!cancelled) {
-        setLoadingAvailability(
-          loading
-        );
-
-        setAvailabilityErrors(
-          errors
-        );
+        setLoadingAvailability(loading);
+        setAvailabilityErrors(errors);
       }
 
       await Promise.all(
         Array.from(
-          {
-            length: clientCount,
-          },
+          { length: clientCount },
           async (_, clientIndex) => {
             const date =
-              form.clientDates[
-                clientIndex
-              ];
+              form.clientDates[clientIndex];
 
             const duration =
-              clientDurations[
-                clientIndex
-              ];
+              clientDurations[clientIndex];
 
             if (
               !date ||
@@ -888,18 +778,16 @@ export default function Booking() {
             }
 
             try {
-              const response =
-                await fetch(
-                  `/api/availability?date=${encodeURIComponent(
-                    date
-                  )}&duration=${duration}`,
-                  {
-                    cache: "no-store",
-                  }
-                );
+              const response = await fetch(
+                `/api/availability?date=${encodeURIComponent(
+                  date
+                )}&duration=${duration}`,
+                {
+                  cache: "no-store",
+                }
+              );
 
-              const data =
-                await response.json();
+              const data = await response.json();
 
               if (!response.ok) {
                 throw new Error(
@@ -908,40 +796,23 @@ export default function Booking() {
                 );
               }
 
-              results[
-                clientIndex
-              ] =
-                data.availableTimes ||
-                [];
-            } catch (
-              requestError
-            ) {
-              errors[
-                clientIndex
-              ] =
+              results[clientIndex] =
+                data.availableTimes || [];
+            } catch (requestError) {
+              errors[clientIndex] =
                 requestError.message ||
                 "Unable to load availability.";
             } finally {
-              loading[
-                clientIndex
-              ] = false;
+              loading[clientIndex] = false;
             }
           }
         )
       );
 
       if (!cancelled) {
-        setAvailableTimes(
-          results
-        );
-
-        setLoadingAvailability(
-          loading
-        );
-
-        setAvailabilityErrors(
-          errors
-        );
+        setAvailableTimes(results);
+        setLoadingAvailability(loading);
+        setAvailabilityErrors(errors);
       }
     }
 
@@ -956,40 +827,23 @@ export default function Booking() {
     clientDurations,
   ]);
 
-  function getClientAvailableTimes(
-    clientIndex
-  ) {
+  function getClientAvailableTimes(clientIndex) {
     let times =
-      availableTimes[
-        clientIndex
-      ] || [];
+      availableTimes[clientIndex] || [];
 
     if (
       clientIndex > 0 &&
-      form.clientDates[
-        clientIndex
-      ] &&
-      form.clientDates[
-        clientIndex - 1
-      ] ===
-        form.clientDates[
-          clientIndex
-        ] &&
-      form.clientTimes[
-        clientIndex - 1
-      ]
+      form.clientDates[clientIndex] &&
+      form.clientDates[clientIndex - 1] ===
+        form.clientDates[clientIndex] &&
+      form.clientTimes[clientIndex - 1]
     ) {
-      const previousStart =
-        timeToMinutes(
-          form.clientTimes[
-            clientIndex - 1
-          ]
-        );
+      const previousStart = timeToMinutes(
+        form.clientTimes[clientIndex - 1]
+      );
 
       const previousDuration =
-        clientDurations[
-          clientIndex - 1
-        ];
+        clientDurations[clientIndex - 1];
 
       const earliestStart =
         previousStart +
@@ -1006,31 +860,23 @@ export default function Booking() {
     return times;
   }
 
-  async function handleSubmit(
-    event
-  ) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     setError("");
 
     if (!form.name.trim()) {
-      setError(
-        "Please enter your name."
-      );
+      setError("Please enter your name.");
       return;
     }
 
     if (!form.phone.trim()) {
-      setError(
-        "Please enter your phone number."
-      );
+      setError("Please enter your phone number.");
       return;
     }
 
     if (!form.email.trim()) {
-      setError(
-        "Please enter your email address."
-      );
+      setError("Please enter your email address.");
       return;
     }
 
@@ -1040,20 +886,14 @@ export default function Booking() {
       clientIndex++
     ) {
       const services =
-        form.clientServices[
-          clientIndex
-        ] || [];
+        form.clientServices[clientIndex] || [];
 
       const needsShape =
-        services.some(
-          isShapeEligibleService
-        );
+        services.some(isShapeEligibleService);
 
       if (
         needsShape &&
-        !form.clientShapes[
-          clientIndex
-        ]
+        !form.clientShapes[clientIndex]
       ) {
         setError(
           `Please choose a nail shape for Client ${
@@ -1071,9 +911,7 @@ export default function Booking() {
       clientIndex++
     ) {
       const date =
-        form.clientDates[
-          clientIndex
-        ];
+        form.clientDates[clientIndex];
 
       if (!date) {
         setError(
@@ -1085,20 +923,14 @@ export default function Booking() {
         return;
       }
 
-      if (
-        !isBookableDate(date)
-      ) {
-        if (
-          isPastDate(date)
-        ) {
+      if (!isBookableDate(date)) {
+        if (isPastDate(date)) {
           setError(
             `Client ${
               clientIndex + 1
             } has selected a previous date. Please choose today or a future date.`
           );
-        } else if (
-          isSunday(date)
-        ) {
+        } else if (isSunday(date)) {
           setError(
             `Client ${
               clientIndex + 1
@@ -1115,11 +947,7 @@ export default function Booking() {
         return;
       }
 
-      if (
-        !form.clientTimes[
-          clientIndex
-        ]
-      ) {
+      if (!form.clientTimes[clientIndex]) {
         setError(
           `Please choose an available time for Client ${
             clientIndex + 1
@@ -1136,32 +964,20 @@ export default function Booking() {
       clientIndex++
     ) {
       if (
-        form.clientDates[
-          clientIndex
-        ] ===
-        form.clientDates[
-          clientIndex - 1
-        ]
+        form.clientDates[clientIndex] ===
+        form.clientDates[clientIndex - 1]
       ) {
-        const previousStart =
-          timeToMinutes(
-            form.clientTimes[
-              clientIndex - 1
-            ]
-          );
+        const previousStart = timeToMinutes(
+          form.clientTimes[clientIndex - 1]
+        );
 
         const previousEnd =
           previousStart +
-          clientDurations[
-            clientIndex - 1
-          ];
+          clientDurations[clientIndex - 1];
 
-        const currentStart =
-          timeToMinutes(
-            form.clientTimes[
-              clientIndex
-            ]
-          );
+        const currentStart = timeToMinutes(
+          form.clientTimes[clientIndex]
+        );
 
         if (
           currentStart <
@@ -1184,79 +1000,62 @@ export default function Booking() {
 
     try {
       const {
-        data: {
-          session,
-        },
-      } =
-        await supabase.auth.getSession();
+        data: { session },
+      } = await supabase.auth.getSession();
 
       const headers = {
-        "Content-Type":
-          "application/json",
+        "Content-Type": "application/json",
       };
 
-      if (
-        session?.access_token
-      ) {
+      if (session?.access_token) {
         headers.Authorization =
           `Bearer ${session.access_token}`;
       }
 
       const clientEndTimes =
         form.clientTimes.map(
-          (
-            startTime,
-            index
-          ) =>
+          (startTime, index) =>
             minutesToTime(
-              timeToMinutes(
-                startTime
-              ) +
-                clientDurations[
-                  index
-                ]
+              timeToMinutes(startTime) +
+                clientDurations[index]
             )
         );
 
-      const response =
-        await fetch(
-          "/api/checkout",
-          {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              name: form.name.trim(),
-              phone: form.phone.trim(),
-              email: form.email.trim(),
+      const response = await fetch(
+        "/api/checkout",
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            name: form.name.trim(),
+            phone: form.phone.trim(),
+            email: form.email.trim(),
 
-              clientServices:
-                form.clientServices,
+            clientServices:
+              form.clientServices,
 
-              clientShapes:
-                form.clientShapes,
+            clientShapes:
+              form.clientShapes,
 
-              clientCount,
+            clientCount,
 
-              clientDates:
-                form.clientDates,
+            clientDates:
+              form.clientDates,
 
-              clientStartTimes:
-                form.clientTimes,
+            clientStartTimes:
+              form.clientTimes,
 
-              clientEndTimes,
+            clientEndTimes,
 
-              notes:
-                form.notes.trim(),
+            notes: form.notes.trim(),
 
-              promoCode:
-                appliedPromo?.code ||
-                null,
-            }),
-          }
-        );
+            promoCode:
+              appliedPromo?.code || null,
+          }),
+        }
+      );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -1273,9 +1072,7 @@ export default function Booking() {
 
       window.location.href =
         data.redirectUrl;
-    } catch (
-      submitError
-    ) {
+    } catch (submitError) {
       setError(
         submitError.message ||
           "Something went wrong. Please try again."
@@ -1292,22 +1089,17 @@ export default function Booking() {
       );
 
     if (
-      params.get("booking") !==
-        "success" ||
+      params.get("booking") !== "success" ||
       !params.get("appointment")
     ) {
       return;
     }
 
     const appointmentId =
-      params.get(
-        "appointment"
-      );
+      params.get("appointment");
 
     document
-      .getElementById(
-        "booking"
-      )
+      .getElementById("booking")
       ?.scrollIntoView({
         behavior: "smooth",
         block: "start",
@@ -1319,9 +1111,7 @@ export default function Booking() {
       const MAX_ATTEMPTS = 8;
 
       if (attempt === 1) {
-        setConfirmingBooking(
-          true
-        );
+        setConfirmingBooking(true);
       }
 
       try {
@@ -1354,9 +1144,7 @@ export default function Booking() {
             return;
           }
 
-          setConfirmingBooking(
-            false
-          );
+          setConfirmingBooking(false);
 
           throw new Error(
             data.error ||
@@ -1368,26 +1156,20 @@ export default function Booking() {
           data.appointment
         );
 
-        setConfirmingBooking(
-          false
-        );
+        setConfirmingBooking(false);
 
         window.history.replaceState(
           {},
           "",
           window.location.pathname
         );
-      } catch (
-        bookingError
-      ) {
+      } catch (bookingError) {
         console.error(
           "Confirmation lookup error:",
           bookingError
         );
 
-        setConfirmingBooking(
-          false
-        );
+        setConfirmingBooking(false);
       }
     }
 
@@ -1415,10 +1197,9 @@ export default function Booking() {
           </h2>
 
           <p className="text-[#c9c0b6] leading-relaxed">
-            Your payment went through —
-            just finalising the details.
-            This usually takes a few
-            seconds.
+            Your payment went through — just
+            finalising the details. This usually
+            takes a few seconds.
           </p>
         </div>
       </section>
@@ -1434,140 +1215,227 @@ export default function Booking() {
       confirmedBooking.clients?.[0]?.startTime ||
       confirmedBooking.startTime;
 
-    const whatsappMessage = encodeURIComponent(
-      `Hey Freddy! ${confirmedBooking.customerName} here.\nI just booked an appointment for ${formatDate(
-        firstAppointmentDate
-      )} at ${formatTime(
-        firstAppointmentTime
-      )}.\nI can't wait to get this set done💅`
-    );
+    const whatsappMessage =
+      encodeURIComponent(
+        `Hey Freddy! ${confirmedBooking.customerName} here.\nI just booked an appointment for ${formatDate(
+          firstAppointmentDate
+        )} at ${formatTime(
+          firstAppointmentTime
+        )}.\nI can't wait to get this set done💅`
+      );
+
+    const calendarUrl =
+      `/api/calendar?appointment=${encodeURIComponent(
+        confirmedBooking.id
+      )}`;
 
     return (
       <section
         id="booking"
-        className="max-w-[1180px] mx-auto px-5 py-22"
+        className="relative max-w-[1180px] mx-auto px-5 py-16 sm:py-22"
       >
-        <div className="max-w-[560px] mx-auto text-center py-8">
-          <div className="w-14 h-14 rounded-full bg-gold text-[#11100f] text-2xl font-bold flex items-center justify-center mx-auto mb-5">
-            ✓
+        <div className="max-w-[620px] mx-auto">
+          <div className="text-center">
+            {/* Success mark */}
+            <div className="relative w-16 h-16 mx-auto mb-6">
+              <div className="absolute inset-0 rounded-full bg-gold/10 blur-xl" />
+
+              <div className="relative w-16 h-16 rounded-full bg-gold text-[#11100f] text-2xl font-bold flex items-center justify-center shadow-[0_0_35px_rgba(214,179,106,0.18)]">
+                ✓
+              </div>
+            </div>
+
+            <p className="text-[0.72rem] font-bold tracking-[0.24em] uppercase text-gold">
+              Freddy Nails Studio
+            </p>
+
+            <h2 className="font-serif font-medium text-[clamp(1.9rem,5vw,2.8rem)] mt-3 text-[#f4eee6] leading-tight">
+              You&apos;ve successfully booked
+              your appointment
+            </h2>
+
+            <p className="font-serif italic text-lg sm:text-xl text-gold-bright mt-4">
+              You&apos;re all booked! 💅
+            </p>
+
+            <p className="text-[#c9c0b6] leading-relaxed mt-4 max-w-[500px] mx-auto">
+              Your payment has been received
+              and your appointment is confirmed.
+              Your booking has been added to the
+              Freddy Nails calendar.
+            </p>
           </div>
 
-          <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
-            Freddy Nails Studio
-          </p>
-
-          <h2 className="font-serif font-medium text-[clamp(1.7rem,4vw,2.3rem)] mt-3 mb-2 text-[#f4eee6]">
-            Booking confirmed
-          </h2>
-
-          <p className="font-serif italic text-lg text-gold-bright mb-4">
-            You&apos;re booked! 💅
-          </p>
-
-          <p className="text-[#c9c0b6] leading-relaxed">
-            Your payment has been
-            received and your
-            appointment is confirmed.
-          </p>
-
-          <p className="text-[#c9c0b6] leading-relaxed mt-2">
-            Your R
-            {
-              confirmedBooking.depositAmount
-            }{" "}
-            deposit has been received.
-          </p>
-
-          <p className="text-[#c9c0b6] leading-relaxed mt-2">
-            A confirmation email has
-            been sent to{" "}
-            <strong className="text-[#f4eee6]">
-              {
-                confirmedBooking.customerEmail
-              }
-            </strong>
-            .
-          </p>
-
-          <p className="text-[#c9c0b6] leading-relaxed mt-2">
-            Freddy Nails has also
-            received your booking
-            notification.
-          </p>
-
+          {/* Booking summary */}
           {confirmedBooking.clients &&
-            confirmedBooking.clients.length >
-              0 && (
-              <div className="space-y-3 my-6 text-left">
-                {confirmedBooking.clients.map(
-                  (
-                    client,
-                    index
-                  ) => (
-                    <div
-                      key={
-                        client.id ||
-                        index
-                      }
-                      className="border-b border-white/[0.09] py-4 flex flex-col gap-1 text-sm"
-                    >
-                      <strong className="text-xs uppercase tracking-[0.12em] text-gold">
-                        Client{" "}
-                        {index + 1}
-                      </strong>
+            confirmedBooking.clients.length > 0 && (
+              <div className="mt-9 border border-white/[0.10] bg-[#181614]/80 rounded-lg overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/[0.08]">
+                  <p className="text-[0.68rem] font-bold tracking-[0.20em] uppercase text-gold">
+                    Booking summary
+                  </p>
+                </div>
 
-                      <span className="text-[#f4eee6]">
-                        {
-                          client.service
+                <div className="px-5">
+                  {confirmedBooking.clients.map(
+                    (client, index) => (
+                      <div
+                        key={
+                          client.id ||
+                          index
                         }
-                      </span>
+                        className={`py-5 flex flex-col gap-1.5 ${
+                          index <
+                          confirmedBooking
+                            .clients
+                            .length -
+                            1
+                            ? "border-b border-white/[0.08]"
+                            : ""
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <strong className="text-xs uppercase tracking-[0.14em] text-gold">
+                            Client{" "}
+                            {index + 1}
+                          </strong>
 
-                      {client.shape && (
-                        <span className="text-[#c9c0b6]">
-                          Shape:{" "}
-                          {
-                            client.shape
-                          }
+                          {client.durationMinutes && (
+                            <span className="text-xs text-[#8f877e]">
+                              {
+                                client.durationMinutes
+                              }{" "}
+                              min
+                            </span>
+                          )}
+                        </div>
+
+                        <span className="text-[#f4eee6] text-sm leading-relaxed">
+                          {client.service}
                         </span>
-                      )}
 
-                      <span className="text-[#c9c0b6]">
-                        {formatDate(
-                          client.bookingDate
+                        {client.shape && (
+                          <span className="text-[#c9c0b6] text-sm">
+                            Shape:{" "}
+                            {client.shape}
+                          </span>
                         )}
-                      </span>
 
-                      <span className="text-[#c9c0b6]">
-                        {formatTime(
-                          client.startTime
-                        )}{" "}
-                        –{" "}
-                        {formatTime(
-                          client.endTime
-                        )}
-                      </span>
-                    </div>
-                  )
-                )}
+                        <span className="text-[#c9c0b6] text-sm mt-1">
+                          {formatDate(
+                            client.bookingDate
+                          )}
+                        </span>
+
+                        <span className="text-[#c9c0b6] text-sm">
+                          {formatTime(
+                            client.startTime
+                          )}{" "}
+                          –{" "}
+                          {formatTime(
+                            client.endTime
+                          )}
+                        </span>
+                      </div>
+                    )
+                  )}
+                </div>
+
+                <div className="px-5 py-4 border-t border-white/[0.08] bg-gold/[0.04] flex items-center justify-between gap-4">
+                  <div>
+                    <span className="block text-[0.65rem] uppercase tracking-[0.14em] text-[#8f877e]">
+                      Deposit paid
+                    </span>
+
+                    <span className="text-xs text-[#8f877e]">
+                      R90 per client
+                    </span>
+                  </div>
+
+                  <strong className="font-serif text-xl text-gold">
+                    R
+                    {
+                      confirmedBooking.depositAmount
+                    }
+                  </strong>
+                </div>
               </div>
             )}
 
-          <a
-            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center justify-center gap-2.5 bg-gold text-[#11100f] px-7 py-[15px] rounded-sm text-[0.85rem] font-bold uppercase tracking-wide hover:bg-gold-bright transition-colors mt-6"
-          >
-            Message Freddy Nails on WhatsApp
-          </a>
+          {/* Confirmation information */}
+          <div className="text-center mt-6 space-y-2">
+            <p className="text-sm text-[#c9c0b6] leading-relaxed">
+              A confirmation email has been sent
+              to{" "}
+              <strong className="text-[#f4eee6]">
+                {
+                  confirmedBooking.customerEmail
+                }
+              </strong>
+              .
+            </p>
 
-          <p className="text-xs text-[#8f877e] mt-5">
-            Booking ID:{" "}
-            {
-              confirmedBooking.id ||
-              "Confirmed"
-            }
-          </p>
+            <p className="text-sm text-[#8f877e] leading-relaxed">
+              Keep your booking details handy
+              and arrive on time for your
+              appointment.
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="mt-8 space-y-3">
+            <a
+              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMessage}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-2.5 w-full bg-gold text-[#11100f] px-6 py-4 rounded-sm text-[0.82rem] font-bold uppercase tracking-wide hover:bg-gold-bright transition-colors"
+            >
+              <span className="text-base">
+                💬
+              </span>
+
+              Message Freddy Nails on WhatsApp
+            </a>
+
+            <a
+              href={calendarUrl}
+              className="flex items-center justify-center gap-2.5 w-full border border-gold/45 bg-gold/[0.06] text-gold px-6 py-4 rounded-sm text-[0.82rem] font-bold uppercase tracking-wide hover:bg-gold/10 hover:border-gold/70 transition-colors"
+            >
+              <span className="text-base">
+                📅
+              </span>
+
+              Add to Calendar
+            </a>
+          </div>
+
+          {/* Bottom navigation */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+            <a
+              href="/"
+              className="flex items-center justify-center px-5 py-3.5 border border-white/[0.10] text-[#c9c0b6] rounded-sm text-xs font-bold uppercase tracking-wide hover:border-gold/35 hover:text-gold transition-colors"
+            >
+              ← Back to Home
+            </a>
+
+            <a
+              href="/account"
+              className="flex items-center justify-center px-5 py-3.5 border border-white/[0.10] text-[#c9c0b6] rounded-sm text-xs font-bold uppercase tracking-wide hover:border-gold/35 hover:text-gold transition-colors"
+            >
+              View My Bookings
+            </a>
+          </div>
+
+          {/* Booking ID */}
+          <div className="text-center mt-7">
+            <p className="text-[0.68rem] text-[#8f877e]">
+              Booking ID:{" "}
+              <span className="text-[#c9c0b6]">
+                {confirmedBooking.id ||
+                  "Confirmed"}
+              </span>
+            </p>
+          </div>
         </div>
       </section>
     );
@@ -1601,8 +1469,8 @@ export default function Booking() {
               <span className="text-gold font-semibold">
                 Your account is connected.
               </span>{" "}
-              Your saved details have
-              been filled in automatically.
+              Your saved details have been
+              filled in automatically.
             </div>
           )}
       </div>
@@ -1620,27 +1488,18 @@ export default function Booking() {
 
             <div className="grid gap-5 sm:grid-cols-2">
               <label>
-                <span
-                  className={
-                    labelClass
-                  }
-                >
+                <span className={labelClass}>
                   Full name
                 </span>
 
                 <input
                   type="text"
-                  className={
-                    inputClass
-                  }
+                  className={inputClass}
                   value={form.name}
-                  onChange={(
-                    event
-                  ) =>
+                  onChange={(event) =>
                     setForm({
                       ...form,
-                      name: event.target
-                        .value,
+                      name: event.target.value,
                     })
                   }
                   placeholder="Your full name"
@@ -1649,27 +1508,18 @@ export default function Booking() {
               </label>
 
               <label>
-                <span
-                  className={
-                    labelClass
-                  }
-                >
+                <span className={labelClass}>
                   Phone number
                 </span>
 
                 <input
                   type="tel"
-                  className={
-                    inputClass
-                  }
+                  className={inputClass}
                   value={form.phone}
-                  onChange={(
-                    event
-                  ) =>
+                  onChange={(event) =>
                     setForm({
                       ...form,
-                      phone: event.target
-                        .value,
+                      phone: event.target.value,
                     })
                   }
                   placeholder="e.g. 071 234 5678"
@@ -1678,27 +1528,18 @@ export default function Booking() {
               </label>
 
               <label>
-                <span
-                  className={
-                    labelClass
-                  }
-                >
+                <span className={labelClass}>
                   Email address
                 </span>
 
                 <input
                   type="email"
-                  className={
-                    inputClass
-                  }
+                  className={inputClass}
                   value={form.email}
-                  onChange={(
-                    event
-                  ) =>
+                  onChange={(event) =>
                     setForm({
                       ...form,
-                      email: event.target
-                        .value,
+                      email: event.target.value,
                     })
                   }
                   placeholder="you@example.com"
@@ -1707,50 +1548,30 @@ export default function Booking() {
               </label>
 
               <label>
-                <span
-                  className={
-                    labelClass
-                  }
-                >
+                <span className={labelClass}>
                   Number of clients
                 </span>
 
                 <select
-                  className={
-                    inputClass
-                  }
-                  value={
-                    form.clients
-                  }
-                  onChange={(
-                    event
-                  ) =>
+                  className={inputClass}
+                  value={form.clients}
+                  onChange={(event) =>
                     changeClientCount(
-                      event.target
-                        .value
+                      event.target.value
                     )
                   }
                 >
                   {Array.from(
                     {
-                      length:
-                        MAX_CLIENTS,
+                      length: MAX_CLIENTS,
                     },
-                    (
-                      _,
-                      index
-                    ) => (
+                    (_, index) => (
                       <option
-                        key={
-                          index + 1
-                        }
-                        value={
-                          index + 1
-                        }
+                        key={index + 1}
+                        value={index + 1}
                       >
                         {index + 1}{" "}
-                        {index ===
-                        0
+                        {index === 0
                           ? "client"
                           : "clients"}
                       </option>
@@ -1773,13 +1594,9 @@ export default function Booking() {
             <div className="space-y-10">
               {Array.from(
                 {
-                  length:
-                    clientCount,
+                  length: clientCount,
                 },
-                (
-                  _,
-                  clientIndex
-                ) => {
+                (_, clientIndex) => {
                   const services =
                     form.clientServices[
                       clientIndex
@@ -1797,23 +1614,19 @@ export default function Booking() {
 
                   return (
                     <div
-                      key={
-                        clientIndex
-                      }
+                      key={clientIndex}
                       className="relative"
                     >
                       <div className="flex justify-between items-start gap-4 mb-5">
                         <div>
                           <span className="block text-xs font-bold uppercase tracking-[0.16em] text-gold mb-1.5">
                             Client{" "}
-                            {clientIndex +
-                              1}
+                            {clientIndex + 1}
                           </span>
 
                           <h3 className="font-serif text-xl font-medium text-[#f4eee6]">
                             Choose services &
-                            appointment
-                            time
+                            appointment time
                           </h3>
                         </div>
 
@@ -1839,23 +1652,17 @@ export default function Booking() {
                             >
                               <select
                                 className={`${inputClass} flex-1`}
-                                value={
-                                  serviceName
-                                }
+                                value={serviceName}
                                 onChange={(
                                   event
                                 ) => {
                                   const updated =
-                                    [
-                                      ...services,
-                                    ];
+                                    [...services];
 
                                   updated[
                                     serviceIndex
                                   ] =
-                                    event
-                                      .target
-                                      .value;
+                                    event.target.value;
 
                                   updateClientServices(
                                     clientIndex,
@@ -1864,9 +1671,7 @@ export default function Booking() {
                                 }}
                               >
                                 {SERVICE_CATEGORIES.map(
-                                  (
-                                    group
-                                  ) => (
+                                  (group) => (
                                     <optgroup
                                       key={
                                         group.category
@@ -1876,9 +1681,7 @@ export default function Booking() {
                                       }
                                     >
                                       {group.items.map(
-                                        (
-                                          option
-                                        ) => (
+                                        (option) => (
                                           <option
                                             key={
                                               option.name
@@ -1931,8 +1734,7 @@ export default function Booking() {
                               )
                             }
                           >
-                            + Add another
-                            service
+                            + Add another service
                           </button>
                         )}
                       </div>
@@ -1966,9 +1768,7 @@ export default function Booking() {
 
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {NAIL_SHAPES.map(
-                            (
-                              shape
-                            ) => {
+                            (shape) => {
                               const selected =
                                 form
                                   .clientShapes[
@@ -2025,33 +1825,22 @@ export default function Booking() {
                               labelClass
                             }
                           >
-                            Preferred
-                            date
+                            Preferred date
                           </span>
 
                           <input
                             type="date"
-                            min={
-                              todayString
-                            }
-                            className={
-                              inputClass
-                            }
+                            min={todayString}
+                            className={inputClass}
                             value={
-                              form
-                                .clientDates[
+                              form.clientDates[
                                 clientIndex
-                              ] ||
-                              ""
+                              ] || ""
                             }
-                            onChange={(
-                              event
-                            ) =>
+                            onChange={(event) =>
                               updateClientDate(
                                 clientIndex,
-                                event
-                                  .target
-                                  .value
+                                event.target.value
                               )
                             }
                             required
@@ -2069,34 +1858,24 @@ export default function Booking() {
                               labelClass
                             }
                           >
-                            Available
-                            time
+                            Available time
                           </span>
 
                           <select
-                            className={
-                              inputClass
-                            }
+                            className={inputClass}
                             value={
-                              form
-                                .clientTimes[
+                              form.clientTimes[
                                 clientIndex
-                              ] ||
-                              ""
+                              ] || ""
                             }
-                            onChange={(
-                              event
-                            ) =>
+                            onChange={(event) =>
                               updateClientTime(
                                 clientIndex,
-                                event
-                                  .target
-                                  .value
+                                event.target.value
                               )
                             }
                             disabled={
-                              !form
-                                .clientDates[
+                              !form.clientDates[
                                 clientIndex
                               ] ||
                               loadingAvailability[
@@ -2110,28 +1889,20 @@ export default function Booking() {
                                 clientIndex
                               ]
                                 ? "Checking availability..."
-                                : !form
-                                    .clientDates[
+                                : !form.clientDates[
                                     clientIndex
                                   ]
                                 ? "Choose a date first"
-                                : times.length ===
-                                  0
+                                : times.length === 0
                                 ? "No times available"
                                 : "Choose a time"}
                             </option>
 
                             {times.map(
-                              (
-                                time
-                              ) => (
+                              (time) => (
                                 <option
-                                  key={
-                                    time
-                                  }
-                                  value={
-                                    time
-                                  }
+                                  key={time}
+                                  value={time}
                                 >
                                   {formatTime(
                                     time
@@ -2158,8 +1929,7 @@ export default function Booking() {
                       {form.clientDates[
                         clientIndex
                       ] &&
-                        times.length ===
-                          0 &&
+                        times.length === 0 &&
                         !loadingAvailability[
                           clientIndex
                         ] &&
@@ -2177,23 +1947,19 @@ export default function Booking() {
                           </p>
                         )}
 
-                      {clientIndex >
-                        0 &&
+                      {clientIndex > 0 &&
                         form.clientDates[
                           clientIndex
                         ] ===
                           form.clientDates[
-                            clientIndex -
-                              1
+                            clientIndex - 1
                           ] &&
                         form.clientTimes[
-                          clientIndex -
-                            1
+                          clientIndex - 1
                         ] && (
                           <p className="text-xs text-[#9f978f] italic mt-3">
-                            Same-day
-                            clients are
-                            automatically
+                            Same-day clients
+                            are automatically
                             scheduled with a
                             15-minute gap
                             between
@@ -2202,8 +1968,7 @@ export default function Booking() {
                         )}
 
                       {clientIndex <
-                        clientCount -
-                          1 && (
+                        clientCount - 1 && (
                         <div className="mt-10 h-px bg-white/[0.08]" />
                       )}
                     </div>
@@ -2214,24 +1979,17 @@ export default function Booking() {
           </div>
 
           <label className="block mt-10 pt-8 border-t border-white/[0.09]">
-            <span
-              className={
-                labelClass
-              }
-            >
+            <span className={labelClass}>
               Notes
             </span>
 
             <textarea
               className={`${inputClass} min-h-[100px] resize-y`}
               value={form.notes}
-              onChange={(
-                event
-              ) =>
+              onChange={(event) =>
                 setForm({
                   ...form,
-                  notes: event.target
-                    .value,
+                  notes: event.target.value,
                 })
               }
               placeholder="Anything Freddy Nails should know?"
@@ -2264,9 +2022,7 @@ export default function Booking() {
 
                   <button
                     type="button"
-                    onClick={
-                      removePromoCode
-                    }
+                    onClick={removePromoCode}
                     className="text-xs text-[#8f877e] hover:text-gold underline"
                   >
                     Remove
@@ -2275,23 +2031,18 @@ export default function Booking() {
 
                 <p className="text-xs text-gold/80 mt-2">
                   Your offer has been
-                  automatically applied to
-                  your service total.
+                  automatically applied to your
+                  service total.
                 </p>
               </div>
             ) : (
               <div className="flex gap-2">
                 <input
                   type="text"
-                  value={
-                    promoCode
-                  }
-                  onChange={(
-                    event
-                  ) =>
+                  value={promoCode}
+                  onChange={(event) =>
                     setPromoCode(
-                      event.target
-                        .value
+                      event.target.value
                     )
                   }
                   placeholder="Enter code"
@@ -2300,9 +2051,7 @@ export default function Booking() {
 
                 <button
                   type="button"
-                  onClick={
-                    applyPromoCode
-                  }
+                  onClick={applyPromoCode}
                   disabled={
                     promoChecking ||
                     !promoCode.trim()
@@ -2337,10 +2086,7 @@ export default function Booking() {
               </span>
 
               <strong className="font-serif text-xl text-[#f4eee6]">
-                R
-                {
-                  totalServiceAmount
-                }
+                R{totalServiceAmount}
               </strong>
             </div>
 
@@ -2352,24 +2098,17 @@ export default function Booking() {
                   </span>
 
                   <strong className="text-gold">
-                    −R
-                    {
-                      serviceDiscountAmount
-                    }
+                    −R{serviceDiscountAmount}
                   </strong>
                 </div>
 
                 <div className="flex justify-between items-center">
                   <span className="text-xs uppercase tracking-[0.12em] text-[#8f877e]">
-                    Discounted service
-                    total
+                    Discounted service total
                   </span>
 
                   <strong className="font-serif text-2xl text-gold">
-                    R
-                    {
-                      discountedServiceTotal
-                    }
+                    R{discountedServiceTotal}
                   </strong>
                 </div>
               </>
@@ -2387,26 +2126,21 @@ export default function Booking() {
               </div>
 
               <strong className="font-serif text-2xl text-gold">
-                R
-                {
-                  depositAmount
-                }
+                R{depositAmount}
               </strong>
             </div>
 
             <div className="text-xs text-[#8f877e] leading-relaxed">
               The booking deposit is separate
-              from your service total and
-              remains R90 per client even when
-              a promo code is applied.
+              from your service total and remains
+              R90 per client even when a promo
+              code is applied.
             </div>
           </div>
 
           <button
             type="submit"
-            disabled={
-              submitting
-            }
+            disabled={submitting}
             className="flex items-center justify-center gap-2.5 w-full bg-gold text-[#11100f] py-4 rounded-sm font-bold uppercase tracking-wide text-[0.85rem] hover:bg-gold-bright transition-colors disabled:opacity-50 mt-7"
           >
             {submitting
