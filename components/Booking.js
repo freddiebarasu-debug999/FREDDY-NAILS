@@ -429,11 +429,23 @@ export default function Booking() {
     clientCount *
     DEPOSIT_PER_CLIENT;
 
-  async function applyPromoCodeValue(
-    code
-  ) {
+  /*
+   * Applies both built-in Freddy Nails
+   * promotions and database promotions.
+   *
+   * Built-in codes:
+   * FIRSTVISIT = 15% off
+   * FRIEND50   = R50 off
+   * BIRTHDAY   = R50 off
+   *
+   * Database codes such as WELCOME10
+   * continue through /api/promo/validate
+   * so first-time eligibility is checked
+   * against the customer's booking history.
+   */
+  async function applyPromoCodeValue(code) {
     const cleanCode =
-      code?.trim();
+      code?.trim().toUpperCase();
 
     if (!cleanCode) {
       setPromoError(
@@ -447,10 +459,56 @@ export default function Booking() {
     setPromoError("");
 
     try {
+      const BUILT_IN_PROMOS = {
+        FIRSTVISIT: {
+          code: "FIRSTVISIT",
+          discountType: "percent",
+          discountValue: 15,
+          description:
+            "15% off your first visit",
+        },
+
+        FRIEND50: {
+          code: "FRIEND50",
+          discountType: "fixed",
+          discountValue: 50,
+          description:
+            "R50 off when you bring a friend",
+        },
+
+        BIRTHDAY: {
+          code: "BIRTHDAY",
+          discountType: "fixed",
+          discountValue: 50,
+          description:
+            "R50 birthday discount",
+        },
+      };
+
       /*
-       * Send the current customer's details
-       * so the API can determine whether a
-       * first-time-only promotion is eligible.
+       * These three codes are already built
+       * into the Freddy Nails checkout system.
+       * Handle them directly instead of sending
+       * them to the database promo validator.
+       */
+      if (
+        BUILT_IN_PROMOS[cleanCode]
+      ) {
+        setPromoCode(cleanCode);
+
+        setAppliedPromo(
+          BUILT_IN_PROMOS[cleanCode]
+        );
+
+        setPromoError("");
+
+        return true;
+      }
+
+      /*
+       * Database promo codes such as WELCOME10
+       * continue through the existing validation
+       * endpoint.
        */
       const params =
         new URLSearchParams();
@@ -532,7 +590,8 @@ export default function Booking() {
           "number"
       ) {
         throw new Error(
-          "That code isn't valid."
+          data?.error ||
+            "That code isn't valid."
         );
       }
 
@@ -547,6 +606,12 @@ export default function Booking() {
         code: String(
           data.code
         ).toUpperCase(),
+        discountType:
+          data.discountType,
+        discountValue:
+          Number(
+            data.discountValue
+          ),
       });
 
       setPromoError("");
@@ -1396,9 +1461,6 @@ export default function Booking() {
     /*
      * Re-check a first-time-only promo
      * immediately before checkout.
-     *
-     * This prevents the promo from remaining
-     * applied if the customer's details changed.
      */
     if (
       appliedPromo?.newClientsOnly
