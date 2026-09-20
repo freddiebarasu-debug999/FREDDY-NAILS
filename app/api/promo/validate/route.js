@@ -3,26 +3,39 @@ import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
-const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.SUPABASE_URL;
+
 const supabaseServiceRoleKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  throw new Error(
-    "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variable."
-  );
+function json(data, status = 200) {
+  return NextResponse.json(data, {
+    status,
+    headers: {
+      "Cache-Control":
+        "no-store, no-cache, must-revalidate",
+      "Content-Type": "application/json",
+    },
+  });
 }
 
-const supabase = createClient(
-  supabaseUrl,
-  supabaseServiceRoleKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
+function normalizeCode(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, "")
+    .toUpperCase();
+}
+
+/*
+|--------------------------------------------------------------------------
+| Built-in Freddy Nails promo codes
+|--------------------------------------------------------------------------
+|
+| These do not depend on Supabase.
+|
+*/
 
 const BUILT_IN_PROMOS = {
   FIRSTVISIT: {
@@ -50,29 +63,11 @@ const BUILT_IN_PROMOS = {
   },
 };
 
-function json(data, status = 200) {
-  return NextResponse.json(data, {
-    status,
-    headers: {
-      "Cache-Control":
-        "no-store, no-cache, must-revalidate",
-      "Content-Type": "application/json",
-    },
-  });
-}
-
-function normalizeCode(value) {
-  return String(value || "")
-    .trim()
-    .toUpperCase();
-}
-
-function escapeLikeValue(value) {
-  return value
-    .replace(/\\/g, "\\\\")
-    .replace(/%/g, "\\%")
-    .replace(/_/g, "\\_");
-}
+/*
+|--------------------------------------------------------------------------
+| Validate promo configuration
+|--------------------------------------------------------------------------
+*/
 
 function validatePromoConfiguration(promo) {
   if (!promo) {
@@ -82,7 +77,7 @@ function validatePromoConfiguration(promo) {
     };
   }
 
-  if (!promo.active) {
+  if (promo.active === false) {
     return {
       valid: false,
       error: "That promo code is no longer active.",
@@ -109,9 +104,14 @@ function validatePromoConfiguration(promo) {
     };
   }
 
+  const discountType =
+    String(
+      promo.discount_type || ""
+    ).toLowerCase();
+
   if (
-    promo.discount_type !== "percent" &&
-    promo.discount_type !== "fixed"
+    discountType !== "percent" &&
+    discountType !== "fixed"
   ) {
     console.error(
       "Invalid promo discount type:",
@@ -126,7 +126,7 @@ function validatePromoConfiguration(promo) {
   }
 
   if (
-    promo.discount_type === "percent" &&
+    discountType === "percent" &&
     discountValue > 100
   ) {
     return {
@@ -139,29 +139,63 @@ function validatePromoConfiguration(promo) {
   return {
     valid: true,
     code: normalizeCode(promo.code),
-    discountType: promo.discount_type,
+    discountType,
     discountValue,
     description: promo.description || "",
     active: true,
   };
 }
 
+/*
+|--------------------------------------------------------------------------
+| Get promo
+|--------------------------------------------------------------------------
+*/
+
 async function getPromo(code) {
-  const normalizedCode = normalizeCode(code);
+  const normalizedCode =
+    normalizeCode(code);
 
   if (!normalizedCode) {
     return null;
   }
 
-  const builtInPromo =
-    BUILT_IN_PROMOS[normalizedCode];
-
-  if (builtInPromo) {
-    return builtInPromo;
+  /*
+   * Check built-in promos first.
+   *
+   * This means FIRSTVISIT, FRIEND50 and BIRTHDAY
+   * will work even if there is no row in Supabase.
+   */
+  if (
+    BUILT_IN_PROMOS[normalizedCode]
+  ) {
+    return BUILT_IN_PROMOS[
+      normalizedCode
+    ];
   }
 
-  const escapedCode =
-    escapeLikeValue(normalizedCode);
+  /*
+   * Database promos
+   */
+  if (
+    !supabaseUrl ||
+    !supabaseServiceRoleKey
+  ) {
+    throw new Error(
+      "Supabase environment variables are missing."
+    );
+  }
+
+  const supabase = createClient(
+    supabaseUrl,
+    supabaseServiceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
 
   const {
     data,
@@ -171,8 +205,8 @@ async function getPromo(code) {
     .select(
       "code, discount_type, discount_value, description, active"
     )
-    .ilike("code", escapedCode)
-    .maybeSingle();
+    .eq("active", true)
+    .limit(100);
 
   if (error) {
     console.error(
@@ -183,8 +217,21 @@ async function getPromo(code) {
     throw error;
   }
 
-  return data || null;
+  const matchingPromo =
+    (data || []).find(
+      (promo) =>
+        normalizeCode(promo.code) ===
+        normalizedCode
+    );
+
+  return matchingPromo || null;
 }
+
+/*
+|--------------------------------------------------------------------------
+| GET /api/promo/validate?code=FIRSTVISIT
+|--------------------------------------------------------------------------
+*/
 
 export async function GET(request) {
   try {
@@ -194,44 +241,57 @@ export async function GET(request) {
     const rawCode =
       searchParams.get("code");
 
-    if (!rawCode || !rawCode.trim()) {
+    if (
+      !rawCode ||
+      !rawCode.trim()
+    ) {
       return json(
         {
           valid: false,
-          error: "Please enter a promo code.",
+          error:
+            "Please enter a promo code.",
         },
         400
       );
     }
 
-    const code = normalizeCode(rawCode);
+    const code =
+      normalizeCode(rawCode);
 
-    const promo = await getPromo(code);
+    const promo =
+      await getPromo(code);
 
     if (!promo) {
       return json(
         {
           valid: false,
-          error: "That promo code isn't valid.",
+          error:
+            "That promo code isn't valid.",
         },
         400
       );
     }
 
     const result =
-      validatePromoConfiguration(promo);
+      validatePromoConfiguration(
+        promo
+      );
 
     if (!result.valid) {
       return json(result, 400);
     }
 
-    return json(result);
+    return json(result, 200);
   } catch (error) {
     console.error(
       "Unexpected promo validation error:",
       error
     );
 
+    /*
+     * Keep the real error in the server logs,
+     * but give the customer a clean message.
+     */
     return json(
       {
         valid: false,
