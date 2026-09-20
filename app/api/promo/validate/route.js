@@ -15,9 +15,7 @@ function json(data, status = 200) {
     status,
     headers: {
       "Cache-Control":
-        "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Pragma: "no-cache",
-      Expires: "0",
+        "no-store, no-cache, must-revalidate",
       "Content-Type": "application/json",
     },
   });
@@ -30,14 +28,15 @@ function normalizeCode(value) {
     .toUpperCase();
 }
 
+function normalizePhone(value) {
+  return String(value || "")
+    .replace(/\D/g, "");
+}
+
 function normalizeEmail(value) {
   return String(value || "")
     .trim()
     .toLowerCase();
-}
-
-function normalizePhone(value) {
-  return String(value || "").replace(/\D/g, "");
 }
 
 const BUILT_IN_PROMOS = {
@@ -47,7 +46,7 @@ const BUILT_IN_PROMOS = {
     discount_value: 15,
     description: "15% off your first visit",
     active: true,
-    new_clients_only: false,
+    new_clients_only: true,
   },
 
   FRIEND50: {
@@ -65,6 +64,7 @@ const BUILT_IN_PROMOS = {
     discount_value: 50,
     description: "Birthday special — R50 off",
     active: true,
+    birthday_offer: true,
     new_clients_only: false,
   },
 };
@@ -135,6 +135,42 @@ function validatePromoConfiguration(promo) {
     };
   }
 
+  const now = new Date();
+
+  if (promo.starts_at) {
+    const startsAt = new Date(
+      promo.starts_at
+    );
+
+    if (
+      !Number.isNaN(startsAt.getTime()) &&
+      now < startsAt
+    ) {
+      return {
+        valid: false,
+        error:
+          "This promo code is not active yet.",
+      };
+    }
+  }
+
+  if (promo.expires_at) {
+    const expiresAt = new Date(
+      promo.expires_at
+    );
+
+    if (
+      !Number.isNaN(expiresAt.getTime()) &&
+      now > expiresAt
+    ) {
+      return {
+        valid: false,
+        error:
+          "This promo code has expired.",
+      };
+    }
+  }
+
   return {
     valid: true,
     code: normalizeCode(promo.code),
@@ -144,6 +180,10 @@ function validatePromoConfiguration(promo) {
     active: true,
     newClientsOnly:
       promo.new_clients_only === true,
+    birthdayOffer:
+      promo.birthday_offer === true,
+    referralOffer:
+      promo.referral_offer === true,
     minimumSpend:
       promo.minimum_spend !== null &&
       promo.minimum_spend !== undefined
@@ -152,7 +192,7 @@ function validatePromoConfiguration(promo) {
   };
 }
 
-async function getSupabaseAdmin() {
+function getSupabase() {
   if (
     !supabaseUrl ||
     !supabaseServiceRoleKey
@@ -175,48 +215,61 @@ async function getSupabaseAdmin() {
 }
 
 async function getPromo(code) {
-  const normalizedCode = normalizeCode(code);
+  const normalizedCode =
+    normalizeCode(code);
 
   if (!normalizedCode) {
     return null;
   }
 
-  if (BUILT_IN_PROMOS[normalizedCode]) {
-    return BUILT_IN_PROMOS[normalizedCode];
+  if (
+    BUILT_IN_PROMOS[normalizedCode]
+  ) {
+    return BUILT_IN_PROMOS[
+      normalizedCode
+    ];
   }
 
   const supabase =
-    await getSupabaseAdmin();
+    getSupabase();
 
-  const { data, error } = await supabase
-    .from("promo_codes")
-    .select(`
-      code,
-      discount_type,
-      discount_value,
-      active,
-      description,
-      starts_at,
-      expires_at,
-      minimum_spend,
-      new_clients_only,
-      birthday_offer,
-      referral_offer,
-      max_uses,
-      one_use_per_client
-    `)
-    .eq("code", normalizedCode)
-    .limit(1);
+  /*
+   * Do not filter by active here.
+   *
+   * We deliberately retrieve the promo first
+   * so inactive/expired promos can return a
+   * useful message instead of falling through
+   * to the generic "unable to verify" error.
+   */
+  const { data, error } =
+    await supabase
+      .from("promo_codes")
+      .select(
+        [
+          "id",
+          "code",
+          "discount_type",
+          "discount_value",
+          "active",
+          "description",
+          "created_at",
+          "starts_at",
+          "expires_at",
+          "minimum_spend",
+          "new_clients_only",
+          "birthday_offer",
+          "referral_offer",
+          "max_uses",
+          "one_use_per_client",
+        ].join(", ")
+      )
+      .ilike("code", normalizedCode)
+      .limit(1);
 
   if (error) {
     console.error(
       "Supabase promo lookup error:",
-      {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-      }
+      error
     );
 
     throw error;
@@ -225,43 +278,46 @@ async function getPromo(code) {
   return data?.[0] || null;
 }
 
-async function getAuthenticatedUser(request) {
+async function getAuthenticatedUser(
+  request
+) {
   const authorization =
-    request.headers.get("authorization") ||
-    request.headers.get("Authorization");
+    request.headers.get(
+      "authorization"
+    );
 
-  if (!authorization) {
+  if (
+    !authorization ||
+    !authorization
+      .toLowerCase()
+      .startsWith("bearer ")
+  ) {
     return null;
   }
 
-  const match =
-    authorization.match(/^Bearer\s+(.+)$/i);
+  const token =
+    authorization
+      .slice(7)
+      .trim();
 
-  if (!match) {
-    return null;
-  }
-
-  const accessToken = match[1].trim();
-
-  if (!accessToken) {
+  if (!token) {
     return null;
   }
 
   const supabase =
-    await getSupabaseAdmin();
+    getSupabase();
 
   const {
-    data: {
-      user,
-    },
+    data: { user },
     error,
-  } = await supabase.auth.getUser(
-    accessToken
-  );
+  } =
+    await supabase.auth.getUser(
+      token
+    );
 
   if (error) {
     console.error(
-      "Supabase auth lookup error:",
+      "Unable to verify authenticated user:",
       error
     );
 
@@ -272,25 +328,27 @@ async function getAuthenticatedUser(request) {
 }
 
 async function hasPreviousAppointment({
-  user,
+  profileId,
   email,
   phone,
 }) {
   const supabase =
-    await getSupabaseAdmin();
+    getSupabase();
 
   /*
-   * 1. Logged-in profile check
+   * 1. Logged-in account:
+   * profile_id is the strongest identifier.
    */
-  if (user?.id) {
-    const {
-      data,
-      error,
-    } = await supabase
-      .from("appointments")
-      .select("id")
-      .eq("profile_id", user.id)
-      .limit(1);
+  if (profileId) {
+    const { data, error } =
+      await supabase
+        .from("appointments")
+        .select("id")
+        .eq(
+          "profile_id",
+          profileId
+        )
+        .limit(1);
 
     if (error) {
       console.error(
@@ -301,37 +359,30 @@ async function hasPreviousAppointment({
       throw error;
     }
 
-    if (data && data.length > 0) {
+    if (data?.length) {
       return true;
     }
   }
 
   /*
-   * 2. Email check
-   *
-   * This protects older bookings that may not have
-   * been connected to the customer's profile.
+   * 2. Email fallback.
    */
   const normalizedEmail =
-    normalizeEmail(
-      email || user?.email
-    );
+    normalizeEmail(email);
 
   if (normalizedEmail) {
-    const {
-      data,
-      error,
-    } = await supabase
-      .from("appointments")
-      .select(
-        "id, customer_email"
-      )
-      .not(
-        "customer_email",
-        "is",
-        null
-      )
-      .limit(500);
+    const { data, error } =
+      await supabase
+        .from("appointments")
+        .select(
+          "id, customer_email"
+        )
+        .not(
+          "customer_email",
+          "is",
+          null
+        )
+        .limit(1000);
 
     if (error) {
       console.error(
@@ -356,29 +407,24 @@ async function hasPreviousAppointment({
   }
 
   /*
-   * 3. Phone check
-   *
-   * This catches previous bookings made with the
-   * same phone number.
+   * 3. Phone fallback.
    */
   const normalizedPhone =
     normalizePhone(phone);
 
   if (normalizedPhone) {
-    const {
-      data,
-      error,
-    } = await supabase
-      .from("appointments")
-      .select(
-        "id, customer_phone"
-      )
-      .not(
-        "customer_phone",
-        "is",
-        null
-      )
-      .limit(500);
+    const { data, error } =
+      await supabase
+        .from("appointments")
+        .select(
+          "id, customer_phone"
+        )
+        .not(
+          "customer_phone",
+          "is",
+          null
+        )
+        .limit(1000);
 
     if (error) {
       console.error(
@@ -405,50 +451,6 @@ async function hasPreviousAppointment({
   return false;
 }
 
-function validatePromoDates(promo) {
-  const now = new Date();
-
-  if (promo.starts_at) {
-    const startsAt =
-      new Date(promo.starts_at);
-
-    if (
-      Number.isFinite(
-        startsAt.getTime()
-      ) &&
-      now < startsAt
-    ) {
-      return {
-        valid: false,
-        error:
-          "This promo code is not active yet.",
-      };
-    }
-  }
-
-  if (promo.expires_at) {
-    const expiresAt =
-      new Date(promo.expires_at);
-
-    if (
-      Number.isFinite(
-        expiresAt.getTime()
-      ) &&
-      now > expiresAt
-    ) {
-      return {
-        valid: false,
-        error:
-          "This promo code has expired.",
-      };
-    }
-  }
-
-  return {
-    valid: true,
-  };
-}
-
 export async function GET(request) {
   try {
     const { searchParams } =
@@ -457,10 +459,10 @@ export async function GET(request) {
     const rawCode =
       searchParams.get("code");
 
-    const customerEmail =
+    const suppliedEmail =
       searchParams.get("email") || "";
 
-    const customerPhone =
+    const suppliedPhone =
       searchParams.get("phone") || "";
 
     if (
@@ -494,59 +496,64 @@ export async function GET(request) {
       );
     }
 
-    const configuration =
+    const result =
       validatePromoConfiguration(
         promo
       );
 
-    if (!configuration.valid) {
+    if (!result.valid) {
       return json(
-        configuration,
-        400
-      );
-    }
-
-    const dateCheck =
-      validatePromoDates(promo);
-
-    if (!dateCheck.valid) {
-      return json(
-        dateCheck,
+        result,
         400
       );
     }
 
     /*
-     * WELCOME10 / any future new-client-only promo
+     * New-client-only validation.
      *
-     * We check this BEFORE returning "valid: true".
+     * WELCOME10 is stored in Supabase with
+     * new_clients_only = true.
+     *
+     * FIRSTVISIT is also treated as a
+     * first-time-client promotion.
      */
     if (
-      promo.new_clients_only === true
+      result.newClientsOnly
     ) {
-      const user =
+      const authenticatedUser =
         await getAuthenticatedUser(
           request
         );
 
-      const hasBooked =
+      const profileId =
+        authenticatedUser?.id ||
+        null;
+
+      const email =
+        suppliedEmail ||
+        authenticatedUser?.email ||
+        "";
+
+      const phone =
+        suppliedPhone ||
+        authenticatedUser?.phone ||
+        "";
+
+      const previousBooking =
         await hasPreviousAppointment({
-          user,
-          email:
-            customerEmail ||
-            user?.email ||
-            "",
-          phone: customerPhone,
+          profileId,
+          email,
+          phone,
         });
 
-      if (hasBooked) {
+      if (previousBooking) {
         return json(
           {
             valid: false,
-            code,
+            code: result.code,
             newClientsOnly: true,
             error:
-              "WELCOME10 is only applicable to first-time bookings.",
+              "This promo code is only applicable to first-time bookings. It looks like you've booked with Freddy Nails before.",
           },
           400
         );
@@ -554,32 +561,13 @@ export async function GET(request) {
     }
 
     return json(
-      {
-        ...configuration,
-
-        birthdayOffer:
-          promo.birthday_offer === true,
-
-        referralOffer:
-          promo.referral_offer === true,
-
-        maxUses:
-          promo.max_uses ?? null,
-
-        oneUsePerClient:
-          promo.one_use_per_client === true,
-      },
+      result,
       200
     );
   } catch (error) {
     console.error(
       "Unexpected promo validation error:",
-      {
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code,
-      }
+      error
     );
 
     return json(
