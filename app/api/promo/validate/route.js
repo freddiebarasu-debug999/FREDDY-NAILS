@@ -32,9 +32,6 @@ function normalizeCode(value) {
 |--------------------------------------------------------------------------
 | Built-in Freddy Nails promo codes
 |--------------------------------------------------------------------------
-|
-| These do not depend on Supabase.
-|
 */
 
 const BUILT_IN_PROMOS = {
@@ -143,6 +140,19 @@ function validatePromoConfiguration(promo) {
     discountValue,
     description: promo.description || "",
     active: true,
+
+    /*
+     * WELCOME10 is stored in Supabase with
+     * new_clients_only = true.
+     *
+     * We return this flag so the frontend can
+     * understand that eligibility is restricted.
+     *
+     * The actual security enforcement happens
+     * again inside the checkout API.
+     */
+    newClientsOnly:
+      promo.new_clients_only === true,
   };
 }
 
@@ -161,10 +171,7 @@ async function getPromo(code) {
   }
 
   /*
-   * Check built-in promos first.
-   *
-   * This means FIRSTVISIT, FRIEND50 and BIRTHDAY
-   * will work even if there is no row in Supabase.
+   * Built-in promos first.
    */
   if (
     BUILT_IN_PROMOS[normalizedCode]
@@ -175,7 +182,7 @@ async function getPromo(code) {
   }
 
   /*
-   * Database promos
+   * Database promos.
    */
   if (
     !supabaseUrl ||
@@ -203,7 +210,21 @@ async function getPromo(code) {
   } = await supabase
     .from("promo_codes")
     .select(
-      "code, discount_type, discount_value, description, active"
+      `
+        code,
+        discount_type,
+        discount_value,
+        description,
+        active,
+        starts_at,
+        expires_at,
+        minimum_spend,
+        new_clients_only,
+        birthday_offer,
+        referral_offer,
+        max_uses,
+        one_use_per_client
+      `
     )
     .eq("active", true)
     .limit(100);
@@ -217,19 +238,70 @@ async function getPromo(code) {
     throw error;
   }
 
+  const now = new Date();
+
   const matchingPromo =
-    (data || []).find(
-      (promo) =>
-        normalizeCode(promo.code) ===
+    (data || []).find((promo) => {
+      if (
+        normalizeCode(promo.code) !==
         normalizedCode
-    );
+      ) {
+        return false;
+      }
+
+      /*
+       * Respect optional start date.
+       */
+      if (promo.starts_at) {
+        const startsAt =
+          new Date(promo.starts_at);
+
+        if (
+          Number.isFinite(
+            startsAt.getTime()
+          ) &&
+          now < startsAt
+        ) {
+          return false;
+        }
+      }
+
+      /*
+       * Respect optional expiry date.
+       */
+      if (promo.expires_at) {
+        const expiresAt =
+          new Date(promo.expires_at);
+
+        if (
+          Number.isFinite(
+            expiresAt.getTime()
+          ) &&
+          now >= expiresAt
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
 
   return matchingPromo || null;
 }
 
 /*
 |--------------------------------------------------------------------------
-| GET /api/promo/validate?code=FIRSTVISIT
+| GET /api/promo/validate?code=WELCOME10
+|--------------------------------------------------------------------------
+|
+| The promo can be validated as a valid promotion here.
+|
+| IMPORTANT:
+| Actual new-client eligibility for WELCOME10 is
+| enforced again inside /api/checkout.
+|
+| This prevents anyone from bypassing the restriction
+| by calling the checkout API directly.
 |--------------------------------------------------------------------------
 */
 
@@ -288,10 +360,6 @@ export async function GET(request) {
       error
     );
 
-    /*
-     * Keep the real error in the server logs,
-     * but give the customer a clean message.
-     */
     return json(
       {
         valid: false,
