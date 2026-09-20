@@ -2,7 +2,10 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.SUPABASE_URL;
+
 const supabaseServiceRoleKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -124,6 +127,17 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
     email
   );
+}
+
+function normalizeEmail(email) {
+  return String(email || "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizePhone(phone) {
+  return String(phone || "")
+    .replace(/\D/g, "");
 }
 
 function calculateClientDuration(services) {
@@ -266,6 +280,7 @@ async function getAuthenticatedUser(request) {
 function normalizePromoCode(code) {
   return String(code || "")
     .trim()
+    .replace(/\s+/g, "")
     .toUpperCase();
 }
 
@@ -300,7 +315,21 @@ async function getPromo(code) {
   } = await supabase
     .from("promo_codes")
     .select(
-      "code, discount_type, discount_value, description, active"
+      `
+        code,
+        discount_type,
+        discount_value,
+        description,
+        active,
+        starts_at,
+        expires_at,
+        minimum_spend,
+        new_clients_only,
+        birthday_offer,
+        referral_offer,
+        max_uses,
+        one_use_per_client
+      `
     )
     .ilike("code", escapedCode)
     .maybeSingle();
@@ -314,7 +343,191 @@ async function getPromo(code) {
     return null;
   }
 
-  return data ?? null;
+  if (!data) {
+    return null;
+  }
+
+  const now = new Date();
+
+  if (data.starts_at) {
+    const startsAt =
+      new Date(data.starts_at);
+
+    if (
+      Number.isFinite(
+        startsAt.getTime()
+      ) &&
+      now < startsAt
+    ) {
+      return null;
+    }
+  }
+
+  if (data.expires_at) {
+    const expiresAt =
+      new Date(data.expires_at);
+
+    if (
+      Number.isFinite(
+        expiresAt.getTime()
+      ) &&
+      now >= expiresAt
+    ) {
+      return null;
+    }
+  }
+
+  return data;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Genuinely check whether a client already exists
+|--------------------------------------------------------------------------
+|
+| A client is considered an existing client if:
+|
+| 1. Their authenticated profile has previous appointments, OR
+| 2. Their email has appeared on a previous appointment, OR
+| 3. Their phone number has appeared on a previous appointment.
+|
+| This means WELCOME10 cannot be bypassed simply by:
+| - creating another account
+| - using a different name
+| - logging out
+| - cancelling an old booking
+|
+|--------------------------------------------------------------------------
+*/
+
+async function hasPreviousAppointment({
+  profileId,
+  email,
+  phone,
+}) {
+  /*
+   * Authenticated profile check.
+   */
+  if (profileId) {
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("appointments")
+      .select("id")
+      .eq("profile_id", profileId)
+      .limit(1);
+
+    if (error) {
+      console.error(
+        "Previous profile appointment lookup error:",
+        error
+      );
+
+      throw new Error(
+        "Unable to verify client eligibility."
+      );
+    }
+
+    if (data && data.length > 0) {
+      return true;
+    }
+  }
+
+  /*
+   * Email check.
+   *
+   * We retrieve appointments with the same email
+   * and compare normalized values in JavaScript.
+   */
+  if (email) {
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("appointments")
+      .select(
+        "id, customer_email"
+      )
+      .limit(500);
+
+    if (error) {
+      console.error(
+        "Previous email appointment lookup error:",
+        error
+      );
+
+      throw new Error(
+        "Unable to verify client eligibility."
+      );
+    }
+
+    const normalizedEmail =
+      normalizeEmail(email);
+
+    const emailMatch =
+      (data || []).some(
+        (appointment) =>
+          normalizeEmail(
+            appointment.customer_email
+          ) === normalizedEmail
+      );
+
+    if (emailMatch) {
+      return true;
+    }
+  }
+
+  /*
+   * Phone check.
+   *
+   * Compare digits only so formats such as:
+   *
+   * 071 088 8897
+   * +27 71 088 8897
+   * 27710888897
+   *
+   * can be recognized as the same number.
+   */
+  if (phone) {
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("appointments")
+      .select(
+        "id, customer_phone"
+      )
+      .limit(500);
+
+    if (error) {
+      console.error(
+        "Previous phone appointment lookup error:",
+        error
+      );
+
+      throw new Error(
+        "Unable to verify client eligibility."
+      );
+    }
+
+    const normalizedPhone =
+      normalizePhone(phone);
+
+    const phoneMatch =
+      (data || []).some(
+        (appointment) =>
+          normalizePhone(
+            appointment.customer_phone
+          ) === normalizedPhone
+      );
+
+    if (phoneMatch) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 async function cancelExpiredPendingBookings() {
@@ -696,6 +909,12 @@ export async function POST(request) {
 
     let appliedPromoCode = null;
 
+    /*
+    |--------------------------------------------------------------------------
+    | Promo validation + NEW CLIENT enforcement
+    |--------------------------------------------------------------------------
+    */
+
     if (
       typeof promoCode === "string" &&
       promoCode.trim()
@@ -713,6 +932,43 @@ export async function POST(request) {
         );
       }
 
+      const normalizedPromoCode =
+        normalizePromoCode(
+          promo.code
+        );
+
+      /*
+       * WELCOME10 is genuinely restricted to
+       * clients who have NEVER booked before.
+       *
+       * This check happens on the server immediately
+       * before creating the appointment.
+       */
+      if (
+        normalizedPromoCode ===
+          "WELCOME10" &&
+        promo.new_clients_only === true
+      ) {
+        const existingClient =
+          await hasPreviousAppointment({
+            profileId,
+            email,
+            phone,
+          });
+
+        if (existingClient) {
+          return Response.json(
+            {
+              error:
+                "WELCOME10 is available to new Freddy Nails clients only. It looks like you've booked with us before.",
+              promoCode:
+                normalizedPromoCode,
+            },
+            { status: 400 }
+          );
+        }
+      }
+
       const discount =
         calculateDiscountedAmount(
           serviceTotalAmount,
@@ -726,7 +982,7 @@ export async function POST(request) {
         discount.discountAmount;
 
       appliedPromoCode =
-        normalizePromoCode(promo.code);
+        normalizedPromoCode;
     }
 
     /*
