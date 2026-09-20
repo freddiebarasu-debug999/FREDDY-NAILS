@@ -96,7 +96,9 @@ const BUILT_IN_PROMOS = {
 };
 
 function timeToMinutes(time) {
-  const [hours, minutes] = time.split(":").map(Number);
+  const [hours, minutes] =
+    time.split(":").map(Number);
+
   return hours * 60 + minutes;
 }
 
@@ -104,9 +106,10 @@ function minutesToTime(minutes) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
 
-  return `${String(hours).padStart(2, "0")}:${String(
-    mins
-  ).padStart(2, "0")}`;
+  return `${String(hours).padStart(
+    2,
+    "0"
+  )}:${String(mins).padStart(2, "0")}`;
 }
 
 function isValidDate(date) {
@@ -118,13 +121,16 @@ function isValidTime(time) {
 }
 
 function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    email
+  );
 }
 
 function calculateClientDuration(services) {
   return services.reduce(
     (total, serviceName) =>
-      total + (SERVICE_OPTIONS[serviceName] ?? 0),
+      total +
+      (SERVICE_OPTIONS[serviceName] ?? 0),
     0
   );
 }
@@ -132,7 +138,9 @@ function calculateClientDuration(services) {
 function extractServicePrice(serviceName) {
   if (!serviceName) return 0;
 
-  const match = serviceName.match(/\(R(\d+)(?:–\d+)?\)/);
+  const match = serviceName.match(
+    /\(R(\d+)(?:–\d+)?\)/
+  );
 
   if (!match) return 0;
 
@@ -145,14 +153,18 @@ function calculateServiceTotal(clientServices) {
       total +
       services.reduce(
         (clientTotal, serviceName) =>
-          clientTotal + extractServicePrice(serviceName),
+          clientTotal +
+          extractServicePrice(serviceName),
         0
       ),
     0
   );
 }
 
-function calculateDiscountedAmount(amount, promo) {
+function calculateDiscountedAmount(
+  amount,
+  promo
+) {
   if (!promo || !promo.active) {
     return {
       finalAmount: amount,
@@ -160,9 +172,14 @@ function calculateDiscountedAmount(amount, promo) {
     };
   }
 
-  const discountValue = Number(promo.discount_value);
+  const discountValue = Number(
+    promo.discount_value
+  );
 
-  if (!Number.isFinite(discountValue) || discountValue < 0) {
+  if (
+    !Number.isFinite(discountValue) ||
+    discountValue < 0
+  ) {
     return {
       finalAmount: amount,
       discountAmount: 0,
@@ -172,19 +189,27 @@ function calculateDiscountedAmount(amount, promo) {
   let finalAmount = amount;
 
   if (promo.discount_type === "percent") {
-    const percentage = Math.min(discountValue, 100);
+    const percentage = Math.min(
+      discountValue,
+      100
+    );
 
     finalAmount = Math.round(
       amount * (1 - percentage / 100)
     );
-  } else if (promo.discount_type === "fixed") {
+  } else if (
+    promo.discount_type === "fixed"
+  ) {
     finalAmount = Math.max(
       0,
       amount - discountValue
     );
   }
 
-  finalAmount = Math.max(0, Math.round(finalAmount));
+  finalAmount = Math.max(
+    0,
+    Math.round(finalAmount)
+  );
 
   return {
     finalAmount,
@@ -222,7 +247,9 @@ async function getAuthenticatedUser(request) {
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser(accessToken);
+  } = await supabase.auth.getUser(
+    accessToken
+  );
 
   if (error || !user) {
     console.error(
@@ -236,9 +263,36 @@ async function getAuthenticatedUser(request) {
   return user;
 }
 
+function normalizePromoCode(code) {
+  return String(code || "")
+    .trim()
+    .toUpperCase();
+}
+
+function escapeLikeValue(value) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_");
+}
+
 async function getPromo(code) {
   const normalizedCode =
-    code.trim().toUpperCase();
+    normalizePromoCode(code);
+
+  if (!normalizedCode) {
+    return null;
+  }
+
+  const builtInPromo =
+    BUILT_IN_PROMOS[normalizedCode];
+
+  if (builtInPromo) {
+    return builtInPromo;
+  }
+
+  const escapedCode =
+    escapeLikeValue(normalizedCode);
 
   const {
     data,
@@ -248,14 +302,19 @@ async function getPromo(code) {
     .select(
       "code, discount_type, discount_value, description, active"
     )
-    .eq("code", normalizedCode)
+    .ilike("code", escapedCode)
     .maybeSingle();
 
-  if (!error && data) {
-    return data;
+  if (error) {
+    console.error(
+      "Promo lookup error:",
+      error
+    );
+
+    return null;
   }
 
-  return BUILT_IN_PROMOS[normalizedCode] ?? null;
+  return data ?? null;
 }
 
 async function cancelExpiredPendingBookings() {
@@ -278,7 +337,9 @@ async function cancelExpiredPendingBookings() {
   }
 }
 
-async function cancelAppointment(appointmentId) {
+async function cancelAppointment(
+  appointmentId
+) {
   await supabase
     .from("appointment_clients")
     .delete()
@@ -309,7 +370,8 @@ export async function POST(request) {
     } catch {
       return Response.json(
         {
-          error: "Invalid booking request.",
+          error:
+            "Invalid booking request.",
         },
         { status: 400 }
       );
@@ -411,7 +473,8 @@ export async function POST(request) {
       if (
         !Array.isArray(services) ||
         services.length < 1 ||
-        services.length > MAX_SERVICES_PER_CLIENT
+        services.length >
+          MAX_SERVICES_PER_CLIENT
       ) {
         return Response.json(
           {
@@ -492,14 +555,18 @@ export async function POST(request) {
       }
 
       const selectedDate =
-        new Date(`${clientDate}T12:00:00`);
+        new Date(
+          `${clientDate}T12:00:00`
+        );
 
       const today = new Date();
 
       today.setHours(0, 0, 0, 0);
 
       const bookingDate =
-        new Date(`${clientDate}T00:00:00`);
+        new Date(
+          `${clientDate}T00:00:00`
+        );
 
       if (bookingDate < today) {
         return Response.json(
@@ -540,11 +607,15 @@ export async function POST(request) {
 
             const endMinutes =
               startMinutes +
-              clientDurations[clientIndex];
+              clientDurations[
+                clientIndex
+              ];
 
             if (
-              startMinutes < OPEN_MINUTES ||
-              endMinutes > CLOSE_MINUTES
+              startMinutes <
+                OPEN_MINUTES ||
+              endMinutes >
+                CLOSE_MINUTES
             ) {
               throw new Error(
                 `Client ${
@@ -553,7 +624,9 @@ export async function POST(request) {
               );
             }
 
-            return minutesToTime(endMinutes);
+            return minutesToTime(
+              endMinutes
+            );
           }
         );
     } catch (timeError) {
@@ -611,10 +684,6 @@ export async function POST(request) {
 
     await cancelExpiredPendingBookings();
 
-    /*
-     * SERVICE TOTAL
-     */
-
     const serviceTotalAmount =
       calculateServiceTotal(
         clientServices
@@ -626,10 +695,6 @@ export async function POST(request) {
     let serviceDiscountAmount = 0;
 
     let appliedPromoCode = null;
-
-    /*
-     * PROMO
-     */
 
     if (
       typeof promoCode === "string" &&
@@ -661,15 +726,14 @@ export async function POST(request) {
         discount.discountAmount;
 
       appliedPromoCode =
-        promo.code;
+        normalizePromoCode(promo.code);
     }
 
     /*
-     * DEPOSIT
-     *
-     * PROMOS NEVER DISCOUNT THE DEPOSIT.
+     * IMPORTANT:
+     * The deposit is NEVER discounted.
+     * It remains R90 per client.
      */
-
     const depositAmount =
       DEPOSIT_PER_CLIENT *
       clientCount;
@@ -819,16 +883,6 @@ export async function POST(request) {
       process.env.NEXT_PUBLIC_SITE_URL ||
       new URL(request.url).origin;
 
-    /*
-     * PAYMENT RETURN FLOW
-     *
-     * Logged-in customers go directly to their
-     * Freddy Nails account after successful payment.
-     *
-     * Guest customers return to the booking
-     * confirmation screen.
-     */
-
     const successUrl = profileId
       ? `${baseUrl}/account?booking=success&appointment=${appointmentId}`
       : `${baseUrl}/?booking=success&appointment=${appointmentId}#booking`;
@@ -838,16 +892,6 @@ export async function POST(request) {
 
     const failureUrl =
       `${baseUrl}/?booking=failed&appointment=${appointmentId}#booking`;
-
-    /*
-     * YOCO
-     *
-     * ALWAYS CHARGE ONLY THE DEPOSIT.
-     *
-     * R90 × number of clients.
-     *
-     * Promo codes do not change this amount.
-     */
 
     const yocoAmountCents =
       Math.round(
@@ -876,26 +920,18 @@ export async function POST(request) {
         "https://payments.yoco.com/api/checkouts",
         {
           method: "POST",
-
           headers: {
             "Content-Type":
               "application/json",
-
             Authorization:
               `Bearer ${yocoSecretKey}`,
           },
-
           body: JSON.stringify({
             amount:
               yocoAmountCents,
-
-            currency:
-              "ZAR",
-
+            currency: "ZAR",
             successUrl,
-
             cancelUrl,
-
             failureUrl,
           }),
         }
