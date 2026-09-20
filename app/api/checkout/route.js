@@ -819,8 +819,19 @@ export async function POST(request) {
       process.env.NEXT_PUBLIC_SITE_URL ||
       new URL(request.url).origin;
 
-    const successUrl =
-      `${baseUrl}/?booking=success&appointment=${appointmentId}#booking`;
+    /*
+     * PAYMENT RETURN FLOW
+     *
+     * Logged-in customers go directly to their
+     * Freddy Nails account after successful payment.
+     *
+     * Guest customers return to the booking
+     * confirmation screen.
+     */
+
+    const successUrl = profileId
+      ? `${baseUrl}/account?booking=success&appointment=${appointmentId}`
+      : `${baseUrl}/?booking=success&appointment=${appointmentId}#booking`;
 
     const cancelUrl =
       `${baseUrl}/?booking=cancelled&appointment=${appointmentId}#booking`;
