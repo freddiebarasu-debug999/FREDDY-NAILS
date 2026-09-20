@@ -10,6 +10,19 @@ const supabaseUrl =
 const supabaseServiceRoleKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+function json(data, status = 200) {
+  return NextResponse.json(data, {
+    status,
+    headers: {
+      "Cache-Control":
+        "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+      "Content-Type": "application/json",
+    },
+  });
+}
+
 function normalizeCode(value) {
   return String(value || "")
     .trim()
@@ -17,71 +30,312 @@ function normalizeCode(value) {
     .toUpperCase();
 }
 
-export async function GET(request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const rawCode = searchParams.get("code");
-    const code = normalizeCode(rawCode);
+const BUILT_IN_PROMOS = {
+  FIRSTVISIT: {
+    code: "FIRSTVISIT",
+    discount_type: "percent",
+    discount_value: 15,
+    description: "15% off your first visit",
+    active: true,
+    new_clients_only: false,
+  },
 
-    if (!code) {
-      return NextResponse.json({
-        step: "input",
-        error: "No promo code supplied",
-      });
-    }
+  FRIEND50: {
+    code: "FRIEND50",
+    discount_type: "fixed",
+    discount_value: 50,
+    description: "R50 off when you bring a friend",
+    active: true,
+    new_clients_only: false,
+  },
 
-    if (!supabaseUrl) {
-      return NextResponse.json({
-        step: "environment",
-        error: "SUPABASE_URL and NEXT_PUBLIC_SUPABASE_URL are both missing",
-      });
-    }
+  BIRTHDAY: {
+    code: "BIRTHDAY",
+    discount_type: "fixed",
+    discount_value: 50,
+    description: "Birthday special — R50 off",
+    active: true,
+    new_clients_only: false,
+  },
+};
 
-    if (!supabaseServiceRoleKey) {
-      return NextResponse.json({
-        step: "environment",
-        error: "SUPABASE_SERVICE_ROLE_KEY is missing",
-      });
-    }
+function validatePromoConfiguration(promo) {
+  if (!promo) {
+    return {
+      valid: false,
+      error: "That promo code isn't valid.",
+    };
+  }
 
-    const supabase = createClient(
-      supabaseUrl,
-      supabaseServiceRoleKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
+  if (promo.active === false) {
+    return {
+      valid: false,
+      error: "That promo code is no longer active.",
+    };
+  }
+
+  const discountValue = Number(
+    promo.discount_value
+  );
+
+  if (
+    !Number.isFinite(discountValue) ||
+    discountValue <= 0
+  ) {
+    console.error(
+      "Invalid promo discount value:",
+      promo
     );
 
-    const { data, error } = await supabase
-      .from("promo_codes")
-      .select("*")
-      .eq("code", code)
-      .limit(1);
+    return {
+      valid: false,
+      error:
+        "This promo code is configured incorrectly.",
+    };
+  }
 
-    if (error) {
-      return NextResponse.json({
-        step: "supabase_query",
-        error: error.message,
+  const discountType = String(
+    promo.discount_type || ""
+  ).toLowerCase();
+
+  if (
+    discountType !== "percent" &&
+    discountType !== "fixed"
+  ) {
+    console.error(
+      "Invalid promo discount type:",
+      promo
+    );
+
+    return {
+      valid: false,
+      error:
+        "This promo code has an invalid discount type.",
+    };
+  }
+
+  if (
+    discountType === "percent" &&
+    discountValue > 100
+  ) {
+    return {
+      valid: false,
+      error:
+        "This promo code has an invalid percentage discount.",
+    };
+  }
+
+  return {
+    valid: true,
+    code: normalizeCode(promo.code),
+    discountType,
+    discountValue,
+    description: promo.description || "",
+    active: true,
+    newClientsOnly:
+      promo.new_clients_only === true,
+    minimumSpend:
+      promo.minimum_spend !== null &&
+      promo.minimum_spend !== undefined
+        ? Number(promo.minimum_spend)
+        : null,
+  };
+}
+
+async function getPromo(code) {
+  const normalizedCode = normalizeCode(code);
+
+  if (!normalizedCode) {
+    return null;
+  }
+
+  if (BUILT_IN_PROMOS[normalizedCode]) {
+    return BUILT_IN_PROMOS[normalizedCode];
+  }
+
+  if (
+    !supabaseUrl ||
+    !supabaseServiceRoleKey
+  ) {
+    throw new Error(
+      "Supabase environment variables are missing."
+    );
+  }
+
+  const supabase = createClient(
+    supabaseUrl,
+    supabaseServiceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+
+  const { data, error } = await supabase
+    .from("promo_codes")
+    .select(`
+      code,
+      discount_type,
+      discount_value,
+      active,
+      description,
+      starts_at,
+      expires_at,
+      minimum_spend,
+      new_clients_only,
+      birthday_offer,
+      referral_offer,
+      max_uses,
+      one_use_per_client
+    `)
+    .eq("code", normalizedCode)
+    .limit(1);
+
+  if (error) {
+    console.error(
+      "Supabase promo lookup error:",
+      {
+        message: error.message,
         details: error.details,
         hint: error.hint,
         code: error.code,
-      });
+      }
+    );
+
+    throw error;
+  }
+
+  return data?.[0] || null;
+}
+
+function validatePromoDates(promo) {
+  const now = new Date();
+
+  if (promo.starts_at) {
+    const startsAt = new Date(
+      promo.starts_at
+    );
+
+    if (
+      Number.isFinite(startsAt.getTime()) &&
+      now < startsAt
+    ) {
+      return {
+        valid: false,
+        error:
+          "This promo code is not active yet.",
+      };
+    }
+  }
+
+  if (promo.expires_at) {
+    const expiresAt = new Date(
+      promo.expires_at
+    );
+
+    if (
+      Number.isFinite(expiresAt.getTime()) &&
+      now > expiresAt
+    ) {
+      return {
+        valid: false,
+        error:
+          "This promo code has expired.",
+      };
+    }
+  }
+
+  return {
+    valid: true,
+  };
+}
+
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(
+      request.url
+    );
+
+    const rawCode = searchParams.get("code");
+
+    if (!rawCode || !rawCode.trim()) {
+      return json(
+        {
+          valid: false,
+          error:
+            "Please enter a promo code.",
+        },
+        400
+      );
     }
 
-    return NextResponse.json({
-      step: "success",
-      searchedFor: code,
-      rowsFound: data?.length || 0,
-      promo: data?.[0] || null,
-    });
+    const code = normalizeCode(rawCode);
+
+    const promo = await getPromo(code);
+
+    if (!promo) {
+      return json(
+        {
+          valid: false,
+          error:
+            "That promo code isn't valid.",
+        },
+        400
+      );
+    }
+
+    const configuration =
+      validatePromoConfiguration(promo);
+
+    if (!configuration.valid) {
+      return json(configuration, 400);
+    }
+
+    const dateCheck =
+      validatePromoDates(promo);
+
+    if (!dateCheck.valid) {
+      return json(dateCheck, 400);
+    }
+
+    return json(
+      {
+        ...configuration,
+
+        birthdayOffer:
+          promo.birthday_offer === true,
+
+        referralOffer:
+          promo.referral_offer === true,
+
+        maxUses:
+          promo.max_uses ?? null,
+
+        oneUsePerClient:
+          promo.one_use_per_client === true,
+      },
+      200
+    );
   } catch (error) {
-    return NextResponse.json({
-      step: "unexpected_error",
-      error: error?.message || String(error),
-      stack: error?.stack || null,
-    });
+    console.error(
+      "Unexpected promo validation error:",
+      {
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code,
+      }
+    );
+
+    return json(
+      {
+        valid: false,
+        error:
+          "Unable to verify the promo code. Please try again.",
+      },
+      500
+    );
   }
 }
