@@ -1,19 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 function formatDate(dateString) {
   if (!dateString) return "—";
 
-  const date = new Date(`${dateString}T12:00:00`);
-
-  if (Number.isNaN(date.getTime())) {
-    return dateString;
-  }
+  const date = new Date(`${dateString}T00:00:00`);
 
   return date.toLocaleDateString("en-ZA", {
-    weekday: "short",
+    weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -23,150 +20,130 @@ function formatDate(dateString) {
 function formatTime(timeString) {
   if (!timeString) return "—";
 
-  const [hours, minutes] = timeString.split(":").map(Number);
-
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
-    return timeString;
-  }
-
+  const [hours, minutes] = timeString.split(":");
   const date = new Date();
-  date.setHours(hours, minutes, 0, 0);
+
+  date.setHours(Number(hours), Number(minutes), 0, 0);
 
   return date.toLocaleTimeString("en-ZA", {
     hour: "numeric",
     minute: "2-digit",
+    hour12: true,
   });
 }
 
 function formatStatus(status) {
   if (!status) return "Pending";
 
-  const value = String(status)
+  return status
     .replace(/_/g, " ")
-    .toLowerCase();
-
-  return value.replace(/\b\w/g, (letter) =>
-    letter.toUpperCase()
-  );
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function statusClass(status) {
-  const value = String(status || "").toLowerCase();
+  const normalized = String(status || "").toLowerCase();
 
-  if (value === "confirmed") {
-    return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
+  if (normalized === "confirmed") {
+    return "status confirmed";
   }
 
-  if (
-    value === "deposit paid" ||
-    value === "deposit_paid"
-  ) {
-    return "border-[#d6b36a]/30 bg-[#d6b36a]/10 text-[#d6b36a]";
+  if (normalized === "approved") {
+    return "status approved";
   }
 
-  if (value === "approved") {
-    return "border-blue-400/30 bg-blue-400/10 text-blue-300";
+  if (normalized === "cancelled" || normalized === "canceled") {
+    return "status cancelled";
   }
 
-  if (
-    value === "cancelled" ||
-    value === "canceled"
-  ) {
-    return "border-red-400/30 bg-red-400/10 text-red-300";
+  if (normalized === "pending") {
+    return "status pending";
   }
 
-  return "border-white/[0.12] bg-white/[0.04] text-[#c9c0b6]";
+  return "status";
 }
 
 function paymentLabel(status) {
-  const value = String(status || "").toLowerCase();
+  const normalized = String(status || "").toLowerCase();
 
-  if (
-    value === "paid" ||
-    value === "deposit_paid"
-  ) {
+  if (normalized === "paid") {
     return "Deposit Paid";
   }
 
-  if (value === "failed") {
+  if (normalized === "pending") {
+    return "Deposit Pending";
+  }
+
+  if (normalized === "failed") {
     return "Payment Failed";
   }
 
-  if (value === "cancelled") {
-    return "Cancelled";
-  }
-
-  return "Deposit Pending";
+  return formatStatus(status);
 }
 
 function isUnpaidBooking(appointment) {
-  const bookingStatus = String(
-    appointment?.booking_status || ""
-  ).toLowerCase();
-
   const paymentStatus = String(
     appointment?.payment_status || ""
   ).toLowerCase();
 
   return (
-    (bookingStatus === "pending" ||
-      bookingStatus === "approved") &&
     paymentStatus !== "paid" &&
-    paymentStatus !== "deposit_paid"
+    !isCancelledBooking(appointment)
   );
 }
 
 function isCancelledBooking(appointment) {
-  const bookingStatus = String(
+  const status = String(
     appointment?.booking_status || ""
   ).toLowerCase();
 
-  return (
-    bookingStatus === "cancelled" ||
-    bookingStatus === "canceled"
+  return status === "cancelled" || status === "canceled";
+}
+
+function isUpcomingBooking(appointment) {
+  if (!appointment?.booking_date) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const appointmentDate = new Date(
+    `${appointment.booking_date}T00:00:00`
   );
+
+  return appointmentDate >= today;
 }
 
 export default function AccountPage() {
+  const router = useRouter();
+
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [appointments, setAppointments] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
+
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [message, setMessage] = useState("");
+
   const [bookingSuccess, setBookingSuccess] = useState(false);
-  const [successAppointmentId, setSuccessAppointmentId] =
-    useState(null);
+  const [successAppointmentId, setSuccessAppointmentId] = useState(null);
 
-  async function loadAccount(options = {}) {
-    const { showLoading = true } = options;
+  useEffect(() => {
+    loadAccount();
+  }, []);
 
-    if (showLoading) {
-      setLoading(true);
-    }
-
-    setError("");
-
+  async function loadAccount() {
     try {
+      setLoading(true);
+      setError("");
+
       const {
         data: { session },
-        error: sessionError,
       } = await supabase.auth.getSession();
 
-      if (sessionError) {
-        console.error(
-          "Session check error:",
-          sessionError
-        );
-
-        window.location.href = "/account/login";
-        return;
-      }
-
       if (!session?.user) {
-        window.location.href = "/account/login";
+        router.replace("/account/login");
         return;
       }
 
@@ -174,252 +151,158 @@ export default function AccountPage() {
 
       setUser(currentUser);
 
-      const [profileResult, appointmentsResult] =
-        await Promise.all([
-          supabase
-            .from("profiles")
-            .select("full_name, phone, email")
-            .eq("id", currentUser.id)
-            .maybeSingle(),
+      const { data: profileData, error: profileError } =
+        await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", currentUser.id)
+          .maybeSingle();
 
-          supabase
-            .from("appointments")
-            .select(`
-              id,
-              customer_name,
-              customer_phone,
-              customer_email,
-              service_name,
-              client_count,
-              booking_date,
-              start_time,
-              end_time,
-              duration_minutes,
-              deposit_per_client,
-              deposit_amount,
-              payment_status,
-              booking_status,
-              notes,
-              created_at,
-              expires_at
-            `)
-            .eq("profile_id", currentUser.id)
-            .order("booking_date", {
-              ascending: true,
-            })
-            .order("start_time", {
-              ascending: true,
-            }),
-        ]);
+      if (profileError) {
+        console.error("Profile error:", profileError);
+      }
 
-      if (profileResult.error) {
-        console.error(
-          "Profile load error:",
-          profileResult.error
+      setProfile(profileData || null);
+
+      const { data: appointmentData, error: appointmentError } =
+        await supabase
+          .from("appointments")
+          .select(`
+            id,
+            customer_name,
+            customer_phone,
+            customer_email,
+            service_name,
+            client_count,
+            booking_date,
+            start_time,
+            end_time,
+            duration_minutes,
+            deposit_per_client,
+            deposit_amount,
+            payment_status,
+            booking_status,
+            notes,
+            created_at,
+            expires_at
+          `)
+          .eq("profile_id", currentUser.id)
+          .order("booking_date", { ascending: true })
+          .order("start_time", { ascending: true });
+
+      if (appointmentError) {
+        throw appointmentError;
+      }
+
+      setAppointments(appointmentData || []);
+
+      // Detect successful return from Yoco
+      const params = new URLSearchParams(window.location.search);
+
+      if (params.get("booking") === "success") {
+        setBookingSuccess(true);
+
+        const appointmentId = params.get("appointmentId");
+
+        if (appointmentId) {
+          setSuccessAppointmentId(appointmentId);
+        }
+
+        // Clean the URL without reloading the page
+        window.history.replaceState(
+          {},
+          document.title,
+          "/account"
         );
       }
-
-      if (appointmentsResult.error) {
-        throw appointmentsResult.error;
-      }
-
-      setProfile(profileResult.data || null);
-      setAppointments(
-        appointmentsResult.data || []
-      );
     } catch (err) {
-      console.error(
-        "Account loading error:",
-        err
-      );
-
-      if (
-        String(err?.message || "")
-          .toLowerCase()
-          .includes("auth session missing")
-      ) {
-        window.location.href = "/account/login";
-        return;
-      }
-
+      console.error("Account loading error:", err);
       setError(
         err?.message ||
-          "Unable to load your account."
+          "Unable to load your account. Please try again."
       );
     } finally {
-      if (showLoading) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   }
-
-  useEffect(() => {
-    const params = new URLSearchParams(
-      window.location.search
-    );
-
-    const bookingStatus =
-      params.get("booking");
-
-    const appointmentId =
-      params.get("appointment");
-
-    if (
-      bookingStatus === "success" &&
-      appointmentId
-    ) {
-      setBookingSuccess(true);
-      setSuccessAppointmentId(appointmentId);
-
-      window.history.replaceState(
-        {},
-        "",
-        "/account"
-      );
-    }
-
-    loadAccount();
-
-    /*
-     * Yoco redirects the customer immediately after
-     * payment. The webhook may take a short moment
-     * to update the appointment in Supabase.
-     *
-     * Refresh the account a few times so the customer
-     * sees the confirmed status without needing to
-     * manually refresh the page.
-     */
-    if (
-      bookingStatus === "success" &&
-      appointmentId
-    ) {
-      let attempts = 0;
-
-      const refreshInterval =
-        setInterval(async () => {
-          attempts += 1;
-
-          await loadAccount({
-            showLoading: false,
-          });
-
-          if (attempts >= 6) {
-            clearInterval(refreshInterval);
-          }
-        }, 2000);
-
-      return () => {
-        clearInterval(refreshInterval);
-      };
-    }
-  }, []);
 
   async function getAccessToken() {
     const {
       data: { session },
-      error: sessionError,
     } = await supabase.auth.getSession();
 
-    if (sessionError) {
-      throw new Error(
-        "Your session could not be verified. Please log in again."
-      );
+    if (!session?.access_token) {
+      throw new Error("Your session has expired. Please log in again.");
     }
 
-    const accessToken =
-      session?.access_token;
-
-    if (!accessToken) {
-      throw new Error(
-        "Your session has expired. Please log in again."
-      );
-    }
-
-    return accessToken;
+    return session.access_token;
   }
 
   async function handlePayDeposit(appointment) {
-    if (!appointment?.id) return;
-
-    setActionError("");
-    setMessage("");
-    setActionLoading(
-      `pay-${appointment.id}`
-    );
-
     try {
-      const accessToken =
-        await getAccessToken();
+      setActionLoading(`pay-${appointment.id}`);
+      setActionError("");
+      setMessage("");
 
-      const response = await fetch(
-        "/api/account/checkout",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization:
-              `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
-            appointmentId:
-              appointment.id,
-          }),
-        }
-      );
+      const accessToken = await getAccessToken();
 
-      const data =
-        await response.json();
+      const response = await fetch("/api/account/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          appointmentId: appointment.id,
+        }),
+      });
+
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
           data?.error ||
-            "Unable to start payment."
+            "Unable to start the deposit payment."
         );
       }
 
-      if (!data?.redirectUrl) {
-        throw new Error(
-          "Yoco did not return a payment link."
-        );
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
       }
 
-      window.location.href =
-        data.redirectUrl;
-    } catch (err) {
-      console.error(
-        "Deposit payment error:",
-        err
+      throw new Error(
+        "No payment checkout link was returned."
       );
+    } catch (err) {
+      console.error("Payment error:", err);
 
       setActionError(
         err?.message ||
-          "Unable to start the deposit payment."
+          "Unable to start payment. Please try again."
       );
-
+    } finally {
       setActionLoading(null);
     }
   }
 
   async function handleCancelBooking(appointment) {
-    if (!appointment?.id) return;
-
     const confirmed = window.confirm(
-      "Are you sure you want to cancel this booking?\n\nYour selected time will be released and you will need to make a new booking if you change your mind."
+      `Are you sure you want to cancel your appointment on ${formatDate(
+        appointment.booking_date
+      )} at ${formatTime(appointment.start_time)}?`
     );
 
     if (!confirmed) {
       return;
     }
 
-    setActionError("");
-    setMessage("");
-    setActionLoading(
-      `cancel-${appointment.id}`
-    );
-
     try {
-      const accessToken =
-        await getAccessToken();
+      setActionLoading(`cancel-${appointment.id}`);
+      setActionError("");
+      setMessage("");
+
+      const accessToken = await getAccessToken();
 
       const response = await fetch(
         "/api/account/cancel-booking",
@@ -427,526 +310,255 @@ export default function AccountPage() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization:
-              `Bearer ${accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            appointmentId:
-              appointment.id,
+            appointmentId: appointment.id,
           }),
         }
       );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
           data?.error ||
-            "Unable to cancel this booking."
+            "Unable to cancel this appointment."
         );
       }
 
       setMessage(
-        "Your booking has been cancelled successfully."
+        "Your appointment has been cancelled successfully."
       );
 
-      setActionLoading(null);
-
-      await loadAccount();
+      // Update the appointment immediately in the UI
+      setAppointments((currentAppointments) =>
+        currentAppointments.map((item) =>
+          item.id === appointment.id
+            ? {
+                ...item,
+                booking_status: "cancelled",
+              }
+            : item
+        )
+      );
     } catch (err) {
-      console.error(
-        "Cancel booking error:",
-        err
-      );
+      console.error("Cancellation error:", err);
 
       setActionError(
         err?.message ||
-          "Unable to cancel your booking."
+          "Unable to cancel this appointment. Please try again."
       );
-
+    } finally {
       setActionLoading(null);
     }
   }
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    window.location.href = "/";
+    router.replace("/");
   }
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#11100f] px-5 py-16 text-[#f4eee6]">
-        <div className="mx-auto max-w-[1180px]">
-          <p className="text-sm text-[#8f877e]">
-            Loading your account...
-          </p>
+      <main className="account-page">
+        <div className="account-loading">
+          <div className="loading-spinner" />
+          <p>Loading your account...</p>
         </div>
+
+        <style jsx>{`
+          .account-page {
+            min-height: 100vh;
+            background: #111111;
+            color: #f5f1ed;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .account-loading {
+            text-align: center;
+            color: #cfc7c1;
+          }
+
+          .loading-spinner {
+            width: 38px;
+            height: 38px;
+            border: 3px solid rgba(255, 255, 255, 0.15);
+            border-top-color: #d99a8b;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+          }
+
+          @keyframes spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}</style>
       </main>
     );
   }
 
-  if (error) {
-    return (
-      <main className="min-h-screen bg-[#11100f] px-5 py-16 text-[#f4eee6]">
-        <div className="mx-auto max-w-[520px]">
-          <a
-            href="/"
-            className="text-sm text-[#a79a87] hover:text-[#d6b36a]"
-          >
-            ← Back to Freddy Nails
-          </a>
+  const activeAppointments = appointments.filter(
+    (appointment) => !isCancelledBooking(appointment)
+  );
 
-          <div className="mt-10 border border-red-400/30 bg-red-400/10 px-5 py-4">
-            <p className="text-sm text-red-300">
-              {error}
-            </p>
-          </div>
+  const upcomingAppointments = activeAppointments.filter(
+    (appointment) => isUpcomingBooking(appointment)
+  );
 
-          <button
-            type="button"
-            onClick={loadAccount}
-            className="mt-5 bg-[#d6b36a] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] hover:bg-[#ad8a4e]"
-          >
-            Try again
-          </button>
-        </div>
-      </main>
-    );
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const activeAppointments =
-    appointments.filter(
-      (appointment) =>
-        !isCancelledBooking(appointment)
-    );
-
-  const upcomingAppointments =
-    activeAppointments.filter(
-      (appointment) => {
-        const appointmentDate =
-          new Date(
-            `${appointment.booking_date}T00:00:00`
-          );
-
-        return appointmentDate >= today;
-      }
-    );
-
-  const upcoming =
-    upcomingAppointments[0] || null;
-
-  const history = appointments.filter(
-    (appointment) => {
-      const appointmentDate =
-        new Date(
-          `${appointment.booking_date}T00:00:00`
-        );
-
-      return (
-        appointmentDate < today ||
-        isCancelledBooking(appointment)
-      );
-    }
+  const historyAppointments = appointments.filter(
+    (appointment) =>
+      !isUpcomingBooking(appointment) ||
+      isCancelledBooking(appointment)
   );
 
   const displayName =
     profile?.full_name ||
+    profile?.name ||
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
     "Client";
 
-  const successAppointment =
-    successAppointmentId
-      ? appointments.find(
-          (appointment) =>
-            String(appointment.id) ===
-            String(successAppointmentId)
-        )
-      : null;
-
-  const successIsConfirmed =
-    successAppointment &&
-    String(
-      successAppointment.booking_status || ""
-    ).toLowerCase() === "confirmed";
-
   return (
-    <main className="min-h-screen bg-[#11100f] px-5 py-12 text-[#f4eee6]">
-      <div className="mx-auto max-w-[1180px]">
-        <div className="flex flex-wrap items-center justify-between gap-5">
+    <main className="account-page">
+      <div className="account-container">
+        {/* HEADER */}
+        <header className="account-header">
           <div>
-            <a
-              href="/"
-              className="text-sm text-[#a79a87] transition-colors hover:text-[#d6b36a]"
-            >
-              ← Freddy Nails
-            </a>
+            <p className="eyebrow">FREDDY NAILS</p>
 
-            <p className="mt-8 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-[#d6b36a]">
-              Client account
-            </p>
+            <h1>Client Account</h1>
 
-            <h1 className="mt-2 font-serif text-4xl text-[#f4eee6]">
-              Welcome, {displayName}.
-            </h1>
-
-            <p className="mt-3 max-w-[620px] text-sm leading-relaxed text-[#a79a87]">
-              Manage your appointments, deposits,
-              profile and booking history from here.
+            <p className="welcome-text">
+              Welcome back, {displayName}.
             </p>
           </div>
 
           <button
             type="button"
+            className="logout-button"
             onClick={handleLogout}
-            className="border border-white/[0.12] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#c9c0b6] transition-colors hover:border-[#d6b36a]/40 hover:text-[#d6b36a]"
           >
-            Log out
+            Log Out
           </button>
-        </div>
+        </header>
 
+        {/* BOOKING SUCCESS */}
         {bookingSuccess && (
-          <div className="mt-8 border border-emerald-400/30 bg-emerald-400/10 p-6 md:p-7">
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-emerald-400/30 text-lg text-emerald-300">
-                ✓
-              </div>
+          <div className="success-banner">
+            <div className="success-icon">✓</div>
 
-              <div>
-                <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-emerald-300">
-                  Booking confirmed
-                </p>
+            <div>
+              <strong>Booking confirmed</strong>
 
-                <h2 className="mt-2 font-serif text-2xl text-[#f4eee6]">
-                  {successIsConfirmed
-                    ? "Your deposit has been received."
-                    : "Your payment was successful."}
-                </h2>
-
-                <p className="mt-2 text-sm leading-relaxed text-[#a79a87]">
-                  Thank you for booking with Freddy
-                  Nails. Your appointment details
-                  are shown below.
-                </p>
-
-                {!successIsConfirmed && (
-                  <p className="mt-3 text-xs leading-relaxed text-[#8f877e]">
-                    We are just confirming your
-                    payment. Your appointment status
-                    will update automatically.
-                  </p>
-                )}
-              </div>
+              <p>
+                Your booking has been received successfully.
+                {successAppointmentId
+                  ? " Your payment has also been processed."
+                  : ""}
+              </p>
             </div>
           </div>
         )}
 
+        {/* GLOBAL MESSAGE */}
         {message && (
-          <div className="mt-8 border border-[#d6b36a]/30 bg-[#d6b36a]/10 px-5 py-4 text-sm text-[#d6b36a]">
+          <div className="message-banner">
+            <span>✓</span>
             {message}
           </div>
         )}
 
+        {/* ERROR */}
+        {error && (
+          <div className="error-banner">
+            {error}
+          </div>
+        )}
+
         {actionError && (
-          <div className="mt-8 border border-red-400/30 bg-red-400/10 px-5 py-4 text-sm text-red-300">
+          <div className="error-banner">
             {actionError}
           </div>
         )}
 
-        <section className="mt-12">
-          <div className="mb-5 flex items-end justify-between gap-4">
+        {/* UPCOMING APPOINTMENTS */}
+        <section className="section">
+          <div className="section-heading">
             <div>
-              <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[#d6b36a]">
-                Your booking
+              <p className="section-label">
+                YOUR SCHEDULE
               </p>
 
-              <h2 className="mt-2 font-serif text-2xl text-[#f4eee6]">
-                Upcoming appointment
-              </h2>
+              <h2>Upcoming Appointments</h2>
             </div>
 
-            <a
-              href="/account/book"
-              className="hidden sm:inline-flex bg-[#d6b36a] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] transition-colors hover:bg-[#ad8a4e]"
-            >
-              Book an appointment →
-            </a>
+            {upcomingAppointments.length > 0 && (
+              <span className="appointment-count">
+                {upcomingAppointments.length}{" "}
+                {upcomingAppointments.length === 1
+                  ? "appointment"
+                  : "appointments"}
+              </span>
+            )}
           </div>
 
-          {upcoming ? (
-            <div className="border border-white/[0.10] bg-[#181614]">
-              <div className="p-6 md:p-8">
-                <div className="flex flex-wrap items-start justify-between gap-5">
-                  <div>
-                    <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
-                      Appointment date
-                    </p>
+          {upcomingAppointments.length === 0 ? (
+            <div className="empty-card">
+              <div className="empty-icon">♡</div>
 
-                    <p className="mt-2 font-serif text-2xl text-[#f4eee6]">
-                      {formatDate(
-                        upcoming.booking_date
-                      )}
-                    </p>
+              <h3>No upcoming appointments</h3>
 
-                    <p className="mt-1 text-sm text-[#a79a87]">
-                      {formatTime(
-                        upcoming.start_time
-                      )}{" "}
-                      –{" "}
-                      {formatTime(
-                        upcoming.end_time
-                      )}
-                    </p>
-                  </div>
+              <p>
+                You don't have any upcoming appointments
+                booked yet.
+              </p>
 
-                  <span
-                    className={`border px-3 py-2 text-[0.65rem] font-bold uppercase tracking-[0.14em] ${statusClass(
-                      upcoming.booking_status
-                    )}`}
-                  >
-                    {formatStatus(
-                      upcoming.booking_status
-                    )}
-                  </span>
-                </div>
-
-                <div className="mt-7 border-t border-white/[0.08] pt-6">
-                  <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
-                    Services
-                  </p>
-
-                  <p className="mt-2 text-sm leading-relaxed text-[#c9c0b6]">
-                    {upcoming.service_name}
-                  </p>
-                </div>
-
-                <div className="mt-7 grid gap-5 border-t border-white/[0.08] pt-6 sm:grid-cols-3">
-                  <div>
-                    <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
-                      Clients
-                    </p>
-
-                    <p className="mt-1 text-sm text-[#f4eee6]">
-                      {upcoming.client_count}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
-                      Deposit
-                    </p>
-
-                    <p className="mt-1 text-sm text-[#d6b36a]">
-                      R
-                      {Number(
-                        upcoming.deposit_amount || 0
-                      ).toFixed(2)}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
-                      Payment
-                    </p>
-
-                    <p className="mt-1 text-sm text-[#f4eee6]">
-                      {paymentLabel(
-                        upcoming.payment_status
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                {isUnpaidBooking(upcoming) && (
-                  <div className="mt-7 border-t border-[#d6b36a]/20 pt-6">
-                    <p className="text-sm leading-relaxed text-[#a79a87]">
-                      Your booking is being held for you.
-                      Complete the R
-                      {Number(
-                        upcoming.deposit_amount || 0
-                      ).toFixed(0)}{" "}
-                      deposit to secure your appointment.
-                    </p>
-
-                    <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handlePayDeposit(upcoming)
-                        }
-                        disabled={
-                          actionLoading !== null
-                        }
-                        className="inline-flex items-center justify-center bg-[#d6b36a] px-6 py-3.5 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] transition-colors hover:bg-[#ad8a4e] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {actionLoading ===
-                        `pay-${upcoming.id}`
-                          ? "Opening payment..."
-                          : `Pay R${Number(
-                              upcoming.deposit_amount || 0
-                            ).toFixed(0)} Deposit →`}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleCancelBooking(upcoming)
-                        }
-                        disabled={
-                          actionLoading !== null
-                        }
-                        className="inline-flex items-center justify-center border border-red-400/30 px-6 py-3.5 text-xs font-bold uppercase tracking-[0.12em] text-red-300 transition-colors hover:border-red-300/60 hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {actionLoading ===
-                        `cancel-${upcoming.id}`
-                          ? "Cancelling..."
-                          : "Cancel Booking"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {!isUnpaidBooking(upcoming) &&
-                  String(
-                    upcoming.booking_status || ""
-                  ).toLowerCase() === "confirmed" && (
-                    <div className="mt-7 border-t border-emerald-400/20 pt-6">
-                      <p className="text-sm text-emerald-300">
-                        Your appointment is confirmed.
-                        We look forward to seeing you.
-                      </p>
-                    </div>
-                  )}
-
-                {!isUnpaidBooking(upcoming) &&
-                  String(
-                    upcoming.booking_status || ""
-                  ).toLowerCase() === "approved" && (
-                    <div className="mt-7 border-t border-[#d6b36a]/20 pt-6">
-                      <p className="text-sm text-[#d6b36a]">
-                        Your booking has been approved.
-                      </p>
-                    </div>
-                  )}
-              </div>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => router.push("/booking")}
+              >
+                Book an Appointment
+              </button>
             </div>
           ) : (
-            <div className="border border-white/[0.10] bg-[#181614] p-7 md:p-8">
-              <p className="font-serif text-xl text-[#f4eee6]">
-                No upcoming appointment.
-              </p>
+            <div className="appointments-grid">
+              {upcomingAppointments.map((appointment) => {
+                const isPaying =
+                  actionLoading ===
+                  `pay-${appointment.id}`;
 
-              <p className="mt-2 max-w-[560px] text-sm leading-relaxed text-[#8f877e]">
-                Ready for your next set? Choose a
-                service and book your appointment.
-              </p>
+                const isCancelling =
+                  actionLoading ===
+                  `cancel-${appointment.id}`;
 
-              <a
-                href="/account/book"
-                className="mt-6 inline-flex bg-[#d6b36a] px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] hover:bg-[#ad8a4e]"
-              >
-                Book an appointment →
-              </a>
-            </div>
-          )}
-        </section>
-
-        <section className="mt-12">
-          <div className="border border-white/[0.10] bg-[#181614] p-6 md:p-8">
-            <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[#d6b36a]">
-              Profile
-            </p>
-
-            <h2 className="mt-2 font-serif text-2xl text-[#f4eee6]">
-              Your details
-            </h2>
-
-            <div className="mt-7 grid gap-6 sm:grid-cols-3">
-              <div>
-                <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
-                  Full name
-                </p>
-
-                <p className="mt-1 text-sm text-[#f4eee6]">
-                  {profile?.full_name || displayName}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
-                  Phone
-                </p>
-
-                <p className="mt-1 text-sm text-[#f4eee6]">
-                  {profile?.phone ||
-                    user?.user_metadata?.phone ||
-                    "—"}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[#8f877e]">
-                  Email
-                </p>
-
-                <p className="mt-1 break-all text-sm text-[#f4eee6]">
-                  {profile?.email ||
-                    user?.email ||
-                    "—"}
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-12 pb-16">
-          <div className="mb-5">
-            <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-[#d6b36a]">
-              Past bookings
-            </p>
-
-            <h2 className="mt-2 font-serif text-2xl text-[#f4eee6]">
-              Booking history
-            </h2>
-          </div>
-
-          {history.length > 0 ? (
-            <div className="space-y-3">
-              {history
-                .slice()
-                .reverse()
-                .map((appointment) => (
-                  <div
+                return (
+                  <article
+                    className="appointment-card"
                     key={appointment.id}
-                    className="border border-white/[0.08] bg-[#181614] p-5"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="appointment-top">
                       <div>
-                        <p className="text-sm font-semibold text-[#f4eee6]">
+                        <p className="appointment-label">
+                          APPOINTMENT
+                        </p>
+
+                        <h3>
                           {formatDate(
                             appointment.booking_date
                           )}
-                        </p>
-
-                        <p className="mt-1 text-xs text-[#8f877e]">
-                          {formatTime(
-                            appointment.start_time
-                          )}{" "}
-                          –{" "}
-                          {formatTime(
-                            appointment.end_time
-                          )}
-                        </p>
+                        </h3>
                       </div>
 
                       <span
-                        className={`border px-3 py-1.5 text-[0.6rem] font-bold uppercase tracking-[0.14em] ${statusClass(
+                        className={statusClass(
                           appointment.booking_status
-                        )}`}
+                        )}
                       >
                         {formatStatus(
                           appointment.booking_status
@@ -954,51 +566,718 @@ export default function AccountPage() {
                       </span>
                     </div>
 
-                    <p className="mt-4 text-xs leading-relaxed text-[#a79a87]">
-                      {appointment.service_name}
-                    </p>
+                    <div className="appointment-details">
+                      <div className="detail">
+                        <span className="detail-label">
+                          TIME
+                        </span>
 
-                    <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[0.68rem] text-[#817970]">
-                      <span>
-                        Deposit:{" "}
-                        <span className="text-[#c9c0b6]">
+                        <strong>
+                          {formatTime(
+                            appointment.start_time
+                          )}
+                          {appointment.end_time
+                            ? ` – ${formatTime(
+                                appointment.end_time
+                              )}`
+                            : ""}
+                        </strong>
+                      </div>
+
+                      <div className="detail">
+                        <span className="detail-label">
+                          SERVICE
+                        </span>
+
+                        <strong>
+                          {appointment.service_name ||
+                            "Beauty appointment"}
+                        </strong>
+                      </div>
+
+                      <div className="detail">
+                        <span className="detail-label">
+                          CLIENTS
+                        </span>
+
+                        <strong>
+                          {appointment.client_count || 1}
+                        </strong>
+                      </div>
+
+                      <div className="detail">
+                        <span className="detail-label">
+                          DEPOSIT
+                        </span>
+
+                        <strong>
                           R
                           {Number(
                             appointment.deposit_amount || 0
                           ).toFixed(2)}
-                        </span>
-                      </span>
-
-                      <span>
-                        Payment:{" "}
-                        <span className="text-[#c9c0b6]">
-                          {paymentLabel(
-                            appointment.payment_status
-                          )}
-                        </span>
-                      </span>
+                        </strong>
+                      </div>
                     </div>
-                  </div>
-                ))}
-            </div>
-          ) : (
-            <div className="border border-white/[0.08] bg-[#181614] p-6">
-              <p className="text-sm text-[#8f877e]">
-                No previous bookings yet.
-              </p>
+
+                    <div className="payment-row">
+                      <span>Payment</span>
+
+                      <strong
+                        className={
+                          String(
+                            appointment.payment_status || ""
+                          ).toLowerCase() === "paid"
+                            ? "paid"
+                            : "unpaid"
+                        }
+                      >
+                        {paymentLabel(
+                          appointment.payment_status
+                        )}
+                      </strong>
+                    </div>
+
+                    {appointment.notes && (
+                      <div className="notes">
+                        <span>Note</span>
+
+                        <p>{appointment.notes}</p>
+                      </div>
+                    )}
+
+                    {/* ACTIONS */}
+                    <div className="appointment-actions">
+                      {isUnpaidBooking(appointment) && (
+                        <button
+                          type="button"
+                          className="primary-button"
+                          onClick={() =>
+                            handlePayDeposit(appointment)
+                          }
+                          disabled={
+                            actionLoading !== null
+                          }
+                        >
+                          {isPaying
+                            ? "Opening Payment..."
+                            : `Pay Deposit · R${Number(
+                                appointment.deposit_amount ||
+                                  0
+                              ).toFixed(2)}`}
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        className="cancel-button"
+                        onClick={() =>
+                          handleCancelBooking(appointment)
+                        }
+                        disabled={
+                          actionLoading !== null
+                        }
+                      >
+                        {isCancelling
+                          ? "Cancelling..."
+                          : "Cancel Appointment"}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
 
-        <div className="pb-10 sm:hidden">
-          <a
-            href="/account/book"
-            className="flex w-full items-center justify-center bg-[#d6b36a] px-5 py-3.5 text-xs font-bold uppercase tracking-[0.12em] text-[#11100f] hover:bg-[#ad8a4e]"
+        {/* HISTORY */}
+        <section className="section history-section">
+          <div className="section-heading">
+            <div>
+              <p className="section-label">
+                YOUR RECORD
+              </p>
+
+              <h2>Booking History</h2>
+            </div>
+          </div>
+
+          {historyAppointments.length === 0 ? (
+            <div className="empty-history">
+              <p>
+                Your previous bookings will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="history-list">
+              {historyAppointments.map((appointment) => (
+                <article
+                  className="history-card"
+                  key={appointment.id}
+                >
+                  <div className="history-date">
+                    <strong>
+                      {formatDate(
+                        appointment.booking_date
+                      )}
+                    </strong>
+
+                    <span>
+                      {formatTime(
+                        appointment.start_time
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="history-service">
+                    <strong>
+                      {appointment.service_name ||
+                        "Beauty appointment"}
+                    </strong>
+
+                    <span>
+                      {appointment.client_count || 1}{" "}
+                      {Number(
+                        appointment.client_count || 1
+                      ) === 1
+                        ? "client"
+                        : "clients"}
+                    </span>
+                  </div>
+
+                  <div className="history-status">
+                    <span
+                      className={statusClass(
+                        appointment.booking_status
+                      )}
+                    >
+                      {formatStatus(
+                        appointment.booking_status
+                      )}
+                    </span>
+
+                    <small>
+                      {paymentLabel(
+                        appointment.payment_status
+                      )}
+                    </small>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* BOOK AGAIN */}
+        <section className="book-again">
+          <div>
+            <p className="section-label">
+              READY FOR YOUR NEXT SET?
+            </p>
+
+            <h2>Keep your nails looking perfect.</h2>
+
+            <p>
+              Book your next Freddy Nails appointment
+              whenever you're ready.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => router.push("/booking")}
           >
-            Book an appointment →
-          </a>
-        </div>
+            Book Again
+          </button>
+        </section>
       </div>
+
+      <style jsx>{`
+        .account-page {
+          min-height: 100vh;
+          background:
+            radial-gradient(
+              circle at top right,
+              rgba(197, 130, 111, 0.08),
+              transparent 35%
+            ),
+            #111111;
+          color: #f5f1ed;
+          padding: 50px 20px 80px;
+        }
+
+        .account-container {
+          width: 100%;
+          max-width: 1100px;
+          margin: 0 auto;
+        }
+
+        .account-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 20px;
+          padding-bottom: 35px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .eyebrow,
+        .section-label,
+        .appointment-label {
+          margin: 0 0 8px;
+          font-size: 11px;
+          letter-spacing: 0.2em;
+          color: #c99788;
+          font-weight: 600;
+        }
+
+        .account-header h1 {
+          margin: 0;
+          font-family: Georgia, serif;
+          font-size: clamp(32px, 5vw, 48px);
+          font-weight: 400;
+        }
+
+        .welcome-text {
+          margin: 10px 0 0;
+          color: #aaa19b;
+          font-size: 15px;
+        }
+
+        .logout-button {
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          background: transparent;
+          color: #f5f1ed;
+          padding: 11px 20px;
+          border-radius: 999px;
+          cursor: pointer;
+          transition: 0.2s ease;
+        }
+
+        .logout-button:hover {
+          border-color: #c99788;
+          color: #c99788;
+        }
+
+        .success-banner,
+        .message-banner,
+        .error-banner {
+          margin-top: 25px;
+          border-radius: 14px;
+          padding: 16px 18px;
+          display: flex;
+          gap: 13px;
+          align-items: flex-start;
+        }
+
+        .success-banner {
+          background: rgba(96, 165, 130, 0.1);
+          border: 1px solid rgba(96, 165, 130, 0.3);
+        }
+
+        .success-icon {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          background: rgba(96, 165, 130, 0.2);
+        }
+
+        .success-banner strong {
+          display: block;
+          margin-bottom: 4px;
+        }
+
+        .success-banner p {
+          margin: 0;
+          color: #b9b1ab;
+          font-size: 14px;
+        }
+
+        .message-banner {
+          background: rgba(217, 154, 139, 0.08);
+          border: 1px solid rgba(217, 154, 139, 0.25);
+          color: #ead6cf;
+        }
+
+        .error-banner {
+          background: rgba(180, 70, 70, 0.1);
+          border: 1px solid rgba(220, 100, 100, 0.25);
+          color: #efb6b6;
+        }
+
+        .section {
+          margin-top: 50px;
+        }
+
+        .section-heading {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          gap: 20px;
+          margin-bottom: 22px;
+        }
+
+        .section-heading h2 {
+          margin: 0;
+          font-family: Georgia, serif;
+          font-size: 28px;
+          font-weight: 400;
+        }
+
+        .appointment-count {
+          color: #a9a09a;
+          font-size: 13px;
+        }
+
+        .appointments-grid {
+          display: grid;
+          grid-template-columns: repeat(
+            auto-fit,
+            minmax(300px, 1fr)
+          );
+          gap: 18px;
+        }
+
+        .appointment-card {
+          background: linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.055),
+            rgba(255, 255, 255, 0.025)
+          );
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 20px;
+          padding: 25px;
+        }
+
+        .appointment-top {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 15px;
+          padding-bottom: 20px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .appointment-top h3 {
+          margin: 0;
+          font-family: Georgia, serif;
+          font-size: 20px;
+          font-weight: 400;
+          line-height: 1.35;
+        }
+
+        .status {
+          display: inline-flex;
+          align-items: center;
+          white-space: nowrap;
+          padding: 6px 10px;
+          border-radius: 999px;
+          font-size: 10px;
+          letter-spacing: 0.05em;
+          background: rgba(255, 255, 255, 0.08);
+          color: #d5cdc7;
+        }
+
+        .status.confirmed {
+          background: rgba(96, 165, 130, 0.13);
+          color: #a9d5ba;
+        }
+
+        .status.approved {
+          background: rgba(217, 154, 139, 0.13);
+          color: #e8b9ac;
+        }
+
+        .status.pending {
+          background: rgba(210, 180, 100, 0.13);
+          color: #dec88e;
+        }
+
+        .status.cancelled {
+          background: rgba(180, 100, 100, 0.12);
+          color: #dda7a7;
+        }
+
+        .appointment-details {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px 15px;
+          padding: 22px 0;
+        }
+
+        .detail {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+
+        .detail-label {
+          font-size: 9px;
+          letter-spacing: 0.15em;
+          color: #827b76;
+        }
+
+        .detail strong {
+          font-size: 13px;
+          line-height: 1.4;
+          color: #e9e3df;
+          font-weight: 500;
+        }
+
+        .payment-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 15px;
+          border-top: 1px solid rgba(255, 255, 255, 0.07);
+          padding-top: 15px;
+          font-size: 12px;
+          color: #8e8782;
+        }
+
+        .payment-row strong.paid {
+          color: #a9d5ba;
+        }
+
+        .payment-row strong.unpaid {
+          color: #e0bd84;
+        }
+
+        .notes {
+          margin-top: 18px;
+          padding: 12px 14px;
+          background: rgba(255, 255, 255, 0.035);
+          border-radius: 10px;
+        }
+
+        .notes span {
+          font-size: 9px;
+          letter-spacing: 0.15em;
+          color: #827b76;
+        }
+
+        .notes p {
+          margin: 5px 0 0;
+          font-size: 12px;
+          color: #b7afa9;
+          line-height: 1.5;
+        }
+
+        .appointment-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin-top: 22px;
+        }
+
+        .primary-button,
+        .cancel-button {
+          width: 100%;
+          border-radius: 999px;
+          padding: 13px 18px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: 0.2s ease;
+        }
+
+        .primary-button {
+          border: 1px solid #c99788;
+          background: #c99788;
+          color: #171313;
+        }
+
+        .primary-button:hover:not(:disabled) {
+          transform: translateY(-1px);
+          background: #d9aa9c;
+        }
+
+        .cancel-button {
+          border: 1px solid rgba(220, 150, 150, 0.3);
+          background: transparent;
+          color: #dca8a8;
+        }
+
+        .cancel-button:hover:not(:disabled) {
+          border-color: rgba(220, 150, 150, 0.6);
+          background: rgba(220, 150, 150, 0.07);
+        }
+
+        .primary-button:disabled,
+        .cancel-button:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+
+        .empty-card {
+          border: 1px dashed rgba(255, 255, 255, 0.15);
+          border-radius: 20px;
+          padding: 45px 25px;
+          text-align: center;
+          background: rgba(255, 255, 255, 0.02);
+        }
+
+        .empty-icon {
+          font-size: 30px;
+          color: #c99788;
+          margin-bottom: 10px;
+        }
+
+        .empty-card h3 {
+          margin: 0 0 8px;
+          font-family: Georgia, serif;
+          font-size: 22px;
+          font-weight: 400;
+        }
+
+        .empty-card p {
+          margin: 0 auto 22px;
+          max-width: 400px;
+          color: #908984;
+          font-size: 14px;
+        }
+
+        .empty-card .primary-button {
+          width: auto;
+          min-width: 190px;
+        }
+
+        .history-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .history-card {
+          display: grid;
+          grid-template-columns: 1.4fr 1fr 0.8fr;
+          gap: 20px;
+          align-items: center;
+          padding: 18px 20px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.025);
+        }
+
+        .history-date,
+        .history-service,
+        .history-status {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+
+        .history-date strong,
+        .history-service strong {
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .history-date span,
+        .history-service span,
+        .history-status small {
+          color: #817a75;
+          font-size: 11px;
+        }
+
+        .history-status {
+          align-items: flex-end;
+        }
+
+        .empty-history {
+          padding: 25px;
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.025);
+          color: #817a75;
+          font-size: 13px;
+        }
+
+        .book-again {
+          margin-top: 55px;
+          padding: 30px;
+          border-radius: 20px;
+          border: 1px solid rgba(217, 154, 139, 0.2);
+          background:
+            linear-gradient(
+              135deg,
+              rgba(217, 154, 139, 0.08),
+              rgba(255, 255, 255, 0.025)
+            );
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 30px;
+        }
+
+        .book-again h2 {
+          margin: 0;
+          font-family: Georgia, serif;
+          font-size: 26px;
+          font-weight: 400;
+        }
+
+        .book-again p:last-child {
+          margin: 8px 0 0;
+          color: #918984;
+          font-size: 13px;
+        }
+
+        .book-again .primary-button {
+          width: auto;
+          min-width: 150px;
+        }
+
+        @media (max-width: 700px) {
+          .account-page {
+            padding: 30px 15px 60px;
+          }
+
+          .account-header {
+            flex-direction: column;
+          }
+
+          .logout-button {
+            align-self: flex-start;
+          }
+
+          .section-heading {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 8px;
+          }
+
+          .appointments-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .appointment-card {
+            padding: 20px;
+          }
+
+          .appointment-details {
+            gap: 18px 10px;
+          }
+
+          .history-card {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
+
+          .history-status {
+            align-items: flex-start;
+          }
+
+          .book-again {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .book-again .primary-button {
+            width: 100%;
+          }
+        }
+      `}</style>
     </main>
   );
 }
