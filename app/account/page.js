@@ -521,7 +521,7 @@ export default function AccountPage() {
               <button
                 type="button"
                 className="primary-button"
-                onClick={() => router.push("/account/booking")}
+                onClick={() => router.push("/account/book")}
               >
                 Book an Appointment
               </button>
@@ -785,7 +785,7 @@ export default function AccountPage() {
           <button
             type="button"
             className="primary-button"
-            onClick={() => router.push("/account/booking")}
+            onClick={() => router.push("/account/book")}
           >
             Book Again
           </button>
