@@ -1,43 +1,30 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
 export const dynamic = "force-dynamic";
 
+import { createClient } from "@supabase/supabase-js";
+
 const supabaseUrl =
-  process.env.SUPABASE_URL ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL;
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.SUPABASE_URL;
 
 const supabaseServiceRoleKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-function json(data, status = 200) {
-  return NextResponse.json(data, {
-    status,
-    headers: {
-      "Cache-Control":
-        "no-store, no-cache, must-revalidate",
-      "Content-Type": "application/json",
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+  throw new Error(
+    "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variable."
+  );
+}
+
+const supabase = createClient(
+  supabaseUrl,
+  supabaseServiceRoleKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
     },
-  });
-}
-
-function normalizeCode(value) {
-  return String(value || "")
-    .trim()
-    .replace(/\s+/g, "")
-    .toUpperCase();
-}
-
-function normalizePhone(value) {
-  return String(value || "")
-    .replace(/\D/g, "");
-}
-
-function normalizeEmail(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-}
+  }
+);
 
 const BUILT_IN_PROMOS = {
   FIRSTVISIT: {
@@ -46,7 +33,6 @@ const BUILT_IN_PROMOS = {
     discount_value: 15,
     description: "15% off your first visit",
     active: true,
-    new_clients_only: true,
   },
 
   FRIEND50: {
@@ -55,7 +41,6 @@ const BUILT_IN_PROMOS = {
     discount_value: 50,
     description: "R50 off when you bring a friend",
     active: true,
-    new_clients_only: false,
   },
 
   BIRTHDAY: {
@@ -64,230 +49,74 @@ const BUILT_IN_PROMOS = {
     discount_value: 50,
     description: "Birthday special — R50 off",
     active: true,
-    birthday_offer: true,
-    new_clients_only: false,
   },
 };
 
-function validatePromoConfiguration(promo) {
-  if (!promo) {
-    return {
-      valid: false,
-      error: "That promo code isn't valid.",
-    };
-  }
-
-  if (promo.active === false) {
-    return {
-      valid: false,
-      error: "That promo code is no longer active.",
-    };
-  }
-
-  const discountValue = Number(
-    promo.discount_value
-  );
-
-  if (
-    !Number.isFinite(discountValue) ||
-    discountValue <= 0
-  ) {
-    console.error(
-      "Invalid promo discount value:",
-      promo
-    );
-
-    return {
-      valid: false,
-      error:
-        "This promo code is configured incorrectly.",
-    };
-  }
-
-  const discountType = String(
-    promo.discount_type || ""
-  ).toLowerCase();
-
-  if (
-    discountType !== "percent" &&
-    discountType !== "fixed"
-  ) {
-    console.error(
-      "Invalid promo discount type:",
-      promo
-    );
-
-    return {
-      valid: false,
-      error:
-        "This promo code has an invalid discount type.",
-    };
-  }
-
-  if (
-    discountType === "percent" &&
-    discountValue > 100
-  ) {
-    return {
-      valid: false,
-      error:
-        "This promo code has an invalid percentage discount.",
-    };
-  }
-
-  const now = new Date();
-
-  if (promo.starts_at) {
-    const startsAt = new Date(
-      promo.starts_at
-    );
-
-    if (
-      !Number.isNaN(startsAt.getTime()) &&
-      now < startsAt
-    ) {
-      return {
-        valid: false,
-        error:
-          "This promo code is not active yet.",
-      };
-    }
-  }
-
-  if (promo.expires_at) {
-    const expiresAt = new Date(
-      promo.expires_at
-    );
-
-    if (
-      !Number.isNaN(expiresAt.getTime()) &&
-      now > expiresAt
-    ) {
-      return {
-        valid: false,
-        error:
-          "This promo code has expired.",
-      };
-    }
-  }
-
-  return {
-    valid: true,
-    code: normalizeCode(promo.code),
-    discountType,
-    discountValue,
-    description: promo.description || "",
-    active: true,
-    newClientsOnly:
-      promo.new_clients_only === true,
-    birthdayOffer:
-      promo.birthday_offer === true,
-    referralOffer:
-      promo.referral_offer === true,
-    minimumSpend:
-      promo.minimum_spend !== null &&
-      promo.minimum_spend !== undefined
-        ? Number(promo.minimum_spend)
-        : null,
-  };
+function normalizePromoCode(code) {
+  return String(code || "")
+    .trim()
+    .replace(/\s+/g, "")
+    .toUpperCase();
 }
 
-function getSupabase() {
-  if (
-    !supabaseUrl ||
-    !supabaseServiceRoleKey
-  ) {
-    throw new Error(
-      "Supabase environment variables are missing."
-    );
+function normalizeEmail(email) {
+  return String(email || "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizePhone(phone) {
+  return String(phone || "")
+    .replace(/\D/g, "");
+}
+
+/*
+ * Handles common South African phone formats:
+ *
+ * 0710888897
+ * 270710888897
+ * +277108888897
+ *
+ * by comparing the final 9 digits.
+ */
+function phoneMatches(phoneA, phoneB) {
+  const a = normalizePhone(phoneA);
+  const b = normalizePhone(phoneB);
+
+  if (!a || !b) {
+    return false;
   }
 
-  return createClient(
-    supabaseUrl,
-    supabaseServiceRoleKey,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
+  if (a === b) {
+    return true;
+  }
+
+  const aLast9 = a.slice(-9);
+  const bLast9 = b.slice(-9);
+
+  return (
+    aLast9.length === 9 &&
+    bLast9.length === 9 &&
+    aLast9 === bLast9
   );
 }
 
-async function getPromo(code) {
-  const normalizedCode =
-    normalizeCode(code);
+function escapeLikeValue(value) {
+  return String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_");
+}
 
-  if (!normalizedCode) {
+async function getAuthenticatedUser(request) {
+  const authorization =
+    request.headers.get("authorization");
+
+  if (!authorization) {
     return null;
   }
 
   if (
-    BUILT_IN_PROMOS[normalizedCode]
-  ) {
-    return BUILT_IN_PROMOS[
-      normalizedCode
-    ];
-  }
-
-  const supabase =
-    getSupabase();
-
-  /*
-   * Do not filter by active here.
-   *
-   * We deliberately retrieve the promo first
-   * so inactive/expired promos can return a
-   * useful message instead of falling through
-   * to the generic "unable to verify" error.
-   */
-  const { data, error } =
-    await supabase
-      .from("promo_codes")
-      .select(
-        [
-          "id",
-          "code",
-          "discount_type",
-          "discount_value",
-          "active",
-          "description",
-          "created_at",
-          "starts_at",
-          "expires_at",
-          "minimum_spend",
-          "new_clients_only",
-          "birthday_offer",
-          "referral_offer",
-          "max_uses",
-          "one_use_per_client",
-        ].join(", ")
-      )
-      .ilike("code", normalizedCode)
-      .limit(1);
-
-  if (error) {
-    console.error(
-      "Supabase promo lookup error:",
-      error
-    );
-
-    throw error;
-  }
-
-  return data?.[0] || null;
-}
-
-async function getAuthenticatedUser(
-  request
-) {
-  const authorization =
-    request.headers.get(
-      "authorization"
-    );
-
-  if (
-    !authorization ||
     !authorization
       .toLowerCase()
       .startsWith("bearer ")
@@ -295,102 +124,195 @@ async function getAuthenticatedUser(
     return null;
   }
 
-  const token =
-    authorization
-      .slice(7)
-      .trim();
+  const accessToken = authorization
+    .slice(7)
+    .trim();
 
-  if (!token) {
+  if (!accessToken) {
     return null;
   }
-
-  const supabase =
-    getSupabase();
 
   const {
     data: { user },
     error,
-  } =
-    await supabase.auth.getUser(
-      token
-    );
+  } = await supabase.auth.getUser(
+    accessToken
+  );
 
-  if (error) {
-    console.error(
-      "Unable to verify authenticated user:",
-      error
-    );
-
+  if (error || !user) {
     return null;
   }
 
-  return user || null;
+  return user;
 }
 
+/*
+ * Find the promo in the database.
+ */
+async function getPromo(code) {
+  const normalizedCode =
+    normalizePromoCode(code);
+
+  if (!normalizedCode) {
+    return null;
+  }
+
+  /*
+   * Built-in promotions.
+   */
+  const builtInPromo =
+    BUILT_IN_PROMOS[normalizedCode];
+
+  if (builtInPromo) {
+    return builtInPromo;
+  }
+
+  /*
+   * Database promotions.
+   */
+  const escapedCode =
+    escapeLikeValue(normalizedCode);
+
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("promo_codes")
+    .select(
+      `
+        code,
+        discount_type,
+        discount_value,
+        description,
+        active,
+        starts_at,
+        expires_at,
+        minimum_spend,
+        new_clients_only,
+        birthday_offer,
+        referral_offer,
+        max_uses,
+        one_use_per_client
+      `
+    )
+    .ilike("code", escapedCode)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      "Promo lookup error:",
+      error
+    );
+
+    throw new Error(
+      "Unable to verify the promo code."
+    );
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const now = new Date();
+
+  if (data.starts_at) {
+    const startsAt =
+      new Date(data.starts_at);
+
+    if (
+      Number.isFinite(
+        startsAt.getTime()
+      ) &&
+      now < startsAt
+    ) {
+      return null;
+    }
+  }
+
+  if (data.expires_at) {
+    const expiresAt =
+      new Date(data.expires_at);
+
+    if (
+      Number.isFinite(
+        expiresAt.getTime()
+      ) &&
+      now >= expiresAt
+    ) {
+      return null;
+    }
+  }
+
+  return data;
+}
+
+/*
+ * Check whether the person has previously
+ * booked with Freddy Nails.
+ */
 async function hasPreviousAppointment({
   profileId,
   email,
   phone,
 }) {
-  const supabase =
-    getSupabase();
-
   /*
-   * 1. Logged-in account:
-   * profile_id is the strongest identifier.
+   * 1. Authenticated profile check.
    */
   if (profileId) {
-    const { data, error } =
-      await supabase
-        .from("appointments")
-        .select("id")
-        .eq(
-          "profile_id",
-          profileId
-        )
-        .limit(1);
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("appointments")
+      .select("id")
+      .eq("profile_id", profileId)
+      .limit(1);
 
     if (error) {
       console.error(
-        "Previous appointment profile lookup error:",
+        "Previous profile appointment lookup error:",
         error
       );
 
-      throw error;
+      throw new Error(
+        "Unable to verify first-time booking eligibility."
+      );
     }
 
-    if (data?.length) {
+    if (data && data.length > 0) {
       return true;
     }
   }
 
   /*
-   * 2. Email fallback.
+   * 2. Email check.
+   *
+   * We compare normalized email addresses.
    */
   const normalizedEmail =
     normalizeEmail(email);
 
   if (normalizedEmail) {
-    const { data, error } =
-      await supabase
-        .from("appointments")
-        .select(
-          "id, customer_email"
-        )
-        .not(
-          "customer_email",
-          "is",
-          null
-        )
-        .limit(1000);
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("appointments")
+      .select(
+        "id, customer_email"
+      )
+      .limit(1000);
 
     if (error) {
       console.error(
-        "Previous appointment email lookup error:",
+        "Previous email appointment lookup error:",
         error
       );
 
-      throw error;
+      throw new Error(
+        "Unable to verify first-time booking eligibility."
+      );
     }
 
     const emailMatch =
@@ -407,40 +329,43 @@ async function hasPreviousAppointment({
   }
 
   /*
-   * 3. Phone fallback.
+   * 3. Phone check.
+   *
+   * This recognizes both local and international
+   * South African formats.
    */
   const normalizedPhone =
     normalizePhone(phone);
 
   if (normalizedPhone) {
-    const { data, error } =
-      await supabase
-        .from("appointments")
-        .select(
-          "id, customer_phone"
-        )
-        .not(
-          "customer_phone",
-          "is",
-          null
-        )
-        .limit(1000);
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("appointments")
+      .select(
+        "id, customer_phone"
+      )
+      .limit(1000);
 
     if (error) {
       console.error(
-        "Previous appointment phone lookup error:",
+        "Previous phone appointment lookup error:",
         error
       );
 
-      throw error;
+      throw new Error(
+        "Unable to verify first-time booking eligibility."
+      );
     }
 
     const phoneMatch =
       (data || []).some(
         (appointment) =>
-          normalizePhone(
-            appointment.customer_phone
-          ) === normalizedPhone
+          phoneMatches(
+            appointment.customer_phone,
+            normalizedPhone
+          )
       );
 
     if (phoneMatch) {
@@ -457,126 +382,157 @@ export async function GET(request) {
       new URL(request.url);
 
     const rawCode =
-      searchParams.get("code");
+      searchParams.get("code") || "";
 
-    const suppliedEmail =
-      searchParams.get("email") || "";
+    const normalizedCode =
+      normalizePromoCode(rawCode);
 
-    const suppliedPhone =
-      searchParams.get("phone") || "";
-
-    if (
-      !rawCode ||
-      !rawCode.trim()
-    ) {
-      return json(
+    if (!normalizedCode) {
+      return Response.json(
         {
           valid: false,
           error:
             "Please enter a promo code.",
         },
-        400
+        { status: 400 }
       );
     }
 
-    const code =
-      normalizeCode(rawCode);
-
     const promo =
-      await getPromo(code);
+      await getPromo(normalizedCode);
 
-    if (!promo) {
-      return json(
+    if (!promo || promo.active === false) {
+      return Response.json(
         {
           valid: false,
           error:
             "That promo code isn't valid.",
         },
-        400
-      );
-    }
-
-    const result =
-      validatePromoConfiguration(
-        promo
-      );
-
-    if (!result.valid) {
-      return json(
-        result,
-        400
+        { status: 400 }
       );
     }
 
     /*
-     * New-client-only validation.
+     * Get customer details from the request.
      *
-     * WELCOME10 is stored in Supabase with
-     * new_clients_only = true.
-     *
-     * FIRSTVISIT is also treated as a
-     * first-time-client promotion.
+     * Booking.js sends these when checking a promo.
      */
-    if (
-      result.newClientsOnly
-    ) {
-      const authenticatedUser =
-        await getAuthenticatedUser(
-          request
-        );
+    const email =
+      searchParams.get("email") || "";
 
-      const profileId =
-        authenticatedUser?.id ||
-        null;
+    const phone =
+      searchParams.get("phone") || "";
 
-      const email =
-        suppliedEmail ||
-        authenticatedUser?.email ||
-        "";
+    /*
+     * Also check the logged-in Supabase user
+     * when an access token is available.
+     */
+    const authenticatedUser =
+      await getAuthenticatedUser(request);
 
-      const phone =
-        suppliedPhone ||
-        authenticatedUser?.phone ||
-        "";
+    const profileId =
+      authenticatedUser?.id || null;
 
-      const previousBooking =
+    const customerEmail =
+      email ||
+      authenticatedUser?.email ||
+      "";
+
+    /*
+     * WELCOME10 / any database promo marked
+     * new_clients_only is checked here.
+     */
+    if (promo.new_clients_only === true) {
+      const existingClient =
         await hasPreviousAppointment({
           profileId,
-          email,
+          email: customerEmail,
           phone,
         });
 
-      if (previousBooking) {
-        return json(
+      if (existingClient) {
+        return Response.json(
           {
             valid: false,
-            code: result.code,
-            newClientsOnly: true,
             error:
-              "This promo code is only applicable to first-time bookings. It looks like you've booked with Freddy Nails before.",
+              `${normalizedCode} is only applicable to first-time bookings. Since you've booked with Freddy Nails before, this code can't be applied to this booking.`,
+            promoCode:
+              normalizedCode,
           },
-          400
+          { status: 400 }
         );
       }
     }
 
-    return json(
-      result,
-      200
-    );
+    /*
+     * Minimum spend check.
+     *
+     * The validation endpoint cannot know the final
+     * service total unless Booking.js supplies it.
+     */
+    const minimumSpend =
+      Number(promo.minimum_spend);
+
+    const amount =
+      Number(
+        searchParams.get("amount")
+      );
+
+    if (
+      Number.isFinite(minimumSpend) &&
+      minimumSpend > 0 &&
+      Number.isFinite(amount) &&
+      amount < minimumSpend
+    ) {
+      return Response.json(
+        {
+          valid: false,
+          error:
+            `${normalizedCode} requires a minimum spend of R${minimumSpend}.`,
+          promoCode:
+            normalizedCode,
+        },
+        { status: 400 }
+      );
+    }
+
+    /*
+     * Promo is valid.
+     */
+    return Response.json({
+      valid: true,
+      promo: {
+        code: normalizedCode,
+        discount_type:
+          promo.discount_type,
+        discount_value:
+          Number(
+            promo.discount_value
+          ),
+        description:
+          promo.description ||
+          "Offer applied successfully.",
+        active:
+          promo.active !== false,
+        new_clients_only:
+          promo.new_clients_only === true,
+      },
+    });
   } catch (error) {
     console.error(
-      "Unexpected promo validation error:",
+      "Promo validation error:",
       error
     );
 
-    return json(
+    return Response.json(
       {
         valid: false,
         error:
-          "Unable to verify the promo code. Please try again.",
+          error instanceof Error
+            ? error.message
+            : "Unable to validate the promo code.",
       },
-      500
+      { status: 500 }
     );
   }
 }
