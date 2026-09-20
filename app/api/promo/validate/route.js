@@ -30,6 +30,16 @@ function normalizeCode(value) {
     .toUpperCase();
 }
 
+function normalizeEmail(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizePhone(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
 const BUILT_IN_PROMOS = {
   FIRSTVISIT: {
     code: "FIRSTVISIT",
@@ -142,6 +152,28 @@ function validatePromoConfiguration(promo) {
   };
 }
 
+async function getSupabaseAdmin() {
+  if (
+    !supabaseUrl ||
+    !supabaseServiceRoleKey
+  ) {
+    throw new Error(
+      "Supabase environment variables are missing."
+    );
+  }
+
+  return createClient(
+    supabaseUrl,
+    supabaseServiceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}
+
 async function getPromo(code) {
   const normalizedCode = normalizeCode(code);
 
@@ -153,25 +185,8 @@ async function getPromo(code) {
     return BUILT_IN_PROMOS[normalizedCode];
   }
 
-  if (
-    !supabaseUrl ||
-    !supabaseServiceRoleKey
-  ) {
-    throw new Error(
-      "Supabase environment variables are missing."
-    );
-  }
-
-  const supabase = createClient(
-    supabaseUrl,
-    supabaseServiceRoleKey,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
+  const supabase =
+    await getSupabaseAdmin();
 
   const { data, error } = await supabase
     .from("promo_codes")
@@ -210,16 +225,197 @@ async function getPromo(code) {
   return data?.[0] || null;
 }
 
+async function getAuthenticatedUser(request) {
+  const authorization =
+    request.headers.get("authorization") ||
+    request.headers.get("Authorization");
+
+  if (!authorization) {
+    return null;
+  }
+
+  const match =
+    authorization.match(/^Bearer\s+(.+)$/i);
+
+  if (!match) {
+    return null;
+  }
+
+  const accessToken = match[1].trim();
+
+  if (!accessToken) {
+    return null;
+  }
+
+  const supabase =
+    await getSupabaseAdmin();
+
+  const {
+    data: {
+      user,
+    },
+    error,
+  } = await supabase.auth.getUser(
+    accessToken
+  );
+
+  if (error) {
+    console.error(
+      "Supabase auth lookup error:",
+      error
+    );
+
+    return null;
+  }
+
+  return user || null;
+}
+
+async function hasPreviousAppointment({
+  user,
+  email,
+  phone,
+}) {
+  const supabase =
+    await getSupabaseAdmin();
+
+  /*
+   * 1. Logged-in profile check
+   */
+  if (user?.id) {
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("appointments")
+      .select("id")
+      .eq("profile_id", user.id)
+      .limit(1);
+
+    if (error) {
+      console.error(
+        "Previous appointment profile lookup error:",
+        error
+      );
+
+      throw error;
+    }
+
+    if (data && data.length > 0) {
+      return true;
+    }
+  }
+
+  /*
+   * 2. Email check
+   *
+   * This protects older bookings that may not have
+   * been connected to the customer's profile.
+   */
+  const normalizedEmail =
+    normalizeEmail(
+      email || user?.email
+    );
+
+  if (normalizedEmail) {
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("appointments")
+      .select(
+        "id, customer_email"
+      )
+      .not(
+        "customer_email",
+        "is",
+        null
+      )
+      .limit(500);
+
+    if (error) {
+      console.error(
+        "Previous appointment email lookup error:",
+        error
+      );
+
+      throw error;
+    }
+
+    const emailMatch =
+      (data || []).some(
+        (appointment) =>
+          normalizeEmail(
+            appointment.customer_email
+          ) === normalizedEmail
+      );
+
+    if (emailMatch) {
+      return true;
+    }
+  }
+
+  /*
+   * 3. Phone check
+   *
+   * This catches previous bookings made with the
+   * same phone number.
+   */
+  const normalizedPhone =
+    normalizePhone(phone);
+
+  if (normalizedPhone) {
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("appointments")
+      .select(
+        "id, customer_phone"
+      )
+      .not(
+        "customer_phone",
+        "is",
+        null
+      )
+      .limit(500);
+
+    if (error) {
+      console.error(
+        "Previous appointment phone lookup error:",
+        error
+      );
+
+      throw error;
+    }
+
+    const phoneMatch =
+      (data || []).some(
+        (appointment) =>
+          normalizePhone(
+            appointment.customer_phone
+          ) === normalizedPhone
+      );
+
+    if (phoneMatch) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function validatePromoDates(promo) {
   const now = new Date();
 
   if (promo.starts_at) {
-    const startsAt = new Date(
-      promo.starts_at
-    );
+    const startsAt =
+      new Date(promo.starts_at);
 
     if (
-      Number.isFinite(startsAt.getTime()) &&
+      Number.isFinite(
+        startsAt.getTime()
+      ) &&
       now < startsAt
     ) {
       return {
@@ -231,12 +427,13 @@ function validatePromoDates(promo) {
   }
 
   if (promo.expires_at) {
-    const expiresAt = new Date(
-      promo.expires_at
-    );
+    const expiresAt =
+      new Date(promo.expires_at);
 
     if (
-      Number.isFinite(expiresAt.getTime()) &&
+      Number.isFinite(
+        expiresAt.getTime()
+      ) &&
       now > expiresAt
     ) {
       return {
@@ -254,13 +451,22 @@ function validatePromoDates(promo) {
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(
-      request.url
-    );
+    const { searchParams } =
+      new URL(request.url);
 
-    const rawCode = searchParams.get("code");
+    const rawCode =
+      searchParams.get("code");
 
-    if (!rawCode || !rawCode.trim()) {
+    const customerEmail =
+      searchParams.get("email") || "";
+
+    const customerPhone =
+      searchParams.get("phone") || "";
+
+    if (
+      !rawCode ||
+      !rawCode.trim()
+    ) {
       return json(
         {
           valid: false,
@@ -271,9 +477,11 @@ export async function GET(request) {
       );
     }
 
-    const code = normalizeCode(rawCode);
+    const code =
+      normalizeCode(rawCode);
 
-    const promo = await getPromo(code);
+    const promo =
+      await getPromo(code);
 
     if (!promo) {
       return json(
@@ -287,17 +495,62 @@ export async function GET(request) {
     }
 
     const configuration =
-      validatePromoConfiguration(promo);
+      validatePromoConfiguration(
+        promo
+      );
 
     if (!configuration.valid) {
-      return json(configuration, 400);
+      return json(
+        configuration,
+        400
+      );
     }
 
     const dateCheck =
       validatePromoDates(promo);
 
     if (!dateCheck.valid) {
-      return json(dateCheck, 400);
+      return json(
+        dateCheck,
+        400
+      );
+    }
+
+    /*
+     * WELCOME10 / any future new-client-only promo
+     *
+     * We check this BEFORE returning "valid: true".
+     */
+    if (
+      promo.new_clients_only === true
+    ) {
+      const user =
+        await getAuthenticatedUser(
+          request
+        );
+
+      const hasBooked =
+        await hasPreviousAppointment({
+          user,
+          email:
+            customerEmail ||
+            user?.email ||
+            "",
+          phone: customerPhone,
+        });
+
+      if (hasBooked) {
+        return json(
+          {
+            valid: false,
+            code,
+            newClientsOnly: true,
+            error:
+              "WELCOME10 is only applicable to first-time bookings.",
+          },
+          400
+        );
+      }
     }
 
     return json(
