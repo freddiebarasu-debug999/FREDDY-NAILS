@@ -26,6 +26,12 @@ const supabase = createClient(
   }
 );
 
+/*
+|--------------------------------------------------------------------------
+| Built-in Freddy Nails promotions
+|--------------------------------------------------------------------------
+*/
+
 const BUILT_IN_PROMOS = {
   FIRSTVISIT: {
     code: "FIRSTVISIT",
@@ -33,6 +39,7 @@ const BUILT_IN_PROMOS = {
     discount_value: 15,
     description: "15% off your first visit",
     active: true,
+    new_clients_only: false,
   },
 
   FRIEND50: {
@@ -41,6 +48,7 @@ const BUILT_IN_PROMOS = {
     discount_value: 50,
     description: "R50 off when you bring a friend",
     active: true,
+    new_clients_only: false,
   },
 
   BIRTHDAY: {
@@ -49,8 +57,15 @@ const BUILT_IN_PROMOS = {
     discount_value: 50,
     description: "Birthday special — R50 off",
     active: true,
+    new_clients_only: false,
   },
 };
+
+/*
+|--------------------------------------------------------------------------
+| Helpers
+|--------------------------------------------------------------------------
+*/
 
 function normalizePromoCode(code) {
   return String(code || "")
@@ -70,15 +85,6 @@ function normalizePhone(phone) {
     .replace(/\D/g, "");
 }
 
-/*
- * Handles common South African phone formats:
- *
- * 0710888897
- * 270710888897
- * +277108888897
- *
- * by comparing the final 9 digits.
- */
 function phoneMatches(phoneA, phoneB) {
   const a = normalizePhone(phoneA);
   const b = normalizePhone(phoneB);
@@ -91,6 +97,15 @@ function phoneMatches(phoneA, phoneB) {
     return true;
   }
 
+  /*
+   * Compare the last 9 digits so that:
+   *
+   * 0710888897
+   * 270710888897
+   * +27710888897
+   *
+   * are recognized as the same South African number.
+   */
   const aLast9 = a.slice(-9);
   const bLast9 = b.slice(-9);
 
@@ -108,6 +123,12 @@ function escapeLikeValue(value) {
     .replace(/_/g, "\\_");
 }
 
+/*
+|--------------------------------------------------------------------------
+| Authenticated user
+|--------------------------------------------------------------------------
+*/
+
 async function getAuthenticatedUser(request) {
   const authorization =
     request.headers.get("authorization");
@@ -124,9 +145,8 @@ async function getAuthenticatedUser(request) {
     return null;
   }
 
-  const accessToken = authorization
-    .slice(7)
-    .trim();
+  const accessToken =
+    authorization.slice(7).trim();
 
   if (!accessToken) {
     return null;
@@ -147,8 +167,15 @@ async function getAuthenticatedUser(request) {
 }
 
 /*
- * Find the promo in the database.
- */
+|--------------------------------------------------------------------------
+| Get promo
+|--------------------------------------------------------------------------
+|
+| Built-in promos are checked first.
+| Database promos such as WELCOME10 are checked second.
+|
+*/
+
 async function getPromo(code) {
   const normalizedCode =
     normalizePromoCode(code);
@@ -158,17 +185,21 @@ async function getPromo(code) {
   }
 
   /*
-   * Built-in promotions.
+   * FIRSTVISIT / FRIEND50 / BIRTHDAY
    */
-  const builtInPromo =
-    BUILT_IN_PROMOS[normalizedCode];
-
-  if (builtInPromo) {
-    return builtInPromo;
+  if (
+    Object.prototype.hasOwnProperty.call(
+      BUILT_IN_PROMOS,
+      normalizedCode
+    )
+  ) {
+    return BUILT_IN_PROMOS[
+      normalizedCode
+    ];
   }
 
   /*
-   * Database promotions.
+   * Database promo
    */
   const escapedCode =
     escapeLikeValue(normalizedCode);
@@ -216,6 +247,9 @@ async function getPromo(code) {
 
   const now = new Date();
 
+  /*
+   * Start date
+   */
   if (data.starts_at) {
     const startsAt =
       new Date(data.starts_at);
@@ -230,6 +264,9 @@ async function getPromo(code) {
     }
   }
 
+  /*
+   * Expiry date
+   */
   if (data.expires_at) {
     const expiresAt =
       new Date(data.expires_at);
@@ -248,16 +285,18 @@ async function getPromo(code) {
 }
 
 /*
- * Check whether the person has previously
- * booked with Freddy Nails.
- */
+|--------------------------------------------------------------------------
+| Check previous booking history
+|--------------------------------------------------------------------------
+*/
+
 async function hasPreviousAppointment({
   profileId,
   email,
   phone,
 }) {
   /*
-   * 1. Authenticated profile check.
+   * 1. Logged-in profile
    */
   if (profileId) {
     const {
@@ -286,9 +325,7 @@ async function hasPreviousAppointment({
   }
 
   /*
-   * 2. Email check.
-   *
-   * We compare normalized email addresses.
+   * 2. Email
    */
   const normalizedEmail =
     normalizeEmail(email);
@@ -329,10 +366,7 @@ async function hasPreviousAppointment({
   }
 
   /*
-   * 3. Phone check.
-   *
-   * This recognizes both local and international
-   * South African formats.
+   * 3. Phone
    */
   const normalizedPhone =
     normalizePhone(phone);
@@ -376,6 +410,12 @@ async function hasPreviousAppointment({
   return false;
 }
 
+/*
+|--------------------------------------------------------------------------
+| GET /api/promo/validate
+|--------------------------------------------------------------------------
+*/
+
 export async function GET(request) {
   try {
     const { searchParams } =
@@ -398,10 +438,13 @@ export async function GET(request) {
       );
     }
 
+    /*
+     * Find promo.
+     */
     const promo =
       await getPromo(normalizedCode);
 
-    if (!promo || promo.active === false) {
+    if (!promo) {
       return Response.json(
         {
           valid: false,
@@ -413,9 +456,23 @@ export async function GET(request) {
     }
 
     /*
-     * Get customer details from the request.
+     * Check active status.
+     */
+    if (promo.active === false) {
+      return Response.json(
+        {
+          valid: false,
+          error:
+            "That promo code isn't currently active.",
+        },
+        { status: 400 }
+      );
+    }
+
+    /*
+     * Customer information.
      *
-     * Booking.js sends these when checking a promo.
+     * Booking.js sends these when available.
      */
     const email =
       searchParams.get("email") || "";
@@ -424,11 +481,12 @@ export async function GET(request) {
       searchParams.get("phone") || "";
 
     /*
-     * Also check the logged-in Supabase user
-     * when an access token is available.
+     * Logged-in user, if available.
      */
     const authenticatedUser =
-      await getAuthenticatedUser(request);
+      await getAuthenticatedUser(
+        request
+      );
 
     const profileId =
       authenticatedUser?.id || null;
@@ -439,10 +497,27 @@ export async function GET(request) {
       "";
 
     /*
-     * WELCOME10 / any database promo marked
-     * new_clients_only is checked here.
-     */
-    if (promo.new_clients_only === true) {
+    |--------------------------------------------------------------------------
+    | FIRST-TIME PROMO CHECK
+    |--------------------------------------------------------------------------
+    |
+    | IMPORTANT:
+    |
+    | Only promos explicitly marked new_clients_only
+    | are checked against previous appointments.
+    |
+    | Therefore:
+    |
+    | WELCOME10 → checked
+    | FIRSTVISIT → allowed through
+    | FRIEND50 → allowed through
+    | BIRTHDAY → allowed through
+    |
+    */
+
+    if (
+      promo.new_clients_only === true
+    ) {
       const existingClient =
         await hasPreviousAppointment({
           profileId,
@@ -465,11 +540,11 @@ export async function GET(request) {
     }
 
     /*
-     * Minimum spend check.
-     *
-     * The validation endpoint cannot know the final
-     * service total unless Booking.js supplies it.
-     */
+    |--------------------------------------------------------------------------
+    | Optional minimum spend
+    |--------------------------------------------------------------------------
+    */
+
     const minimumSpend =
       Number(promo.minimum_spend);
 
@@ -479,7 +554,9 @@ export async function GET(request) {
       );
 
     if (
-      Number.isFinite(minimumSpend) &&
+      Number.isFinite(
+        minimumSpend
+      ) &&
       minimumSpend > 0 &&
       Number.isFinite(amount) &&
       amount < minimumSpend
@@ -497,23 +574,32 @@ export async function GET(request) {
     }
 
     /*
-     * Promo is valid.
-     */
+    |--------------------------------------------------------------------------
+    | SUCCESS
+    |--------------------------------------------------------------------------
+    */
+
     return Response.json({
       valid: true,
+
       promo: {
         code: normalizedCode,
+
         discount_type:
           promo.discount_type,
+
         discount_value:
           Number(
             promo.discount_value
           ),
+
         description:
           promo.description ||
           "Offer applied successfully.",
+
         active:
           promo.active !== false,
+
         new_clients_only:
           promo.new_clients_only === true,
       },
