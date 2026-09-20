@@ -136,19 +136,20 @@ export default function AccountPage() {
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [message, setMessage] = useState("");
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [successAppointmentId, setSuccessAppointmentId] =
+    useState(null);
 
-  async function loadAccount() {
-    setLoading(true);
+  async function loadAccount(options = {}) {
+    const { showLoading = true } = options;
+
+    if (showLoading) {
+      setLoading(true);
+    }
+
     setError("");
 
     try {
-      /*
-       * First check for an existing session.
-       *
-       * We deliberately use getSession() here instead of getUser()
-       * because a missing session should simply mean the visitor
-       * needs to log in.
-       */
       const {
         data: { session },
         error: sessionError,
@@ -232,11 +233,6 @@ export default function AccountPage() {
         err
       );
 
-      /*
-       * A missing session should never be shown as a
-       * scary application error. Send the client back
-       * to login instead.
-       */
       if (
         String(err?.message || "")
           .toLowerCase()
@@ -251,12 +247,71 @@ export default function AccountPage() {
           "Unable to load your account."
       );
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   }
 
   useEffect(() => {
+    const params = new URLSearchParams(
+      window.location.search
+    );
+
+    const bookingStatus =
+      params.get("booking");
+
+    const appointmentId =
+      params.get("appointment");
+
+    if (
+      bookingStatus === "success" &&
+      appointmentId
+    ) {
+      setBookingSuccess(true);
+      setSuccessAppointmentId(appointmentId);
+
+      window.history.replaceState(
+        {},
+        "",
+        "/account"
+      );
+    }
+
     loadAccount();
+
+    /*
+     * Yoco redirects the customer immediately after
+     * payment. The webhook may take a short moment
+     * to update the appointment in Supabase.
+     *
+     * Refresh the account a few times so the customer
+     * sees the confirmed status without needing to
+     * manually refresh the page.
+     */
+    if (
+      bookingStatus === "success" &&
+      appointmentId
+    ) {
+      let attempts = 0;
+
+      const refreshInterval =
+        setInterval(async () => {
+          attempts += 1;
+
+          await loadAccount({
+            showLoading: false,
+          });
+
+          if (attempts >= 6) {
+            clearInterval(refreshInterval);
+          }
+        }, 2000);
+
+      return () => {
+        clearInterval(refreshInterval);
+      };
+    }
   }, []);
 
   async function getAccessToken() {
@@ -504,6 +559,21 @@ export default function AccountPage() {
     user?.email?.split("@")[0] ||
     "Client";
 
+  const successAppointment =
+    successAppointmentId
+      ? appointments.find(
+          (appointment) =>
+            String(appointment.id) ===
+            String(successAppointmentId)
+        )
+      : null;
+
+  const successIsConfirmed =
+    successAppointment &&
+    String(
+      successAppointment.booking_status || ""
+    ).toLowerCase() === "confirmed";
+
   return (
     <main className="min-h-screen bg-[#11100f] px-5 py-12 text-[#f4eee6]">
       <div className="mx-auto max-w-[1180px]">
@@ -538,6 +608,42 @@ export default function AccountPage() {
             Log out
           </button>
         </div>
+
+        {bookingSuccess && (
+          <div className="mt-8 border border-emerald-400/30 bg-emerald-400/10 p-6 md:p-7">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-emerald-400/30 text-lg text-emerald-300">
+                ✓
+              </div>
+
+              <div>
+                <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-emerald-300">
+                  Booking confirmed
+                </p>
+
+                <h2 className="mt-2 font-serif text-2xl text-[#f4eee6]">
+                  {successIsConfirmed
+                    ? "Your deposit has been received."
+                    : "Your payment was successful."}
+                </h2>
+
+                <p className="mt-2 text-sm leading-relaxed text-[#a79a87]">
+                  Thank you for booking with Freddy
+                  Nails. Your appointment details
+                  are shown below.
+                </p>
+
+                {!successIsConfirmed && (
+                  <p className="mt-3 text-xs leading-relaxed text-[#8f877e]">
+                    We are just confirming your
+                    payment. Your appointment status
+                    will update automatically.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {message && (
           <div className="mt-8 border border-[#d6b36a]/30 bg-[#d6b36a]/10 px-5 py-4 text-sm text-[#d6b36a]">
