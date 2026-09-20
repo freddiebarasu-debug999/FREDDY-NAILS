@@ -1,4 +1,4 @@
-```javascript
+
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { createGoogleCalendarEvent } from "@/lib/google-calendar";
@@ -1173,4 +1173,3 @@ export async function POST(request) {
     );
   }
 }
-```
