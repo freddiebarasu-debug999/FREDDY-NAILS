@@ -447,14 +447,54 @@ export default function Booking() {
     setPromoError("");
 
     try {
+      /*
+       * Send the current customer's details
+       * so the API can determine whether a
+       * first-time-only promotion is eligible.
+       */
+      const params =
+        new URLSearchParams();
+
+      params.set(
+        "code",
+        cleanCode
+      );
+
+      if (form.email.trim()) {
+        params.set(
+          "email",
+          form.email.trim()
+        );
+      }
+
+      if (form.phone.trim()) {
+        params.set(
+          "phone",
+          form.phone.trim()
+        );
+      }
+
+      const {
+        data: { session },
+      } =
+        await supabase.auth.getSession();
+
+      const headers = {};
+
+      if (
+        session?.access_token
+      ) {
+        headers.Authorization =
+          `Bearer ${session.access_token}`;
+      }
+
       const response =
         await fetch(
-          `/api/promo/validate?code=${encodeURIComponent(
-            cleanCode
-          )}`,
+          `/api/promo/validate?${params.toString()}`,
           {
             method: "GET",
             cache: "no-store",
+            headers,
           }
         );
 
@@ -497,7 +537,9 @@ export default function Booking() {
       }
 
       setPromoCode(
-        String(data.code).toUpperCase()
+        String(
+          data.code
+        ).toUpperCase()
       );
 
       setAppliedPromo({
@@ -622,6 +664,27 @@ export default function Booking() {
     };
   }, []);
 
+  /*
+   * If the customer changes their email or
+   * phone after applying a first-time promo,
+   * remove the applied promo. It must be
+   * revalidated against the new identity.
+   */
+  useEffect(() => {
+    if (!appliedPromo) return;
+
+    const timeout =
+      setTimeout(() => {
+        setAppliedPromo(null);
+      }, 0);
+
+    return () =>
+      clearTimeout(timeout);
+  }, [
+    form.email,
+    form.phone,
+  ]);
+
   useEffect(() => {
     const params =
       new URLSearchParams(
@@ -693,19 +756,59 @@ export default function Booking() {
       }));
     }
 
+    /*
+     * Promo links such as:
+     * /booking?promo=WELCOME10
+     *
+     * are checked after the account/details
+     * fields have had a chance to load.
+     */
     if (promoParam) {
       const cleanPromo =
         promoParam.trim();
 
       if (cleanPromo) {
         setPromoCode(cleanPromo);
-
-        applyPromoCodeValue(
-          cleanPromo
-        );
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (
+      !accountLoaded ||
+      !promoCode.trim() ||
+      appliedPromo ||
+      promoChecking
+    ) {
+      return;
+    }
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+    const promoParam =
+      params.get("promo") ||
+      params.get("offer") ||
+      params.get("promoCode");
+
+    if (
+      !promoParam ||
+      promoParam.trim().toUpperCase() !==
+        promoCode.trim().toUpperCase()
+    ) {
+      return;
+    }
+
+    applyPromoCodeValue(
+      promoCode
+    );
+  }, [
+    accountLoaded,
+    form.email,
+    form.phone,
+  ]);
 
   function updateClientServices(
     clientIndex,
@@ -1288,6 +1391,26 @@ export default function Booking() {
       );
 
       return;
+    }
+
+    /*
+     * Re-check a first-time-only promo
+     * immediately before checkout.
+     *
+     * This prevents the promo from remaining
+     * applied if the customer's details changed.
+     */
+    if (
+      appliedPromo?.newClientsOnly
+    ) {
+      const stillValid =
+        await applyPromoCodeValue(
+          appliedPromo.code
+        );
+
+      if (!stillValid) {
+        return;
+      }
     }
 
     for (
@@ -2648,14 +2771,16 @@ export default function Booking() {
             {promoChecking &&
               !appliedPromo && (
                 <p className="text-xs text-[#9f978f] mt-2">
-                  Applying your offer...
+                  Checking your eligibility...
                 </p>
               )}
 
             {promoError && (
-              <p className="text-xs text-red-400 mt-2">
-                {promoError}
-              </p>
+              <div className="mt-3 border-l-2 border-red-400 bg-red-400/10 px-4 py-3">
+                <p className="text-xs text-red-300 leading-relaxed">
+                  {promoError}
+                </p>
+              </div>
             )}
           </div>
 
