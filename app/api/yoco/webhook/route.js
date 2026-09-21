@@ -1,4 +1,3 @@
-
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { createGoogleCalendarEvent } from "@/lib/google-calendar";
@@ -113,6 +112,9 @@ function sanitizeForLogs(value) {
 const EMAIL_FROM =
   process.env.RESEND_FROM_EMAIL ||
   "Freddy Nails <bookings@freddynails.co.za>";
+
+const LOGO_URL =
+  "https://freddynails.co.za/freddy-nails-logo.png";
 
 async function sendEmail({ to, subject, html }) {
   const apiKey = process.env.RESEND_API_KEY;
@@ -404,17 +406,31 @@ async function sendCustomerConfirmation(appointment) {
         <div
           style="
             background-color:#181614;
-            padding:32px 24px;
+            padding:28px 24px;
             text-align:center;
             border-bottom:1px solid rgba(214,179,106,0.2);
           "
         >
 
+          <img
+            src="${LOGO_URL}"
+            alt="Freddy Nails"
+            width="72"
+            height="72"
+            style="
+              display:block;
+              margin:0 auto;
+              width:72px;
+              height:72px;
+              border-radius:50%;
+            "
+          />
+
           <p
             style="
-              margin:0;
+              margin:14px 0 0;
               font-style:italic;
-              font-size:30px;
+              font-size:26px;
               color:#d6b36a;
               letter-spacing:0.5px;
             "
@@ -710,6 +726,62 @@ async function sendCustomerConfirmation(appointment) {
               : ""
           }
 
+          <!-- POLICIES -->
+
+          <div
+            style="
+              margin-top:30px;
+              padding-top:22px;
+              border-top:1px solid rgba(255,255,255,0.08);
+            "
+          >
+
+            <p
+              style="
+                margin:0 0 10px;
+                font-size:11px;
+                letter-spacing:2px;
+                color:#8f877e;
+                text-transform:uppercase;
+                text-align:center;
+              "
+            >
+              Good to know
+            </p>
+
+            <ul
+              style="
+                margin:0;
+                padding:0 0 0 18px;
+                font-size:12.5px;
+                line-height:1.7;
+                color:#9f978f;
+              "
+            >
+              <li>
+                Deposits are non-refundable, but
+                appointments can be rescheduled with
+                enough notice, subject to availability.
+              </li>
+              <li>
+                Please give at least 24 hours&rsquo;
+                notice to cancel or reschedule.
+              </li>
+              <li>
+                A 15-minute grace period applies from
+                your scheduled time &mdash; arriving
+                later may result in your appointment
+                being cancelled or rescheduled.
+              </li>
+              <li>
+                No-shows without prior notice forfeit
+                their deposit and may require a higher
+                deposit for future bookings.
+              </li>
+            </ul>
+
+          </div>
+
         </div>
 
         <!-- FOOTER -->
@@ -730,7 +802,8 @@ async function sendCustomerConfirmation(appointment) {
             "
           >
             Freddy Nails &middot;
-            8 Rhodes St, Quigney, East London &middot;
+            8 Rhodes St, Quigney, East London
+            (street parking available) &middot;
             @nailsby_freddy
           </p>
 
