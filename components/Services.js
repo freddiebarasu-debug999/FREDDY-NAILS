@@ -1,6 +1,10 @@
+const SITE_URL = "https://freddynails.co.za";
+
 const GROUPS = [
   {
     title: "Acrylic Manicure",
+    blurb:
+      "Acrylic nails in East London, from plain sets to French and ombré, in lengths from short to XXXL.",
     items: [
       {
         name: "Plain — Short to Medium",
@@ -56,6 +60,8 @@ const GROUPS = [
   },
   {
     title: "Gel Manicure",
+    blurb:
+      "Gel nails and gel overlays in East London for a neat, glossy, long-lasting finish.",
     items: [
       {
         name: "Gel Overlay",
@@ -88,6 +94,8 @@ const GROUPS = [
   },
   {
     title: "Pedicure Sets",
+    blurb:
+      "Gel and acrylic pedicure sets in East London, from simple overlays to full tips and French designs.",
     items: [
       {
         name: "Gel Overlay",
@@ -122,6 +130,8 @@ const GROUPS = [
   },
   {
     title: "Extras",
+    blurb:
+      "Nail art, fill-ins, repairs, soak-off and add-ons to personalise your set.",
     items: [
       {
         name: "Buff & Shine",
@@ -167,6 +177,8 @@ const GROUPS = [
   {
     title: "Eyelash Extensions",
     badge: "New",
+    blurb:
+      "Eyelash extensions in East London, from cluster and cateye lashes to classic sets.",
     items: [
       {
         name: "Cluster Lashes",
@@ -209,6 +221,8 @@ const GROUPS = [
   {
     title: "Foot Spa",
     badge: "New",
+    blurb:
+      "Relaxing foot spa treatments in Quigney, East London to leave feet refreshed and soft.",
     items: [
       {
         name: "Basic Foot Spa",
@@ -233,12 +247,65 @@ const NOTES = [
   "Please advise Freddy Nails of any existing product, damage or special requirements when booking.",
 ];
 
+// Turns a price like "R200" or "R20–R30" into schema.org price data.
+// Items without a numeric price (e.g. "Coming soon") are left out of the schema.
+function priceFields(price) {
+  const match = price.match(/R(\d+)(?:\s*[–-]\s*R(\d+))?/);
+  if (!match) return null;
+  if (match[2]) {
+    return {
+      priceSpecification: {
+        "@type": "PriceSpecification",
+        minPrice: Number(match[1]),
+        maxPrice: Number(match[2]),
+        priceCurrency: "ZAR",
+      },
+    };
+  }
+  return { price: String(Number(match[1])), priceCurrency: "ZAR" };
+}
+
+const servicesJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "OfferCatalog",
+  name: "Freddy Nails services and prices",
+  url: `${SITE_URL}/services`,
+  itemListElement: GROUPS.map((g) => ({
+    "@type": "OfferCatalog",
+    name: g.title,
+    itemListElement: g.items
+      .map((item) => {
+        const fields = priceFields(item.price);
+        if (!fields) return null;
+        return {
+          "@type": "Offer",
+          ...fields,
+          itemOffered: {
+            "@type": "Service",
+            name: `${g.title}: ${item.name}`,
+            description: item.description,
+            areaServed: "East London, Eastern Cape, South Africa",
+            provider: { "@id": `${SITE_URL}/#business` },
+          },
+        };
+      })
+      .filter(Boolean),
+  })),
+};
+
 export default function Services() {
   return (
     <section
       id="services"
       className="relative max-w-[1180px] mx-auto px-5 py-22"
     >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(servicesJsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
+
       {/* Section heading */}
       <div className="max-w-[640px] mb-14">
         <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
@@ -246,8 +313,15 @@ export default function Services() {
         </p>
 
         <h2 className="font-serif font-medium text-[clamp(1.9rem,4vw,2.6rem)] mt-3.5 text-[#f4eee6]">
-          Services &amp; pricing
+          Nail services &amp; pricing in East London
         </h2>
+
+        <p className="text-[0.9rem] text-[#c9c0b6] leading-relaxed mt-4">
+          Freddy Nails offers acrylic nails, gel manicures, pedicures, nail art,
+          eyelash extensions and foot spa treatments at our studio in Quigney,
+          East London (KuGompo City). Browse the menu below and book your
+          appointment online.
+        </p>
 
         <div className="mt-5 h-px w-16 bg-gold/60" />
       </div>
@@ -257,7 +331,7 @@ export default function Services() {
         {GROUPS.map((g) => (
           <div key={g.title} className="relative">
             {/* Category heading */}
-            <div className="flex items-center gap-3 mb-5">
+            <div className="flex items-center gap-3 mb-2">
               <h3 className="text-[0.9rem] font-bold tracking-[0.16em] uppercase text-gold">
                 {g.title}
               </h3>
@@ -268,6 +342,10 @@ export default function Services() {
                 </span>
               )}
             </div>
+
+            <p className="text-[0.8rem] text-[#c9c0b6] leading-relaxed mb-3">
+              {g.blurb}
+            </p>
 
             {/* Service list */}
             <div>
