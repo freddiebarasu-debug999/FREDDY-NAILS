@@ -75,16 +75,17 @@ export default function About() {
           <div className="h-px w-16 bg-gold/60 mb-6" />
           <div className="space-y-4 text-[#c9c0b6] leading-relaxed">
             <p>
-              Freddy Nails is a professional nail-tech business based in East
-              London, Eastern Cape, run by nail artist Alfred Mensah
-              (&quot;Freddy&quot;). The focus is quality nail services with
-              clean, detailed work and personalised designs.
+              Freddy Nails is a professional nail studio at 8 Rhodes Street in
+              Quigney, East London (KuGompo City), Eastern Cape, run by nail
+              artist Alfred Mensah (&quot;Freddy&quot;). The focus is quality
+              nail services with clean, detailed work and personalised designs.
             </p>
             <p>
               The brand carries a modern luxury feel while staying welcoming
               and accessible — from a simple acrylic overlay to a fully
               custom French or ombré set with hand-placed art and
-              rhinestones.
+              rhinestones. The studio also offers gel manicures, pedicures,
+              eyelash extensions and foot spa treatments.
             </p>
             <p>
               Every appointment is by request, so it&apos;s booked around you
@@ -114,7 +115,7 @@ export default function About() {
                 East London
               </b>
               <span className="text-xs tracking-wide uppercase text-[#c9c0b6]">
-                Eastern Cape, SA
+                Quigney, Eastern Cape, SA
               </span>
             </div>
           </div>
