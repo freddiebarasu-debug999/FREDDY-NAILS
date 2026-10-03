@@ -3,6 +3,26 @@ import { useState } from "react";
 
 const FAQS = [
   {
+    q: "Where is Freddy Nails located?",
+    a: "Freddy Nails is at 8 Rhodes Street, Quigney, East London (KuGompo City), Eastern Cape. We work by appointment, so please book online or message us on WhatsApp on +27 71 088 8897.",
+  },
+  {
+    q: "Where can I get acrylic nails in East London?",
+    a: "Freddy Nails in Quigney, East London (KuGompo City) offers acrylic nails in a range of shapes, lengths and designs, from classic French tips to full nail art. Book your appointment online to secure your slot.",
+  },
+  {
+    q: "How much are gel nails?",
+    a: "Gel manicures at Freddy Nails start at R200 for a gel overlay. Plain gel is R250 (short to medium) or R300 (long), and French gel is R300 (short to medium) or R350 (long). Nail art is extra. See the full menu on our Services page, or upload an inspiration photo to Freddy's Nail Muse chatbot for a price estimate.",
+  },
+  {
+    q: "What nail services do you offer?",
+    a: "We offer acrylic nails, gel manicures, pedicures, nail art, eyelash extensions and foot spa treatments at our studio in Quigney, East London.",
+  },
+  {
+    q: "How do I book an appointment?",
+    a: "Choose your service and a time that suits you on our booking page, or message us on WhatsApp on +27 71 088 8897 and we will help you book.",
+  },
+  {
     q: "Do you take walk-ins?",
     a: "We prioritise booked appointments, but message us on WhatsApp on the day — we can often fit in a walk-in between slots.",
   },
@@ -20,11 +40,30 @@ const FAQS = [
   },
 ];
 
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.a,
+    },
+  })),
+};
+
 export default function FAQ() {
   const [openIndex, setOpenIndex] = useState(null);
 
   return (
     <section id="faq" className="max-w-[1180px] mx-auto px-5 py-22">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(faqJsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
       <div className="max-w-[640px] mb-12">
         <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
           Good to know
@@ -53,7 +92,7 @@ export default function FAQ() {
                 </span>
               </button>
               <div
-                style={{ maxHeight: isOpen ? "200px" : "0px" }}
+                style={{ maxHeight: isOpen ? "400px" : "0px" }}
                 className="overflow-hidden transition-all duration-300"
               >
                 <p className="pb-5 text-ink-soft text-[0.92rem] leading-relaxed max-w-[70ch]">
