@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
+import Offers from "@/components/Offers";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 import ChatBot from "./ChatBot";
@@ -82,6 +83,15 @@ export default function Home() {
       <div className="py-4 md:py-7">
         <Reveal>
           <Reviews />
+        </Reveal>
+      </div>
+
+      <div className="h-px max-w-[1180px] mx-auto bg-line" />
+
+      {/* Offers / Promotions */}
+      <div className="py-4 md:py-7">
+        <Reveal>
+          <Offers />
         </Reveal>
       </div>
 
