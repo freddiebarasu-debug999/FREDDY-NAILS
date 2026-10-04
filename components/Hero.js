@@ -31,12 +31,12 @@ export default function Hero() {
             confidence.
           </p>
 
-          <div className="mt-8">
+          <div className="mt-6">
             <a
               href="/account/signup"
-              className="inline-flex items-center gap-2.5 bg-[#d6b36a] text-[#11100f] px-7 py-[15px] rounded-sm text-[0.9rem] font-bold hover:bg-[#ad8a4e] transition-colors"
+              className="inline-flex items-center gap-2 border border-[#d6b36a] text-[#d6b36a] px-5 py-2.5 rounded-sm text-[0.8rem] font-semibold hover:bg-[#d6b36a] hover:text-[#11100f] transition-colors"
             >
-              Book Your Appointment →
+              Book now
             </a>
           </div>
         </div>
