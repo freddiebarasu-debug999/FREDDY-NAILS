@@ -16,7 +16,7 @@ export default function WelcomePopup() {
         const timer = setTimeout(() => {
           setOpen(true);
           requestAnimationFrame(() => setVisible(true));
-        }, 600);
+        }, 2500);
         return () => clearTimeout(timer);
       }
     } catch {
@@ -24,9 +24,8 @@ export default function WelcomePopup() {
     }
   }, []);
 
-  // Allow the popup to be reopened manually at any time (e.g. from
-  // the small persistent tab), regardless of whether it's already
-  // been seen once.
+  // Allows the popup to be reopened on request by dispatching OPEN_EVENT,
+  // regardless of whether it has already been seen once.
   useEffect(() => {
     function handleOpenRequest() {
       setOpen(true);
@@ -84,8 +83,8 @@ export default function WelcomePopup() {
         </h2>
 
         <p className="text-nude/70 text-sm leading-relaxed mb-6">
-          Boutique nail artistry in East London — clean, detailed work, made
-          just for you.
+          Boutique nail artistry in Quigney, East London — clean, detailed
+          work, made just for you.
         </p>
 
         <div className="border border-gold/30 rounded-sm px-5 py-4 mb-5 bg-gold/5">
@@ -93,12 +92,24 @@ export default function WelcomePopup() {
             New here?
           </p>
           <p className="font-serif text-xl text-nude">
-            10% off your first booking
+            15% off your first visit
           </p>
           <p className="text-xs text-nude/60 mt-1.5">
-            Mention <span className="text-gold-bright font-bold">WELCOME10</span>{" "}
-            when you book on WhatsApp.
+            Brand new to Freddy Nails? Use code{" "}
+            <span className="text-gold-bright font-bold">FIRSTVISIT</span>{" "}
+            when you book.
           </p>
+
+          <div className="border-t border-gold/20 mt-4 pt-4">
+            <p className="font-serif text-lg text-nude">
+              10% off when you book online
+            </p>
+            <p className="text-xs text-nude/60 mt-1.5">
+              Use code{" "}
+              <span className="text-gold-bright font-bold">WELCOME10</span>{" "}
+              when you book through our website.
+            </p>
+          </div>
         </div>
 
         <div className="border-t border-nude/10 pt-5 text-left">
@@ -111,12 +122,12 @@ export default function WelcomePopup() {
             <span className="text-gold-bright">eyelash extensions</span> and
             luxurious <span className="text-gold-bright">foot spa</span>{" "}
             treatments, for a complete self-care experience in one relaxing
-            space. Bookings opening soon — stay tuned.
+            space. Both are available to book online now.
           </p>
         </div>
 
         <a
-          href="#booking"
+          href="/account/signup"
           onClick={close}
           className="inline-flex items-center justify-center gap-2.5 bg-gold text-ink px-7 py-3.5 rounded-sm text-[0.8rem] font-bold uppercase tracking-wide hover:bg-gold-bright transition-colors mt-7"
         >
