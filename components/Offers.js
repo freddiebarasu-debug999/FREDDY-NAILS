@@ -11,6 +11,13 @@ const OFFERS = [
       "New to Freddy Nails? Enjoy 15% off your first visit.",
   },
   {
+    title: "Book Online",
+    code: "WELCOME10",
+    discount: "10% OFF",
+    description:
+      "Book through our website and enjoy 10% off your appointment.",
+  },
+  {
     title: "Bring a Friend",
     code: "FRIEND50",
     discount: "R50 OFF",
@@ -123,7 +130,7 @@ export default function Offers() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {OFFERS.map((offer) => {
             const isCopied =
               copiedCode ===
