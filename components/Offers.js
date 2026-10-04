@@ -187,6 +187,7 @@ export default function Offers() {
 
         <p className="mt-8 text-center text-xs opacity-50">
           Promo discounts apply to eligible services.
+          Only one promo code can be used per booking.
           The booking deposit remains R90 per client.
         </p>
       </div>
