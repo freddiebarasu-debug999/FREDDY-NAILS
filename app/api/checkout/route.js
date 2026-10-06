@@ -79,6 +79,7 @@ const BUILT_IN_PROMOS = {
     discount_value: 15,
     description: "15% off your first visit",
     active: true,
+    new_clients_only: true,
   },
 
   FRIEND50: {
@@ -87,6 +88,7 @@ const BUILT_IN_PROMOS = {
     discount_value: 50,
     description: "R50 off when you bring a friend",
     active: true,
+    new_clients_only: false,
   },
 
   BIRTHDAY: {
@@ -95,12 +97,12 @@ const BUILT_IN_PROMOS = {
     discount_value: 50,
     description: "Birthday special — R50 off",
     active: true,
+    new_clients_only: false,
   },
 };
 
 function timeToMinutes(time) {
-  const [hours, minutes] =
-    time.split(":").map(Number);
+  const [hours, minutes] = time.split(":").map(Number);
 
   return hours * 60 + minutes;
 }
@@ -109,10 +111,9 @@ function minutesToTime(minutes) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
 
-  return `${String(hours).padStart(
-    2,
-    "0"
-  )}:${String(mins).padStart(2, "0")}`;
+  return `${String(hours).padStart(2, "0")}:${String(
+    mins
+  ).padStart(2, "0")}`;
 }
 
 function isValidDate(date) {
@@ -124,9 +125,7 @@ function isValidTime(time) {
 }
 
 function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-    email
-  );
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function normalizeEmail(email) {
@@ -136,15 +135,37 @@ function normalizeEmail(email) {
 }
 
 function normalizePhone(phone) {
-  return String(phone || "")
-    .replace(/\D/g, "");
+  return String(phone || "").replace(/\D/g, "");
+}
+
+function phoneMatches(phoneA, phoneB) {
+  const a = normalizePhone(phoneA);
+  const b = normalizePhone(phoneB);
+
+  if (!a || !b) {
+    return false;
+  }
+
+  if (a === b) {
+    return true;
+  }
+
+  // Compare the last 9 digits so 071 088 8897, +27 71 088 8897
+  // and 27710888897 are recognised as the same South African number.
+  const aLast9 = a.slice(-9);
+  const bLast9 = b.slice(-9);
+
+  return (
+    aLast9.length === 9 &&
+    bLast9.length === 9 &&
+    aLast9 === bLast9
+  );
 }
 
 function calculateClientDuration(services) {
   return services.reduce(
     (total, serviceName) =>
-      total +
-      (SERVICE_OPTIONS[serviceName] ?? 0),
+      total + (SERVICE_OPTIONS[serviceName] ?? 0),
     0
   );
 }
@@ -152,9 +173,7 @@ function calculateClientDuration(services) {
 function extractServicePrice(serviceName) {
   if (!serviceName) return 0;
 
-  const match = serviceName.match(
-    /\(R(\d+)(?:–\d+)?\)/
-  );
+  const match = serviceName.match(/\(R(\d+)(?:–\d+)?\)/);
 
   if (!match) return 0;
 
@@ -167,18 +186,14 @@ function calculateServiceTotal(clientServices) {
       total +
       services.reduce(
         (clientTotal, serviceName) =>
-          clientTotal +
-          extractServicePrice(serviceName),
+          clientTotal + extractServicePrice(serviceName),
         0
       ),
     0
   );
 }
 
-function calculateDiscountedAmount(
-  amount,
-  promo
-) {
+function calculateDiscountedAmount(amount, promo) {
   if (!promo || !promo.active) {
     return {
       finalAmount: amount,
@@ -186,14 +201,9 @@ function calculateDiscountedAmount(
     };
   }
 
-  const discountValue = Number(
-    promo.discount_value
-  );
+  const discountValue = Number(promo.discount_value);
 
-  if (
-    !Number.isFinite(discountValue) ||
-    discountValue < 0
-  ) {
+  if (!Number.isFinite(discountValue) || discountValue < 0) {
     return {
       finalAmount: amount,
       discountAmount: 0,
@@ -203,56 +213,33 @@ function calculateDiscountedAmount(
   let finalAmount = amount;
 
   if (promo.discount_type === "percent") {
-    const percentage = Math.min(
-      discountValue,
-      100
-    );
+    const percentage = Math.min(discountValue, 100);
 
-    finalAmount = Math.round(
-      amount * (1 - percentage / 100)
-    );
-  } else if (
-    promo.discount_type === "fixed"
-  ) {
-    finalAmount = Math.max(
-      0,
-      amount - discountValue
-    );
+    finalAmount = Math.round(amount * (1 - percentage / 100));
+  } else if (promo.discount_type === "fixed") {
+    finalAmount = Math.max(0, amount - discountValue);
   }
 
-  finalAmount = Math.max(
-    0,
-    Math.round(finalAmount)
-  );
+  finalAmount = Math.max(0, Math.round(finalAmount));
 
   return {
     finalAmount,
-    discountAmount: Math.max(
-      0,
-      Math.round(amount - finalAmount)
-    ),
+    discountAmount: Math.max(0, Math.round(amount - finalAmount)),
   };
 }
 
 async function getAuthenticatedUser(request) {
-  const authorization =
-    request.headers.get("authorization");
+  const authorization = request.headers.get("authorization");
 
   if (!authorization) {
     return null;
   }
 
-  if (
-    !authorization
-      .toLowerCase()
-      .startsWith("bearer ")
-  ) {
+  if (!authorization.toLowerCase().startsWith("bearer ")) {
     return null;
   }
 
-  const accessToken = authorization
-    .slice(7)
-    .trim();
+  const accessToken = authorization.slice(7).trim();
 
   if (!accessToken) {
     return null;
@@ -261,15 +248,10 @@ async function getAuthenticatedUser(request) {
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser(
-    accessToken
-  );
+  } = await supabase.auth.getUser(accessToken);
 
   if (error || !user) {
-    console.error(
-      "Supabase authentication error:",
-      error
-    );
+    console.error("Supabase authentication error:", error);
 
     return null;
   }
@@ -285,34 +267,31 @@ function normalizePromoCode(code) {
 }
 
 function escapeLikeValue(value) {
-  return value
+  return String(value || "")
     .replace(/\\/g, "\\\\")
     .replace(/%/g, "\\%")
     .replace(/_/g, "\\_");
 }
 
 async function getPromo(code) {
-  const normalizedCode =
-    normalizePromoCode(code);
+  const normalizedCode = normalizePromoCode(code);
 
   if (!normalizedCode) {
     return null;
   }
 
-  const builtInPromo =
-    BUILT_IN_PROMOS[normalizedCode];
-
-  if (builtInPromo) {
-    return builtInPromo;
+  if (
+    Object.prototype.hasOwnProperty.call(
+      BUILT_IN_PROMOS,
+      normalizedCode
+    )
+  ) {
+    return BUILT_IN_PROMOS[normalizedCode];
   }
 
-  const escapedCode =
-    escapeLikeValue(normalizedCode);
+  const escapedCode = escapeLikeValue(normalizedCode);
 
-  const {
-    data,
-    error,
-  } = await supabase
+  const { data, error } = await supabase
     .from("promo_codes")
     .select(
       `
@@ -335,10 +314,7 @@ async function getPromo(code) {
     .maybeSingle();
 
   if (error) {
-    console.error(
-      "Promo lookup error:",
-      error
-    );
+    console.error("Promo lookup error:", error);
 
     return null;
   }
@@ -350,29 +326,17 @@ async function getPromo(code) {
   const now = new Date();
 
   if (data.starts_at) {
-    const startsAt =
-      new Date(data.starts_at);
+    const startsAt = new Date(data.starts_at);
 
-    if (
-      Number.isFinite(
-        startsAt.getTime()
-      ) &&
-      now < startsAt
-    ) {
+    if (Number.isFinite(startsAt.getTime()) && now < startsAt) {
       return null;
     }
   }
 
   if (data.expires_at) {
-    const expiresAt =
-      new Date(data.expires_at);
+    const expiresAt = new Date(data.expires_at);
 
-    if (
-      Number.isFinite(
-        expiresAt.getTime()
-      ) &&
-      now >= expiresAt
-    ) {
+    if (Number.isFinite(expiresAt.getTime()) && now >= expiresAt) {
       return null;
     }
   }
@@ -382,41 +346,41 @@ async function getPromo(code) {
 
 /*
 |--------------------------------------------------------------------------
-| Genuinely check whether a client already exists
+| New-client check
 |--------------------------------------------------------------------------
 |
-| A client is considered an existing client if:
+| A client counts as existing if their profile, email or phone number
+| appears on a previous appointment.
 |
-| 1. Their authenticated profile has previous appointments, OR
-| 2. Their email has appeared on a previous appointment, OR
-| 3. Their phone number has appeared on a previous appointment.
+| Abandoned checkout attempts (never paid, and now pending or cancelled)
+| are ignored, so a client who started paying and gave up still counts
+| as new when they try again.
 |
-| This means WELCOME10 cannot be bypassed simply by:
-| - creating another account
-| - using a different name
-| - logging out
-| - cancelling an old booking
-|
-|--------------------------------------------------------------------------
 */
 
-async function hasPreviousAppointment({
-  profileId,
-  email,
-  phone,
-}) {
-  /*
-   * Authenticated profile check.
-   */
+function countsAsPreviousBooking(appointment) {
+  const paymentStatus = String(
+    appointment.payment_status || ""
+  ).toLowerCase();
+
+  const bookingStatus = String(
+    appointment.booking_status || ""
+  ).toLowerCase();
+
+  const abandoned =
+    paymentStatus === "pending" &&
+    (bookingStatus === "pending" || bookingStatus === "cancelled");
+
+  return !abandoned;
+}
+
+async function hasPreviousAppointment({ profileId, email, phone }) {
   if (profileId) {
-    const {
-      data,
-      error,
-    } = await supabase
+    const { data, error } = await supabase
       .from("appointments")
-      .select("id")
+      .select("id, payment_status, booking_status")
       .eq("profile_id", profileId)
-      .limit(1);
+      .limit(200);
 
     if (error) {
       console.error(
@@ -424,32 +388,24 @@ async function hasPreviousAppointment({
         error
       );
 
-      throw new Error(
-        "Unable to verify client eligibility."
-      );
+      throw new Error("Unable to verify client eligibility.");
     }
 
-    if (data && data.length > 0) {
+    if ((data || []).some(countsAsPreviousBooking)) {
       return true;
     }
   }
 
-  /*
-   * Email check.
-   *
-   * We retrieve appointments with the same email
-   * and compare normalized values in JavaScript.
-   */
-  if (email) {
-    const {
-      data,
-      error,
-    } = await supabase
+  const normalizedEmail = normalizeEmail(email);
+
+  if (normalizedEmail) {
+    const { data, error } = await supabase
       .from("appointments")
       .select(
-        "id, customer_email"
+        "id, customer_email, payment_status, booking_status"
       )
-      .limit(500);
+      .ilike("customer_email", escapeLikeValue(normalizedEmail))
+      .limit(200);
 
     if (error) {
       console.error(
@@ -457,48 +413,29 @@ async function hasPreviousAppointment({
         error
       );
 
-      throw new Error(
-        "Unable to verify client eligibility."
-      );
+      throw new Error("Unable to verify client eligibility.");
     }
 
-    const normalizedEmail =
-      normalizeEmail(email);
-
-    const emailMatch =
-      (data || []).some(
-        (appointment) =>
-          normalizeEmail(
-            appointment.customer_email
-          ) === normalizedEmail
-      );
+    const emailMatch = (data || []).some(
+      (appointment) =>
+        normalizeEmail(appointment.customer_email) ===
+          normalizedEmail && countsAsPreviousBooking(appointment)
+    );
 
     if (emailMatch) {
       return true;
     }
   }
 
-  /*
-   * Phone check.
-   *
-   * Compare digits only so formats such as:
-   *
-   * 071 088 8897
-   * +27 71 088 8897
-   * 27710888897
-   *
-   * can be recognized as the same number.
-   */
-  if (phone) {
-    const {
-      data,
-      error,
-    } = await supabase
+  const normalizedPhone = normalizePhone(phone);
+
+  if (normalizedPhone) {
+    const { data, error } = await supabase
       .from("appointments")
       .select(
-        "id, customer_phone"
+        "id, customer_phone, payment_status, booking_status"
       )
-      .limit(500);
+      .limit(1000);
 
     if (error) {
       console.error(
@@ -506,21 +443,14 @@ async function hasPreviousAppointment({
         error
       );
 
-      throw new Error(
-        "Unable to verify client eligibility."
-      );
+      throw new Error("Unable to verify client eligibility.");
     }
 
-    const normalizedPhone =
-      normalizePhone(phone);
-
-    const phoneMatch =
-      (data || []).some(
-        (appointment) =>
-          normalizePhone(
-            appointment.customer_phone
-          ) === normalizedPhone
-      );
+    const phoneMatch = (data || []).some(
+      (appointment) =>
+        phoneMatches(appointment.customer_phone, normalizedPhone) &&
+        countsAsPreviousBooking(appointment)
+    );
 
     if (phoneMatch) {
       return true;
@@ -537,22 +467,14 @@ async function cancelExpiredPendingBookings() {
       booking_status: "cancelled",
     })
     .eq("booking_status", "pending")
-    .lt(
-      "expires_at",
-      new Date().toISOString()
-    );
+    .lt("expires_at", new Date().toISOString());
 
   if (error) {
-    console.error(
-      "Expired booking cleanup error:",
-      error
-    );
+    console.error("Expired booking cleanup error:", error);
   }
 }
 
-async function cancelAppointment(
-  appointmentId
-) {
+async function cancelAppointment(appointmentId) {
   await supabase
     .from("appointment_clients")
     .delete()
@@ -570,11 +492,9 @@ export async function POST(request) {
   let appointmentId = null;
 
   try {
-    const authenticatedUser =
-      await getAuthenticatedUser(request);
+    const authenticatedUser = await getAuthenticatedUser(request);
 
-    const profileId =
-      authenticatedUser?.id ?? null;
+    const profileId = authenticatedUser?.id ?? null;
 
     let body;
 
@@ -583,8 +503,7 @@ export async function POST(request) {
     } catch {
       return Response.json(
         {
-          error:
-            "Invalid booking request.",
+          error: "Invalid booking request.",
         },
         { status: 400 }
       );
@@ -605,8 +524,7 @@ export async function POST(request) {
     if (!name || !phone || !email) {
       return Response.json(
         {
-          error:
-            "Please complete all required customer details.",
+          error: "Please complete all required customer details.",
         },
         { status: 400 }
       );
@@ -615,8 +533,7 @@ export async function POST(request) {
     if (!isValidEmail(email)) {
       return Response.json(
         {
-          error:
-            "Please enter a valid email address.",
+          error: "Please enter a valid email address.",
         },
         { status: 400 }
       );
@@ -629,8 +546,7 @@ export async function POST(request) {
     ) {
       return Response.json(
         {
-          error:
-            "You can book between 1 and 4 clients.",
+          error: "You can book between 1 and 4 clients.",
         },
         { status: 400 }
       );
@@ -642,8 +558,7 @@ export async function POST(request) {
     ) {
       return Response.json(
         {
-          error:
-            "Please select services for every client.",
+          error: "Please select services for every client.",
         },
         { status: 400 }
       );
@@ -655,8 +570,7 @@ export async function POST(request) {
     ) {
       return Response.json(
         {
-          error:
-            "Please choose a preferred date for every client.",
+          error: "Please choose a preferred date for every client.",
         },
         { status: 400 }
       );
@@ -668,8 +582,7 @@ export async function POST(request) {
     ) {
       return Response.json(
         {
-          error:
-            "Please choose an available time for every client.",
+          error: "Please choose an available time for every client.",
         },
         { status: 400 }
       );
@@ -680,14 +593,12 @@ export async function POST(request) {
       clientIndex < clientCount;
       clientIndex++
     ) {
-      const services =
-        clientServices[clientIndex];
+      const services = clientServices[clientIndex];
 
       if (
         !Array.isArray(services) ||
         services.length < 1 ||
-        services.length >
-          MAX_SERVICES_PER_CLIENT
+        services.length > MAX_SERVICES_PER_CLIENT
       ) {
         return Response.json(
           {
@@ -699,13 +610,9 @@ export async function POST(request) {
         );
       }
 
-      const uniqueServices =
-        new Set(services);
+      const uniqueServices = new Set(services);
 
-      if (
-        uniqueServices.size !==
-        services.length
-      ) {
+      if (uniqueServices.size !== services.length) {
         return Response.json(
           {
             error: `Client ${
@@ -725,8 +632,7 @@ export async function POST(request) {
         ) {
           return Response.json(
             {
-              error:
-                "One or more selected services are invalid.",
+              error: "One or more selected services are invalid.",
             },
             { status: 400 }
           );
@@ -739,11 +645,9 @@ export async function POST(request) {
       clientIndex < clientCount;
       clientIndex++
     ) {
-      const clientDate =
-        clientDates[clientIndex];
+      const clientDate = clientDates[clientIndex];
 
-      const clientTime =
-        clientStartTimes[clientIndex];
+      const clientTime = clientStartTimes[clientIndex];
 
       if (!isValidDate(clientDate)) {
         return Response.json(
@@ -767,19 +671,13 @@ export async function POST(request) {
         );
       }
 
-      const selectedDate =
-        new Date(
-          `${clientDate}T12:00:00`
-        );
+      const selectedDate = new Date(`${clientDate}T12:00:00`);
 
       const today = new Date();
 
       today.setHours(0, 0, 0, 0);
 
-      const bookingDate =
-        new Date(
-          `${clientDate}T00:00:00`
-        );
+      const bookingDate = new Date(`${clientDate}T00:00:00`);
 
       if (bookingDate < today) {
         return Response.json(
@@ -804,44 +702,34 @@ export async function POST(request) {
       }
     }
 
-    const clientDurations =
-      clientServices.map(
-        calculateClientDuration
-      );
+    const clientDurations = clientServices.map(
+      calculateClientDuration
+    );
 
     let clientEndTimes;
 
     try {
-      clientEndTimes =
-        clientStartTimes.map(
-          (startTime, clientIndex) => {
-            const startMinutes =
-              timeToMinutes(startTime);
+      clientEndTimes = clientStartTimes.map(
+        (startTime, clientIndex) => {
+          const startMinutes = timeToMinutes(startTime);
 
-            const endMinutes =
-              startMinutes +
-              clientDurations[
-                clientIndex
-              ];
+          const endMinutes =
+            startMinutes + clientDurations[clientIndex];
 
-            if (
-              startMinutes <
-                OPEN_MINUTES ||
-              endMinutes >
-                CLOSE_MINUTES
-            ) {
-              throw new Error(
-                `Client ${
-                  clientIndex + 1
-                }'s appointment is outside business hours.`
-              );
-            }
-
-            return minutesToTime(
-              endMinutes
+          if (
+            startMinutes < OPEN_MINUTES ||
+            endMinutes > CLOSE_MINUTES
+          ) {
+            throw new Error(
+              `Client ${
+                clientIndex + 1
+              }'s appointment is outside business hours.`
             );
           }
-        );
+
+          return minutesToTime(endMinutes);
+        }
+      );
     } catch (timeError) {
       return Response.json(
         {
@@ -860,34 +748,22 @@ export async function POST(request) {
       clientIndex++
     ) {
       if (
-        clientDates[clientIndex] ===
-        clientDates[clientIndex - 1]
+        clientDates[clientIndex] === clientDates[clientIndex - 1]
       ) {
-        const previousEnd =
-          timeToMinutes(
-            clientEndTimes[
-              clientIndex - 1
-            ]
-          );
+        const previousEnd = timeToMinutes(
+          clientEndTimes[clientIndex - 1]
+        );
 
-        const currentStart =
-          timeToMinutes(
-            clientStartTimes[
-              clientIndex
-            ]
-          );
+        const currentStart = timeToMinutes(
+          clientStartTimes[clientIndex]
+        );
 
-        if (
-          currentStart <
-          previousEnd + 15
-        ) {
+        if (currentStart < previousEnd + 15) {
           return Response.json(
             {
               error: `Client ${
                 clientIndex + 1
-              } must start at least 15 minutes after Client ${
-                clientIndex
-              } finishes when they are booked on the same date.`,
+              } must start at least 15 minutes after Client ${clientIndex} finishes when they are booked on the same date.`,
             },
             { status: 400 }
           );
@@ -897,13 +773,9 @@ export async function POST(request) {
 
     await cancelExpiredPendingBookings();
 
-    const serviceTotalAmount =
-      calculateServiceTotal(
-        clientServices
-      );
+    const serviceTotalAmount = calculateServiceTotal(clientServices);
 
-    let discountedServiceTotal =
-      serviceTotalAmount;
+    let discountedServiceTotal = serviceTotalAmount;
 
     let serviceDiscountAmount = 0;
 
@@ -911,78 +783,55 @@ export async function POST(request) {
 
     /*
     |--------------------------------------------------------------------------
-    | Promo validation + NEW CLIENT enforcement
+    | Promo validation + new-client enforcement
     |--------------------------------------------------------------------------
     */
 
-    if (
-      typeof promoCode === "string" &&
-      promoCode.trim()
-    ) {
-      const promo =
-        await getPromo(promoCode);
+    if (typeof promoCode === "string" && promoCode.trim()) {
+      const promo = await getPromo(promoCode);
 
       if (!promo || !promo.active) {
         return Response.json(
           {
-            error:
-              "That promo code isn't valid.",
+            error: "That promo code isn't valid.",
           },
           { status: 400 }
         );
       }
 
-      const normalizedPromoCode =
-        normalizePromoCode(
-          promo.code
-        );
+      const normalizedPromoCode = normalizePromoCode(promo.code);
 
-      /*
-       * WELCOME10 is genuinely restricted to
-       * clients who have NEVER booked before.
-       *
-       * This check happens on the server immediately
-       * before creating the appointment.
-       */
-      if (
-        normalizedPromoCode ===
-          "WELCOME10" &&
-        promo.new_clients_only === true
-      ) {
-        const existingClient =
-          await hasPreviousAppointment({
-            profileId,
-            email,
-            phone,
-          });
+      // Any promo flagged new_clients_only (FIRSTVISIT, or a database
+      // code with the flag switched on) is checked on the server
+      // immediately before the appointment is created.
+      if (promo.new_clients_only === true) {
+        const existingClient = await hasPreviousAppointment({
+          profileId,
+          email,
+          phone,
+        });
 
         if (existingClient) {
           return Response.json(
             {
-              error:
-                "WELCOME10 is available to new Freddy Nails clients only. It looks like you've booked with us before.",
-              promoCode:
-                normalizedPromoCode,
+              error: `${normalizedPromoCode} is available to new Freddy Nails clients only. It looks like you've booked with us before.`,
+              promoCode: normalizedPromoCode,
             },
             { status: 400 }
           );
         }
       }
 
-      const discount =
-        calculateDiscountedAmount(
-          serviceTotalAmount,
-          promo
-        );
+      const discount = calculateDiscountedAmount(
+        serviceTotalAmount,
+        promo
+      );
 
-      discountedServiceTotal =
-        discount.finalAmount;
+      discountedServiceTotal = discount.finalAmount;
 
-      serviceDiscountAmount =
-        discount.discountAmount;
+      serviceDiscountAmount = discount.discountAmount;
 
-      appliedPromoCode =
-        normalizedPromoCode;
+      appliedPromoCode = normalizedPromoCode;
     }
 
     /*
@@ -990,42 +839,26 @@ export async function POST(request) {
      * The deposit is NEVER discounted.
      * It remains R90 per client.
      */
-    const depositAmount =
-      DEPOSIT_PER_CLIENT *
-      clientCount;
+    const depositAmount = DEPOSIT_PER_CLIENT * clientCount;
 
-    const serviceSummary =
-      clientServices
-        .map(
-          (services, index) =>
-            `Client ${
-              index + 1
-            }: ${services.join(
-              " + "
-            )} — ${
-              clientDates[index]
-            } ${
-              clientStartTimes[index]
-            }–${
-              clientEndTimes[index]
-            }`
-        )
-        .join(" | ");
+    const serviceSummary = clientServices
+      .map(
+        (services, index) =>
+          `Client ${index + 1}: ${services.join(" + ")} — ${
+            clientDates[index]
+          } ${clientStartTimes[index]}–${clientEndTimes[index]}`
+      )
+      .join(" | ");
 
-    const parentStartTime =
-      clientStartTimes[0];
+    const parentStartTime = clientStartTimes[0];
 
-    const parentEndTime =
-      clientEndTimes[0];
+    const parentEndTime = clientEndTimes[0];
 
-    const parentDuration =
-      clientDurations[0];
+    const parentDuration = clientDurations[0];
 
-    const expiresAt =
-      new Date(
-        Date.now() +
-          15 * 60 * 1000
-      ).toISOString();
+    const expiresAt = new Date(
+      Date.now() + 15 * 60 * 1000
+    ).toISOString();
 
     const appointmentInsert = {
       customer_name: name,
@@ -1037,8 +870,7 @@ export async function POST(request) {
       start_time: parentStartTime,
       end_time: parentEndTime,
       duration_minutes: parentDuration,
-      deposit_per_client:
-        DEPOSIT_PER_CLIENT,
+      deposit_per_client: DEPOSIT_PER_CLIENT,
       deposit_amount: depositAmount,
       payment_status: "pending",
       booking_status: "pending",
@@ -1048,25 +880,17 @@ export async function POST(request) {
       promo_code: appliedPromoCode,
     };
 
-    const {
-      data: appointment,
-      error: appointmentError,
-    } = await supabase
-      .from("appointments")
-      .insert(appointmentInsert)
-      .select("id")
-      .single();
+    const { data: appointment, error: appointmentError } =
+      await supabase
+        .from("appointments")
+        .insert(appointmentInsert)
+        .select("id")
+        .single();
 
     if (appointmentError) {
-      console.error(
-        "Appointment insert error:",
-        appointmentError
-      );
+      console.error("Appointment insert error:", appointmentError);
 
-      if (
-        appointmentError.code ===
-        "23P01"
-      ) {
+      if (appointmentError.code === "23P01") {
         return Response.json(
           {
             error:
@@ -1078,41 +902,26 @@ export async function POST(request) {
 
       return Response.json(
         {
-          error:
-            "Unable to reserve the booking.",
+          error: "Unable to reserve the booking.",
         },
         { status: 500 }
       );
     }
 
-    appointmentId =
-      appointment.id;
+    appointmentId = appointment.id;
 
-    const clientRows =
-      clientServices.map(
-        (services, index) => ({
-          appointment_id:
-            appointmentId,
-          client_number:
-            index + 1,
-          service_name:
-            services.join(" + "),
-          booking_date:
-            clientDates[index],
-          start_time:
-            clientStartTimes[index],
-          end_time:
-            clientEndTimes[index],
-          duration_minutes:
-            clientDurations[index],
-          booking_status:
-            "pending",
-        })
-      );
+    const clientRows = clientServices.map((services, index) => ({
+      appointment_id: appointmentId,
+      client_number: index + 1,
+      service_name: services.join(" + "),
+      booking_date: clientDates[index],
+      start_time: clientStartTimes[index],
+      end_time: clientEndTimes[index],
+      duration_minutes: clientDurations[index],
+      booking_status: "pending",
+    }));
 
-    const {
-      error: clientInsertError,
-    } = await supabase
+    const { error: clientInsertError } = await supabase
       .from("appointment_clients")
       .insert(clientRows);
 
@@ -1122,45 +931,33 @@ export async function POST(request) {
         clientInsertError
       );
 
-      await cancelAppointment(
-        appointmentId
-      );
+      await cancelAppointment(appointmentId);
 
       return Response.json(
         {
-          error:
-            "Unable to reserve all client appointment times.",
+          error: "Unable to reserve all client appointment times.",
         },
         { status: 500 }
       );
     }
 
     const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      new URL(request.url).origin;
+      process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
 
     const successUrl = profileId
       ? `${baseUrl}/account?booking=success&appointment=${appointmentId}`
       : `${baseUrl}/?booking=success&appointment=${appointmentId}#booking`;
 
-    const cancelUrl =
-      `${baseUrl}/?booking=cancelled&appointment=${appointmentId}#booking`;
+    const cancelUrl = `${baseUrl}/?booking=cancelled&appointment=${appointmentId}#booking`;
 
-    const failureUrl =
-      `${baseUrl}/?booking=failed&appointment=${appointmentId}#booking`;
+    const failureUrl = `${baseUrl}/?booking=failed&appointment=${appointmentId}#booking`;
 
-    const yocoAmountCents =
-      Math.round(
-        depositAmount * 100
-      );
+    const yocoAmountCents = Math.round(depositAmount * 100);
 
-    const yocoSecretKey =
-      process.env.YOCO_SECRET_KEY;
+    const yocoSecretKey = process.env.YOCO_SECRET_KEY;
 
     if (!yocoSecretKey) {
-      await cancelAppointment(
-        appointmentId
-      );
+      await cancelAppointment(appointmentId);
 
       return Response.json(
         {
@@ -1171,46 +968,36 @@ export async function POST(request) {
       );
     }
 
-    const yocoResponse =
-      await fetch(
-        "https://payments.yoco.com/api/checkouts",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-            Authorization:
-              `Bearer ${yocoSecretKey}`,
-          },
-          body: JSON.stringify({
-            amount:
-              yocoAmountCents,
-            currency: "ZAR",
-            successUrl,
-            cancelUrl,
-            failureUrl,
-          }),
-        }
-      );
+    const yocoResponse = await fetch(
+      "https://payments.yoco.com/api/checkouts",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${yocoSecretKey}`,
+        },
+        body: JSON.stringify({
+          amount: yocoAmountCents,
+          currency: "ZAR",
+          successUrl,
+          cancelUrl,
+          failureUrl,
+        }),
+      }
+    );
 
     let yocoData;
 
     try {
-      yocoData =
-        await yocoResponse.json();
+      yocoData = await yocoResponse.json();
     } catch {
       yocoData = {};
     }
 
     if (!yocoResponse.ok) {
-      console.error(
-        "Yoco checkout error:",
-        yocoData
-      );
+      console.error("Yoco checkout error:", yocoData);
 
-      await cancelAppointment(
-        appointmentId
-      );
+      await cancelAppointment(appointmentId);
 
       return Response.json(
         {
@@ -1221,29 +1008,21 @@ export async function POST(request) {
       );
     }
 
-    const checkoutId =
-      yocoData.id;
+    const checkoutId = yocoData.id;
 
-    const redirectUrl =
-      yocoData.redirectUrl;
+    const redirectUrl = yocoData.redirectUrl;
 
-    if (
-      !checkoutId ||
-      !redirectUrl
-    ) {
+    if (!checkoutId || !redirectUrl) {
       console.error(
         "Yoco returned incomplete checkout data:",
         yocoData
       );
 
-      await cancelAppointment(
-        appointmentId
-      );
+      await cancelAppointment(appointmentId);
 
       return Response.json(
         {
-          error:
-            "Yoco did not return a valid checkout link.",
+          error: "Yoco did not return a valid checkout link.",
         },
         { status: 500 }
       );
@@ -1252,37 +1031,25 @@ export async function POST(request) {
     await supabase
       .from("appointments")
       .update({
-        yoco_checkout_id:
-          checkoutId,
+        yoco_checkout_id: checkoutId,
       })
-      .eq(
-        "id",
-        appointmentId
-      );
+      .eq("id", appointmentId);
 
     return Response.json({
       redirectUrl,
       appointmentId,
       serviceTotalAmount,
-      discountAmount:
-        serviceDiscountAmount,
+      discountAmount: serviceDiscountAmount,
       discountedServiceTotal,
-      promoCode:
-        appliedPromoCode,
+      promoCode: appliedPromoCode,
       depositAmount,
-      yocoAmount:
-        depositAmount,
+      yocoAmount: depositAmount,
     });
   } catch (error) {
-    console.error(
-      "Checkout API error:",
-      error
-    );
+    console.error("Checkout API error:", error);
 
     if (appointmentId) {
-      await cancelAppointment(
-        appointmentId
-      );
+      await cancelAppointment(appointmentId);
     }
 
     return Response.json(
