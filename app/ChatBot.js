@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 
 const GALLERY = [
@@ -49,6 +49,35 @@ const NAIL_SHAPES = [
   "Coffin",
   "Stiletto",
 ];
+
+
+function buildGeneratedImageUrl(description) {
+  const clean = (description || "")
+    .replace(/[#*_`|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 220);
+
+  if (!clean) return null;
+
+  const prompt = [
+    "photorealistic professional manicure close-up",
+    clean,
+    "elegant female hands, luxury nail salon lighting",
+    "high detail nail art, soft gold accents, premium finish",
+    "no text, no watermark",
+  ].join(", ");
+
+  const params = new URLSearchParams({
+    width: "768",
+    height: "768",
+    nologo: "true",
+    enhance: "true",
+    model: "flux",
+  });
+
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?${params.toString()}`;
+}
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -224,7 +253,8 @@ export default function ChatBot() {
     {
       role: "assistant",
       content:
-        "Hi! 💅 I'm Freddy's Nail Muse. Tell me what kind of nails you're thinking about, or paste/upload a photo of your inspo and I'll estimate the price for you.",
+        "Hey! 💅 I'm Freddy's Nail Muse. Speak or type the look you want — I'll suggest a style, price, and a visual. Or drop a photo for a quote.",
+      showChips: true,
     },
   ]);
 
@@ -233,6 +263,135 @@ export default function ChatBot() {
   const [pendingImage, setPendingImage] = useState(null);
   const [imageError, setImageError] = useState("");
   const fileInputRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const messagesRef = useRef(messages);
+
+  const [listening, setListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [voiceError, setVoiceError] = useState("");
+
+  const QUICK_CHIPS = [
+    "Wedding nails",
+    "Soft & natural",
+    "Bold & dramatic",
+    "French tips",
+    "Show me a visual",
+  ];
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setVoiceSupported(false);
+      return;
+    }
+
+    setVoiceSupported(true);
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-ZA";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setListening(true);
+      setVoiceError("");
+    };
+
+    recognition.onresult = (event) => {
+      const finalChunk = Array.from(event.results)
+        .filter((r) => r.isFinal)
+        .map((r) => r[0].transcript)
+        .join(" ")
+        .trim();
+
+      const interim = Array.from(event.results)
+        .map((r) => r[0].transcript)
+        .join(" ")
+        .trim();
+
+      if (interim) {
+        setInput(interim);
+      }
+
+      if (finalChunk) {
+        setInput(finalChunk);
+        // Voice command: auto-send once speech is final
+        window.setTimeout(() => {
+          try {
+            recognition.stop();
+          } catch {
+            // ignore
+          }
+          setListening(false);
+          // dispatch a custom event so send can run with latest state
+          window.dispatchEvent(
+            new CustomEvent("freddy-voice-send", {
+              detail: { text: finalChunk },
+            })
+          );
+        }, 350);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      setListening(false);
+      if (event.error === "not-allowed") {
+        setVoiceError("Microphone access is blocked. Allow mic in browser settings.");
+      } else if (event.error === "no-speech") {
+        setVoiceError("No speech heard — try again.");
+      } else if (event.error !== "aborted") {
+        setVoiceError("Voice input failed. You can still type.");
+      }
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      try {
+        recognition.abort();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
+    };
+  }, []);
+
+  function toggleVoice() {
+    const recognition = recognitionRef.current;
+    if (!recognition || loading) return;
+
+    setVoiceError("");
+
+    if (listening) {
+      try {
+        recognition.stop();
+      } catch {
+        // ignore
+      }
+      setListening(false);
+      return;
+    }
+
+    try {
+      recognition.start();
+    } catch {
+      setVoiceError("Could not start the microphone. Try again.");
+      setListening(false);
+    }
+  }
 
   function findGalleryDesign(text, previousMessages) {
     const lowerText = text.toLowerCase();
@@ -344,10 +503,10 @@ export default function ChatBot() {
     setImageError("");
   }
 
-  async function sendMessage(e) {
-    e.preventDefault();
+  async function sendMessage(e, presetText) {
+    if (e?.preventDefault) e.preventDefault();
 
-    const text = input.trim();
+    const text = (presetText ?? input).trim();
 
     if ((!text && !pendingImage) || loading) {
       return;
@@ -355,8 +514,10 @@ export default function ChatBot() {
 
     const imageToSend = pendingImage;
 
+    const baseMessages = messagesRef.current || messages;
+
     const newMessages = [
-      ...messages,
+      ...baseMessages,
       {
         role: "user",
         content:
@@ -410,10 +571,6 @@ export default function ChatBot() {
         throw new Error("The chatbot did not return a message.");
       }
 
-      /*
-       * Always analyse the AI response itself.
-       * This happens identically on desktop and mobile.
-       */
       const recommendedService = findRecommendedService(
         data.message
       );
@@ -429,43 +586,31 @@ export default function ChatBot() {
           )
         : null;
 
+      const galleryDesign = imageToSend
+        ? null
+        : findGalleryDesign(data.message, messages);
+
+      // AI visual: gallery match first, otherwise generate from description
+      const generatedUrl =
+        !imageToSend && !galleryDesign
+          ? buildGeneratedImageUrl(
+              `${text || ""} ${data.message}`.trim()
+            )
+          : null;
+
       const assistantMessage = {
         role: "assistant",
         content: data.message,
         recommendedService,
         recommendedShape,
         bookingUrl,
+        image: galleryDesign?.src || generatedUrl || null,
+        imageName: galleryDesign?.name || (generatedUrl ? "AI visual preview" : null),
+        isGenerated: Boolean(generatedUrl),
+        showChips: true,
       };
 
-      if (imageToSend) {
-        setMessages([
-          ...newMessages,
-          assistantMessage,
-        ]);
-      } else {
-        const galleryDesign = findGalleryDesign(
-          data.message,
-          messages
-        );
-
-        const inspirationQuery =
-          `${data.message
-            .replace(/[#*_]/g, "")
-            .slice(0, 180)} nail design manicure`;
-
-        const inspirationPhotos =
-          await searchInspiration(inspirationQuery);
-
-        setMessages([
-          ...newMessages,
-          {
-            ...assistantMessage,
-            image: galleryDesign?.src || null,
-            imageName: galleryDesign?.name || null,
-            inspirationPhotos,
-          },
-        ]);
-      }
+      setMessages([...newMessages, assistantMessage]);
     } catch (error) {
       console.error("Chatbot request failed:", error);
 
@@ -475,12 +620,17 @@ export default function ChatBot() {
           role: "assistant",
           content:
             error?.message ||
-            "The chatbot could not respond right now. Please try again. 💅",
+            "Something went wrong — try again in a moment. 💅",
+          showChips: true,
         },
       ]);
     } finally {
       setLoading(false);
     }
+  }
+
+  function sendChip(label) {
+    sendMessage(null, label);
   }
 
   return (
@@ -601,17 +751,17 @@ export default function ChatBot() {
                       {message.content}
                     </div>
 
-                    {/* AI BOOKING RECOMMENDATION */}
+                    {/* Suggested service — client-friendly */}
                     {message.recommendedService && (
                       <div
-                        className="mt-4 pt-4"
+                        className="mt-3 pt-3"
                         style={{
                           borderTop:
                             "1px solid rgba(255,255,255,0.08)",
                         }}
                       >
                         <p className="text-[0.66rem] font-bold uppercase tracking-[0.15em] text-[#d6b36a]">
-                          AI booking recommendation
+                          Suggested for you
                         </p>
 
                         <p className="mt-1 text-sm font-semibold text-[#f4eee6]">
@@ -619,7 +769,7 @@ export default function ChatBot() {
                         </p>
 
                         {message.recommendedShape && (
-                          <p className="mt-1 text-xs text-[#a79a87]">
+                          <p className="mt-0.5 text-xs text-[#a79a87]">
                             Shape: {message.recommendedShape}
                           </p>
                         )}
@@ -628,88 +778,76 @@ export default function ChatBot() {
                           <a
                             href={message.bookingUrl}
                             onClick={() => setOpen(false)}
-                            className="mt-3 inline-flex w-full items-center justify-center rounded-full px-4 py-2.5 text-xs font-bold transition-all duration-300 hover:scale-[1.02]"
+                            className="mt-2.5 inline-flex w-full items-center justify-center rounded-full px-4 py-2.5 text-xs font-bold transition-all duration-300 hover:scale-[1.02]"
                             style={{
                               backgroundColor: "#d6b36a",
                               color: "#11100f",
                             }}
                           >
-                            Book this service →
+                            Book this →
                           </a>
                         )}
                       </div>
                     )}
 
-                    {/* GALLERY MATCH */}
+                    {/* Gallery match only (no external stock photos) */}
                     {message.imageName && (
                       <div
-                        className="mt-4 pt-4"
+                        className="mt-3 pt-3"
                         style={{
                           borderTop:
                             "1px solid rgba(255,255,255,0.08)",
                         }}
                       >
-                        <p className="text-xs font-bold tracking-wide text-[#d6b36a]">
-                          Freddy Nails Gallery:{" "}
+                        <p className="text-[0.66rem] font-bold uppercase tracking-[0.12em] text-[#d6b36a]">
+                          {message.isGenerated
+                            ? "AI visual preview"
+                            : "From our gallery"}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-[#f4eee6]">
                           {message.imageName}
                         </p>
 
-                        <a
-                          href="#booking"
-                          onClick={() => setOpen(false)}
-                          className="mt-3 inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition-colors"
-                          style={{
-                            backgroundColor: "#d6b36a",
-                            color: "#11100f",
-                          }}
-                        >
-                          Book this look
-                        </a>
+                        {!message.bookingUrl && (
+                          <a
+                            href="/#booking"
+                            onClick={() => setOpen(false)}
+                            className="mt-2.5 inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition-colors"
+                            style={{
+                              backgroundColor: "#d6b36a",
+                              color: "#11100f",
+                            }}
+                          >
+                            Book this look
+                          </a>
+                        )}
                       </div>
                     )}
 
-                    {/* INSPIRATION */}
-                    {message.inspirationPhotos?.length > 0 && (
-                      <div
-                        className="mt-4 pt-4"
-                        style={{
-                          borderTop:
-                            "1px solid rgba(255,255,255,0.08)",
-                        }}
-                      >
-                        <p className="mb-2 text-[0.68rem] font-bold uppercase tracking-[0.15em] text-[#d6b36a]">
-                          More inspiration
-                        </p>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          {message.inspirationPhotos
-                            .slice(0, 4)
-                            .map((photo) => (
-                              <a
-                                key={photo.id}
-                                href={photo.pexelsUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group overflow-hidden rounded-lg"
-                                style={{
-                                  border:
-                                    "1px solid rgba(255,255,255,0.08)",
-                                }}
-                              >
-                                <img
-                                  src={photo.src}
-                                  alt={photo.alt}
-                                  className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                />
-                              </a>
-                            ))}
+                    {/* Quick replies on the latest assistant turn */}
+                    {message.showChips &&
+                      !loading &&
+                      index === messages.length - 1 && (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {QUICK_CHIPS.map((chip) => (
+                            <button
+                              key={chip}
+                              type="button"
+                              onClick={() => sendChip(chip)}
+                              className="rounded-full px-3 py-1.5 text-[0.7rem] font-semibold transition-colors"
+                              style={{
+                                backgroundColor:
+                                  "rgba(214,179,106,0.1)",
+                                color: "#d6b36a",
+                                border:
+                                  "1px solid rgba(214,179,106,0.28)",
+                              }}
+                            >
+                              {chip}
+                            </button>
+                          ))}
                         </div>
-
-                        <p className="mt-2 text-[0.65rem] text-[#817970]">
-                          Inspiration images via Pexels
-                        </p>
-                      </div>
-                    )}
+                      )}
                   </div>
                 </div>
               ))}
@@ -727,7 +865,7 @@ export default function ChatBot() {
                   >
                     {pendingImage
                       ? "Looking at your photo…"
-                      : "Finding something gorgeous…"}
+                      : "One sec…"}
                   </div>
                 </div>
               )}
@@ -783,6 +921,16 @@ export default function ChatBot() {
               </p>
             )}
 
+            {voiceError && (
+              <p className="mb-2 text-xs text-[#e0bd84]">{voiceError}</p>
+            )}
+
+            {listening && (
+              <p className="mb-2 text-xs text-[#d6b36a]">
+                Listening… describe the nails you want.
+              </p>
+            )}
+
             <div className="flex gap-2">
               <input
                 ref={fileInputRef}
@@ -810,15 +958,49 @@ export default function ChatBot() {
                 📎
               </button>
 
+              {voiceSupported && (
+                <button
+                  type="button"
+                  onClick={toggleVoice}
+                  disabled={loading}
+                  className={`shrink-0 rounded-full px-3.5 py-3 text-sm transition-colors disabled:opacity-50 ${
+                    listening ? "mic-listening" : ""
+                  }`}
+                  style={{
+                    backgroundColor: listening
+                      ? "rgba(214,179,106,0.2)"
+                      : "#11100f",
+                    color: listening ? "#d6b36a" : "#f4eee6",
+                    border: listening
+                      ? "1px solid #d6b36a"
+                      : "1px solid rgba(255,255,255,0.12)",
+                  }}
+                  aria-label={
+                    listening
+                      ? "Stop voice input"
+                      : "Speak your nail idea"
+                  }
+                  title={
+                    listening
+                      ? "Stop listening"
+                      : "Tap to speak"
+                  }
+                >
+                  {listening ? "⏹" : "🎤"}
+                </button>
+              )}
+
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onPaste={handlePaste}
                 placeholder={
-                  pendingImage
-                    ? "Add a note (optional)…"
-                    : "Ask for nail inspiration or paste a photo…"
+                  listening
+                    ? "Listening…"
+                    : pendingImage
+                      ? "Add a note (optional)…"
+                      : "Type or speak your nail idea…"
                 }
                 className="min-w-0 flex-1 rounded-full px-4 py-3 text-sm outline-none"
                 style={{
