@@ -39,7 +39,7 @@ const BUILT_IN_PROMOS = {
     discount_value: 15,
     description: "15% off your first visit",
     active: true,
-    new_clients_only: false,
+    new_clients_only: true,
   },
 
   FRIEND50: {
@@ -81,8 +81,7 @@ function normalizeEmail(email) {
 }
 
 function normalizePhone(phone) {
-  return String(phone || "")
-    .replace(/\D/g, "");
+  return String(phone || "").replace(/\D/g, "");
 }
 
 function phoneMatches(phoneA, phoneB) {
@@ -97,15 +96,8 @@ function phoneMatches(phoneA, phoneB) {
     return true;
   }
 
-  /*
-   * Compare the last 9 digits so that:
-   *
-   * 0710888897
-   * 270710888897
-   * +27710888897
-   *
-   * are recognized as the same South African number.
-   */
+  // Compare the last 9 digits so 0710888897, 270710888897 and
+  // +27710888897 are recognised as the same South African number.
   const aLast9 = a.slice(-9);
   const bLast9 = b.slice(-9);
 
@@ -130,23 +122,17 @@ function escapeLikeValue(value) {
 */
 
 async function getAuthenticatedUser(request) {
-  const authorization =
-    request.headers.get("authorization");
+  const authorization = request.headers.get("authorization");
 
   if (!authorization) {
     return null;
   }
 
-  if (
-    !authorization
-      .toLowerCase()
-      .startsWith("bearer ")
-  ) {
+  if (!authorization.toLowerCase().startsWith("bearer ")) {
     return null;
   }
 
-  const accessToken =
-    authorization.slice(7).trim();
+  const accessToken = authorization.slice(7).trim();
 
   if (!accessToken) {
     return null;
@@ -155,9 +141,7 @@ async function getAuthenticatedUser(request) {
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser(
-    accessToken
-  );
+  } = await supabase.auth.getUser(accessToken);
 
   if (error || !user) {
     return null;
@@ -177,37 +161,24 @@ async function getAuthenticatedUser(request) {
 */
 
 async function getPromo(code) {
-  const normalizedCode =
-    normalizePromoCode(code);
+  const normalizedCode = normalizePromoCode(code);
 
   if (!normalizedCode) {
     return null;
   }
 
-  /*
-   * FIRSTVISIT / FRIEND50 / BIRTHDAY
-   */
   if (
     Object.prototype.hasOwnProperty.call(
       BUILT_IN_PROMOS,
       normalizedCode
     )
   ) {
-    return BUILT_IN_PROMOS[
-      normalizedCode
-    ];
+    return BUILT_IN_PROMOS[normalizedCode];
   }
 
-  /*
-   * Database promo
-   */
-  const escapedCode =
-    escapeLikeValue(normalizedCode);
+  const escapedCode = escapeLikeValue(normalizedCode);
 
-  const {
-    data,
-    error,
-  } = await supabase
+  const { data, error } = await supabase
     .from("promo_codes")
     .select(
       `
@@ -231,14 +202,9 @@ async function getPromo(code) {
     .maybeSingle();
 
   if (error) {
-    console.error(
-      "Promo lookup error:",
-      error
-    );
+    console.error("Promo lookup error:", error);
 
-    throw new Error(
-      "Unable to verify the promo code."
-    );
+    throw new Error("Unable to verify the promo code.");
   }
 
   if (!data) {
@@ -247,36 +213,18 @@ async function getPromo(code) {
 
   const now = new Date();
 
-  /*
-   * Start date
-   */
   if (data.starts_at) {
-    const startsAt =
-      new Date(data.starts_at);
+    const startsAt = new Date(data.starts_at);
 
-    if (
-      Number.isFinite(
-        startsAt.getTime()
-      ) &&
-      now < startsAt
-    ) {
+    if (Number.isFinite(startsAt.getTime()) && now < startsAt) {
       return null;
     }
   }
 
-  /*
-   * Expiry date
-   */
   if (data.expires_at) {
-    const expiresAt =
-      new Date(data.expires_at);
+    const expiresAt = new Date(data.expires_at);
 
-    if (
-      Number.isFinite(
-        expiresAt.getTime()
-      ) &&
-      now >= expiresAt
-    ) {
+    if (Number.isFinite(expiresAt.getTime()) && now >= expiresAt) {
       return null;
     }
   }
@@ -288,25 +236,36 @@ async function getPromo(code) {
 |--------------------------------------------------------------------------
 | Check previous booking history
 |--------------------------------------------------------------------------
+|
+| Abandoned checkout attempts (never paid, and now pending or cancelled)
+| are ignored, so a client who started paying and gave up still counts
+| as new when they try again.
+|
 */
 
-async function hasPreviousAppointment({
-  profileId,
-  email,
-  phone,
-}) {
-  /*
-   * 1. Logged-in profile
-   */
+function countsAsPreviousBooking(appointment) {
+  const paymentStatus = String(
+    appointment.payment_status || ""
+  ).toLowerCase();
+
+  const bookingStatus = String(
+    appointment.booking_status || ""
+  ).toLowerCase();
+
+  const abandoned =
+    paymentStatus === "pending" &&
+    (bookingStatus === "pending" || bookingStatus === "cancelled");
+
+  return !abandoned;
+}
+
+async function hasPreviousAppointment({ profileId, email, phone }) {
   if (profileId) {
-    const {
-      data,
-      error,
-    } = await supabase
+    const { data, error } = await supabase
       .from("appointments")
-      .select("id")
+      .select("id, payment_status, booking_status")
       .eq("profile_id", profileId)
-      .limit(1);
+      .limit(200);
 
     if (error) {
       console.error(
@@ -319,27 +278,21 @@ async function hasPreviousAppointment({
       );
     }
 
-    if (data && data.length > 0) {
+    if ((data || []).some(countsAsPreviousBooking)) {
       return true;
     }
   }
 
-  /*
-   * 2. Email
-   */
-  const normalizedEmail =
-    normalizeEmail(email);
+  const normalizedEmail = normalizeEmail(email);
 
   if (normalizedEmail) {
-    const {
-      data,
-      error,
-    } = await supabase
+    const { data, error } = await supabase
       .from("appointments")
       .select(
-        "id, customer_email"
+        "id, customer_email, payment_status, booking_status"
       )
-      .limit(1000);
+      .ilike("customer_email", escapeLikeValue(normalizedEmail))
+      .limit(200);
 
     if (error) {
       console.error(
@@ -352,33 +305,24 @@ async function hasPreviousAppointment({
       );
     }
 
-    const emailMatch =
-      (data || []).some(
-        (appointment) =>
-          normalizeEmail(
-            appointment.customer_email
-          ) === normalizedEmail
-      );
+    const emailMatch = (data || []).some(
+      (appointment) =>
+        normalizeEmail(appointment.customer_email) ===
+          normalizedEmail && countsAsPreviousBooking(appointment)
+    );
 
     if (emailMatch) {
       return true;
     }
   }
 
-  /*
-   * 3. Phone
-   */
-  const normalizedPhone =
-    normalizePhone(phone);
+  const normalizedPhone = normalizePhone(phone);
 
   if (normalizedPhone) {
-    const {
-      data,
-      error,
-    } = await supabase
+    const { data, error } = await supabase
       .from("appointments")
       .select(
-        "id, customer_phone"
+        "id, customer_phone, payment_status, booking_status"
       )
       .limit(1000);
 
@@ -393,14 +337,11 @@ async function hasPreviousAppointment({
       );
     }
 
-    const phoneMatch =
-      (data || []).some(
-        (appointment) =>
-          phoneMatches(
-            appointment.customer_phone,
-            normalizedPhone
-          )
-      );
+    const phoneMatch = (data || []).some(
+      (appointment) =>
+        phoneMatches(appointment.customer_phone, normalizedPhone) &&
+        countsAsPreviousBooking(appointment)
+    );
 
     if (phoneMatch) {
       return true;
@@ -418,145 +359,91 @@ async function hasPreviousAppointment({
 
 export async function GET(request) {
   try {
-    const { searchParams } =
-      new URL(request.url);
+    const { searchParams } = new URL(request.url);
 
-    const rawCode =
-      searchParams.get("code") || "";
+    const rawCode = searchParams.get("code") || "";
 
-    const normalizedCode =
-      normalizePromoCode(rawCode);
+    const normalizedCode = normalizePromoCode(rawCode);
 
     if (!normalizedCode) {
       return Response.json(
         {
           valid: false,
-          error:
-            "Please enter a promo code.",
+          error: "Please enter a promo code.",
         },
         { status: 400 }
       );
     }
 
-    /*
-     * Find promo.
-     */
-    const promo =
-      await getPromo(normalizedCode);
+    const promo = await getPromo(normalizedCode);
 
     if (!promo) {
       return Response.json(
         {
           valid: false,
-          error:
-            "That promo code isn't valid.",
+          error: "That promo code isn't valid.",
         },
         { status: 400 }
       );
     }
 
-    /*
-     * Check active status.
-     */
     if (promo.active === false) {
       return Response.json(
         {
           valid: false,
-          error:
-            "That promo code isn't currently active.",
+          error: "That promo code isn't currently active.",
         },
         { status: 400 }
       );
     }
 
-    /*
-     * Customer information.
-     *
-     * Booking.js sends these when available.
-     */
-    const email =
-      searchParams.get("email") || "";
+    // The booking form sends these when available.
+    const email = searchParams.get("email") || "";
 
-    const phone =
-      searchParams.get("phone") || "";
+    const phone = searchParams.get("phone") || "";
 
-    /*
-     * Logged-in user, if available.
-     */
-    const authenticatedUser =
-      await getAuthenticatedUser(
-        request
-      );
+    const authenticatedUser = await getAuthenticatedUser(request);
 
-    const profileId =
-      authenticatedUser?.id || null;
+    const profileId = authenticatedUser?.id || null;
 
-    const customerEmail =
-      email ||
-      authenticatedUser?.email ||
-      "";
+    const customerEmail = email || authenticatedUser?.email || "";
 
     /*
     |--------------------------------------------------------------------------
-    | FIRST-TIME PROMO CHECK
+    | First-time promo check
     |--------------------------------------------------------------------------
     |
-    | IMPORTANT:
-    |
-    | Only promos explicitly marked new_clients_only
-    | are checked against previous appointments.
-    |
-    | Therefore:
-    |
-    | WELCOME10 → checked
-    | FIRSTVISIT → allowed through
-    | FRIEND50 → allowed through
-    | BIRTHDAY → allowed through
+    | Only promos marked new_clients_only are checked against previous
+    | appointments. FIRSTVISIT is marked this way. For database codes such
+    | as WELCOME10, the flag is the new_clients_only column in Supabase.
     |
     */
 
-    if (
-      promo.new_clients_only === true
-    ) {
-      const existingClient =
-        await hasPreviousAppointment({
-          profileId,
-          email: customerEmail,
-          phone,
-        });
+    if (promo.new_clients_only === true) {
+      const existingClient = await hasPreviousAppointment({
+        profileId,
+        email: customerEmail,
+        phone,
+      });
 
       if (existingClient) {
         return Response.json(
           {
             valid: false,
-            error:
-              `${normalizedCode} is only applicable to first-time bookings. Since you've booked with Freddy Nails before, this code can't be applied to this booking.`,
-            promoCode:
-              normalizedCode,
+            error: `${normalizedCode} is only applicable to first-time bookings. Since you've booked with Freddy Nails before, this code can't be applied to this booking.`,
+            promoCode: normalizedCode,
           },
           { status: 400 }
         );
       }
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Optional minimum spend
-    |--------------------------------------------------------------------------
-    */
+    const minimumSpend = Number(promo.minimum_spend);
 
-    const minimumSpend =
-      Number(promo.minimum_spend);
-
-    const amount =
-      Number(
-        searchParams.get("amount")
-      );
+    const amount = Number(searchParams.get("amount"));
 
     if (
-      Number.isFinite(
-        minimumSpend
-      ) &&
+      Number.isFinite(minimumSpend) &&
       minimumSpend > 0 &&
       Number.isFinite(amount) &&
       amount < minimumSpend
@@ -564,51 +451,46 @@ export async function GET(request) {
       return Response.json(
         {
           valid: false,
-          error:
-            `${normalizedCode} requires a minimum spend of R${minimumSpend}.`,
-          promoCode:
-            normalizedCode,
+          error: `${normalizedCode} requires a minimum spend of R${minimumSpend}.`,
+          promoCode: normalizedCode,
         },
         { status: 400 }
       );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | SUCCESS
-    |--------------------------------------------------------------------------
-    */
+    const description =
+      promo.description || "Offer applied successfully.";
 
+    const discountValue = Number(promo.discount_value);
+
+    const newClientsOnly = promo.new_clients_only === true;
+
+    /*
+     * The booking form reads code, discountType, discountValue,
+     * description and newClientsOnly from the top level, so they are
+     * returned there. The nested "promo" object is kept for anything
+     * else that already uses it.
+     */
     return Response.json({
       valid: true,
 
+      code: normalizedCode,
+      discountType: promo.discount_type,
+      discountValue,
+      description,
+      newClientsOnly,
+
       promo: {
         code: normalizedCode,
-
-        discount_type:
-          promo.discount_type,
-
-        discount_value:
-          Number(
-            promo.discount_value
-          ),
-
-        description:
-          promo.description ||
-          "Offer applied successfully.",
-
-        active:
-          promo.active !== false,
-
-        new_clients_only:
-          promo.new_clients_only === true,
+        discount_type: promo.discount_type,
+        discount_value: discountValue,
+        description,
+        active: promo.active !== false,
+        new_clients_only: newClientsOnly,
       },
     });
   } catch (error) {
-    console.error(
-      "Promo validation error:",
-      error
-    );
+    console.error("Promo validation error:", error);
 
     return Response.json(
       {
