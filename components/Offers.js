@@ -1,6 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+
+// The chosen offer is remembered in the browser for 24 hours so it
+// survives logging in. The booking page picks it up and applies it.
+const CHOSEN_PROMO_KEY = "freddynails_chosen_promo";
 
 const OFFERS = [
   {
@@ -37,76 +42,44 @@ export default function Offers() {
   const [copiedCode, setCopiedCode] =
     useState("");
 
-  function usePromo(code) {
+  async function chooseOffer(code) {
+    // Copy the code as a backup in case the client needs to paste it.
     try {
-      navigator.clipboard.writeText(
-        code
-      );
+      navigator.clipboard.writeText(code);
     } catch {
       // Clipboard may be unavailable.
     }
 
+    // Remember the chosen offer. It only applies because the client
+    // tapped it, and only for the next 24 hours.
+    try {
+      window.localStorage.setItem(
+        CHOSEN_PROMO_KEY,
+        JSON.stringify({ code, savedAt: Date.now() })
+      );
+    } catch {
+      // Storage may be unavailable.
+    }
+
     setCopiedCode(code);
 
-    /*
-     * Try to put the code directly into
-     * the booking promo input.
-     *
-     * This means the client doesn't have
-     * to remember or manually type it.
-     */
-    const promoInput =
-      document.querySelector(
-        "#promoCode"
-      );
+    // Logged-in clients go straight to booking. Everyone else goes to
+    // the account portal, which sends them to log in.
+    let loggedIn = false;
 
-    if (promoInput) {
-      const setter =
-        Object.getOwnPropertyDescriptor(
-          HTMLInputElement.prototype,
-          "value"
-        )?.set;
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (setter) {
-        setter.call(
-          promoInput,
-          code
-        );
-      } else {
-        promoInput.value =
-          code;
-      }
-
-      promoInput.dispatchEvent(
-        new Event("input", {
-          bubbles: true,
-        })
-      );
-
-      promoInput.dispatchEvent(
-        new Event("change", {
-          bubbles: true,
-        })
-      );
+      loggedIn = Boolean(session?.user);
+    } catch {
+      loggedIn = false;
     }
 
-    /*
-     * Scroll to booking.
-     */
-    const booking =
-      document.querySelector(
-        "#booking"
-      );
-
-    if (booking) {
-      booking.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    } else {
-      window.location.hash =
-        "booking";
-    }
+    window.setTimeout(() => {
+      window.location.href = loggedIn ? "/account/book" : "/account";
+    }, 600);
   }
 
   return (
@@ -141,7 +114,7 @@ export default function Offers() {
                 key={offer.code}
                 type="button"
                 onClick={() =>
-                  usePromo(
+                  chooseOffer(
                     offer.code
                   )
                 }
@@ -175,7 +148,7 @@ export default function Offers() {
 
                     <span className="rounded-full border border-yellow-500/30 px-3 py-1 text-xs">
                       {isCopied
-                        ? "Added ✓"
+                        ? "Saved ✓"
                         : "Use offer"}
                     </span>
                   </div>
@@ -184,6 +157,13 @@ export default function Offers() {
             );
           })}
         </div>
+
+        {copiedCode && (
+          <p className="mt-6 text-center text-sm text-yellow-500">
+            Offer saved. Taking you to your account — it will apply
+            automatically when you book.
+          </p>
+        )}
 
         <p className="mt-8 text-center text-xs opacity-50">
           Promo discounts apply to eligible services.
