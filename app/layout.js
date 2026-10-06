@@ -155,6 +155,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${fraunces.variable} ${manrope.variable}`}>
       <body className="font-sans antialiased">
+        {/* Soft animated gold orbs — ambient luxury backdrop */}
+        <div className="ambient-orb ambient-orb-1" aria-hidden="true" />
+        <div className="ambient-orb ambient-orb-2" aria-hidden="true" />
+        <div className="ambient-orb ambient-orb-3" aria-hidden="true" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
