@@ -5,7 +5,6 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
-import Offers from "@/components/Offers";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 import ChatBot from "./ChatBot";
@@ -60,9 +59,10 @@ export default function Home() {
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm underline underline-offset-4">
               <Link href="/services">View services</Link>
+              <Link href="/offers">Specials &amp; promos</Link>
               <Link href="/faq">Read the FAQs</Link>
               <Link href="/about">About Freddy Nails</Link>
-              <Link href="/account/signup">Book your appointment</Link>
+              <Link href="/account/book">Book your appointment</Link>
             </div>
           </div>
         </Reveal>
@@ -83,15 +83,6 @@ export default function Home() {
       <div className="py-4 md:py-7">
         <Reveal>
           <Reviews />
-        </Reveal>
-      </div>
-
-      <div className="h-px max-w-[1180px] mx-auto bg-line" />
-
-      {/* Offers / Promotions */}
-      <div className="py-4 md:py-7">
-        <Reveal>
-          <Offers />
         </Reveal>
       </div>
 
