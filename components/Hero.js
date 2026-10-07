@@ -1,15 +1,20 @@
+import Image from "next/image";
+
 export default function Hero() {
   return (
     <section
       id="home"
       className="relative min-h-[640px] md:min-h-[760px] flex items-center overflow-hidden bg-[#0c0b0a]"
     >
-      {/* Background photo */}
+      {/* Background photo (main / LCP image: preloaded, never lazy-loaded) */}
       <div className="absolute inset-0">
-        <img
+        <Image
           src="/hero-slide-1.jpg"
           alt="Freddy Nails gold leaf signature set"
-          className="h-full w-full object-cover"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#0c0b0a] via-[#0c0b0a]/70 to-[#0c0b0a]/10" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0c0b0a]/60 via-transparent to-transparent" />
