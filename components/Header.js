@@ -122,8 +122,11 @@ export default function Header() {
               className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-[#d6b36a] overflow-hidden shadow-[0_0_0_1px_rgba(214,179,106,0.15)] transition-transform hover:scale-[1.04] active:scale-95"
             >
               <img
-                src="/freddy-nails-logo.png"
+                src="/freddy-nails-logo-sm.webp"
                 alt=""
+                width={144}
+                height={144}
+                decoding="async"
                 className="h-full w-full object-cover"
               />
               <span className="pointer-events-none absolute inset-0 rounded-full ring-0 transition-all duration-300 group-hover:ring-2 group-hover:ring-[#d6b36a]/40" />
@@ -327,8 +330,12 @@ export default function Header() {
               <div className="flex items-center gap-3 min-w-0">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#d6b36a]/50">
                   <img
-                    src="/freddy-nails-logo.png"
+                    src="/freddy-nails-logo-sm.webp"
                     alt=""
+                    width={144}
+                    height={144}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover"
                   />
                 </span>
