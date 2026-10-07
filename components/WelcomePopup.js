@@ -9,19 +9,53 @@ export default function WelcomePopup() {
   const [open, setOpen] = useState(false);
   const [visible, setVisible] = useState(false);
 
+  // First-time visitors see the welcome popup, but only once the page has had
+  // time to load and paint: after their first scroll/tap, or after 12 seconds.
+  // This keeps the big popup from competing with the hero for first paint.
   useEffect(() => {
+    let seen = false;
     try {
-      const seen = window.localStorage.getItem(STORAGE_KEY);
-      if (!seen) {
-        const timer = setTimeout(() => {
-          setOpen(true);
-          requestAnimationFrame(() => setVisible(true));
-        }, 2500);
-        return () => clearTimeout(timer);
-      }
+      seen = !!window.localStorage.getItem(STORAGE_KEY);
     } catch {
       // If localStorage is unavailable, just skip the auto-popup.
+      return;
     }
+    if (seen) return;
+
+    const events = ["scroll", "pointerdown", "keydown", "touchstart"];
+    let fallbackTimer;
+    let showTimer;
+    let shown = false;
+
+    const cleanup = () => {
+      events.forEach((e) => window.removeEventListener(e, onFirstInteraction));
+      clearTimeout(fallbackTimer);
+    };
+
+    const show = () => {
+      if (shown) return;
+      shown = true;
+      setOpen(true);
+      requestAnimationFrame(() => setVisible(true));
+    };
+
+    function onFirstInteraction() {
+      cleanup();
+      showTimer = setTimeout(show, 1500);
+    }
+
+    events.forEach((e) =>
+      window.addEventListener(e, onFirstInteraction, { passive: true, once: true })
+    );
+    fallbackTimer = setTimeout(() => {
+      cleanup();
+      show();
+    }, 12000);
+
+    return () => {
+      cleanup();
+      clearTimeout(showTimer);
+    };
   }, []);
 
   // Allows the popup to be reopened on request by dispatching OPEN_EVENT,
