@@ -198,3 +198,12 @@ body::after {
   border-color: #d6b36a !important;
   color: #d6b36a !important;
 }
+
+/* Mobile performance: the soft gold glow stays, but the heavy blur filter and
+   endless animation on three full-screen layers is switched off on phones. */
+@media (max-width: 768px) {
+  .ambient-orb {
+    filter: none;
+    animation: none;
+  }
+}
