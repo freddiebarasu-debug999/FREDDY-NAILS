@@ -1,5 +1,6 @@
 import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -18,8 +19,28 @@ const manrope = Manrope({
 
 const SITE_URL = "https://freddynails.co.za";
 
+export const viewport = {
+  themeColor: "#0c0b0a",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata = {
   metadataBase: new URL(SITE_URL),
+  manifest: "/manifest.json",
+  applicationName: "Freddy Nails",
+  appleWebApp: {
+    capable: true,
+    title: "Freddy Nails",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   title: "Freddy Nails | Nail Salon in Quigney, East London (KuGompo City)",
   description:
     "Luxury nail studio in Quigney, East London (KuGompo City). Acrylic and gel nails, pedicures, nail art and eyelash extensions. Book online with Freddy Nails.",
@@ -166,6 +187,7 @@ export default function RootLayout({ children }) {
           }}
         />
         {children}
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
