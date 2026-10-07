@@ -88,14 +88,19 @@ export default function Gallery() {
               width={900}
               height={1200}
               className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 768px) 50vw, 33vw"
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 380px"
+              loading="lazy"
+              decoding="async"
             />
             {/* Watermark */}
             <div className="absolute left-1/2 top-[58%] -translate-x-1/2 -translate-y-1/2 w-14 h-14 md:w-[56px] md:h-[56px] opacity-[0.38] pointer-events-none z-20">
               <Image
-                src="/watermark.png"
+                src="/watermark-sm.png"
                 alt=""
                 fill
+                sizes="56px"
+                unoptimized
+                loading="lazy"
                 className="object-contain"
               />
             </div>
@@ -173,14 +178,17 @@ export default function Gallery() {
                 alt={selectedImage.label}
                 width={1200}
                 height={1200}
+                sizes="(max-width: 896px) 100vw, 896px"
                 className="block w-auto max-w-full max-h-[80vh] object-contain rounded-sm"
               />
               {/* Watermark directly on the image */}
               <div className="absolute left-1/2 top-[58%] -translate-x-1/2 -translate-y-1/2 w-14 h-14 md:w-[56px] md:h-[56px] opacity-[0.38] pointer-events-none z-30">
                 <Image
-                  src="/watermark.png"
+                  src="/watermark-sm.png"
                   alt=""
                   fill
+                  sizes="56px"
+                  unoptimized
                   className="object-contain"
                 />
               </div>
