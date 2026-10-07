@@ -51,34 +51,6 @@ const NAIL_SHAPES = [
 ];
 
 
-function buildGeneratedImageUrl(description) {
-  const clean = (description || "")
-    .replace(/[#*_`|]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 220);
-
-  if (!clean) return null;
-
-  const prompt = [
-    "photorealistic professional manicure close-up",
-    clean,
-    "elegant female hands, luxury nail salon lighting",
-    "high detail nail art, soft gold accents, premium finish",
-    "no text, no watermark",
-  ].join(", ");
-
-  const params = new URLSearchParams({
-    width: "768",
-    height: "768",
-    nologo: "true",
-    enhance: "true",
-    model: "flux",
-  });
-
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?${params.toString()}`;
-}
-
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function normalize(value = "") {
@@ -253,7 +225,7 @@ export default function ChatBot() {
     {
       role: "assistant",
       content:
-        "Hey! 💅 I'm Freddy's Nail Muse. Speak or type the look you want — I'll suggest a style, price, and a visual. Or drop a photo for a quote.",
+        "Hey! 💅 I'm Freddy's Nail Muse. Speak or type the look you want — I'll suggest a style, price, and real photo references. Or drop a photo for a quote.",
       showChips: true,
     },
   ]);
@@ -275,7 +247,7 @@ export default function ChatBot() {
     "Soft & natural",
     "Bold & dramatic",
     "French tips",
-    "Show me a visual",
+    "What's popular?",
   ];
 
   useEffect(() => {
@@ -590,13 +562,17 @@ export default function ChatBot() {
         ? null
         : findGalleryDesign(data.message, messages);
 
-      // AI visual: gallery match first, otherwise generate from description
-      const generatedUrl =
-        !imageToSend && !galleryDesign
-          ? buildGeneratedImageUrl(
-              `${text || ""} ${data.message}`.trim()
-            )
-          : null;
+      let inspirationPhotos = [];
+      if (!imageToSend) {
+        const inspirationQuery = (
+          `${text || ""} ${data.message}`
+            .replace(/[#*_`|]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 160) + " nail manicure design"
+        ).trim();
+        inspirationPhotos = await searchInspiration(inspirationQuery);
+      }
 
       const assistantMessage = {
         role: "assistant",
@@ -604,9 +580,9 @@ export default function ChatBot() {
         recommendedService,
         recommendedShape,
         bookingUrl,
-        image: galleryDesign?.src || generatedUrl || null,
-        imageName: galleryDesign?.name || (generatedUrl ? "AI visual preview" : null),
-        isGenerated: Boolean(generatedUrl),
+        image: galleryDesign?.src || null,
+        imageName: galleryDesign?.name || null,
+        inspirationPhotos,
         showChips: true,
       };
 
@@ -790,7 +766,7 @@ export default function ChatBot() {
                       </div>
                     )}
 
-                    {/* Gallery match only (no external stock photos) */}
+                    {/* Gallery match */}
                     {message.imageName && (
                       <div
                         className="mt-3 pt-3"
@@ -800,9 +776,7 @@ export default function ChatBot() {
                         }}
                       >
                         <p className="text-[0.66rem] font-bold uppercase tracking-[0.12em] text-[#d6b36a]">
-                          {message.isGenerated
-                            ? "AI visual preview"
-                            : "From our gallery"}
+                          From our gallery
                         </p>
                         <p className="mt-1 text-sm font-semibold text-[#f4eee6]">
                           {message.imageName}
@@ -821,6 +795,48 @@ export default function ChatBot() {
                             Book this look
                           </a>
                         )}
+                      </div>
+                    )}
+
+                    {/* Real photo references via Pexels */}
+                    {message.inspirationPhotos?.length > 0 && (
+                      <div
+                        className="mt-3 pt-3"
+                        style={{
+                          borderTop:
+                            "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <p className="mb-2 text-[0.66rem] font-bold uppercase tracking-[0.12em] text-[#d6b36a]">
+                          Reference looks
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {message.inspirationPhotos
+                            .slice(0, 4)
+                            .map((photo) => (
+                              <a
+                                key={photo.id}
+                                href={photo.pexelsUrl || "#"}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group overflow-hidden rounded-lg"
+                                style={{
+                                  border:
+                                    "1px solid rgba(255,255,255,0.08)",
+                                }}
+                              >
+                                <img
+                                  src={photo.src}
+                                  alt={photo.alt || "Nail reference"}
+                                  className="aspect-square w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  loading="lazy"
+                                />
+                              </a>
+                            ))}
+                        </div>
+                        <p className="mt-2 text-[0.62rem] text-[#817970]">
+                          Photos via Pexels
+                        </p>
                       </div>
                     )}
 
