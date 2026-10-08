@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import ReminderSettings from "@/components/ReminderSettings";
 
 const CHOSEN_PROMO_KEY = "freddynails_chosen_promo";
 
@@ -692,6 +693,8 @@ export default function AccountPage() {
             </button>
           </div>
         </header>
+
+        <ReminderSettings />
 
         {/* ── LOYALTY CARD ── */}
         <section className="loyalty-card">
