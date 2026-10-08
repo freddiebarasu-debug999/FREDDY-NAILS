@@ -287,4 +287,17 @@ export default function ReminderSettings() {
                   savePrefs({ ...prefs, rebook_email: e.target.checked })
                 }
               />
-              <span>Let me know w
+              <span>Let me know when it&apos;s time to rebook</span>
+            </label>
+          </div>
+
+          {message && (
+            <p role="status" className="text-xs text-[#d6b36a]">
+              {message}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}

@@ -131,4 +131,5 @@ export async function POST(request) {
     return NextResponse.json({ success: delivered > 0, delivered });
   }
 
-  return NextResponse.json({ error: "Unk
+  return NextResponse.json({ error: "Unknown action." }, { status: 400 });
+}

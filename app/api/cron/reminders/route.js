@@ -201,3 +201,12 @@ export async function GET(request) {
     appointmentPush: 0,
     appointmentEmail: 0,
     rebookPush: 0,
+    rebookEmail: 0,
+    errors: [],
+  };
+
+  await runAppointmentReminders(summary);
+  await runRebookNudges(summary);
+
+  return NextResponse.json({ ok: true, ranFor: saDate(0), ...summary });
+}
