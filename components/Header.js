@@ -70,6 +70,26 @@ const GUIDE_ITEMS = [
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+
+  // Light check for an existing login (no library loaded): Supabase keeps the
+  // session in localStorage under a key like "sb-xxxx-auth-token".
+  useEffect(() => {
+    try {
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const key = window.localStorage.key(i) || "";
+        if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
+          setSignedIn(true);
+          return;
+        }
+      }
+    } catch {
+      // localStorage unavailable: keep the logged-out label.
+    }
+  }, []);
+
+  const accountHref = signedIn ? "/account" : "/account/login";
+  const accountLabel = signedIn ? "My Account" : "Sign up / Log in";
   const [menuOpen, setMenuOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideVisible, setGuideVisible] = useState(false);
@@ -193,10 +213,10 @@ export default function Header() {
           {/* Desktop Actions */}
           <div className="hidden items-center gap-3 md:flex">
             <a
-              href="/account"
+              href={accountHref}
               className="px-3 py-[9px] text-xs font-bold uppercase tracking-wide text-[#f4eee6]/90 transition-colors hover:text-[#d6b36a]"
             >
-              My Account
+              {accountLabel}
             </a>
             <a
               href="/account/book"
@@ -250,11 +270,11 @@ export default function Header() {
                 Book now
               </a>
               <a
-                href="/account"
+                href={accountHref}
                 onClick={closeMenus}
                 className="rounded-sm border border-[#d6b36a]/35 py-2.5 text-center text-[0.7rem] font-bold uppercase tracking-wide text-[#d6b36a]"
               >
-                My Account
+                {accountLabel}
               </a>
             </div>
 
