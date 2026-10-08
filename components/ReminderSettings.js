@@ -21,7 +21,7 @@ async function authFetch(body, method = "POST") {
     method,
     headers: {
       "Content-Type": "application/json",
-      Authorization: Bearer ${session.access_token},
+      Authorization: "Bearer " + session.access_token,
     },
     body: method === "POST" ? JSON.stringify(body) : undefined,
   });
@@ -200,14 +200,16 @@ export default function ReminderSettings() {
                     aria-label="Phone notifications"
                     disabled={busy || (permission === "denied" && !pushOn)}
                     onClick={pushOn ? turnOff : turnOn}
-                    className={relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors duration-200 disabled:opacity-50 ${
-                      pushOn ? "bg-[#ad8a4e]" : "bg-white/20"
-                    }}
+                    className={
+                      "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors duration-200 disabled:opacity-50 " +
+                      (pushOn ? "bg-[#ad8a4e]" : "bg-white/20")
+                    }
                   >
                     <span
-                      className={inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                        pushOn ? "translate-x-6" : "translate-x-1"
-                      }}
+                      className={
+                        "inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 " +
+                        (pushOn ? "translate-x-6" : "translate-x-1")
+                      }
                     />
                   </button>
                 </div>
