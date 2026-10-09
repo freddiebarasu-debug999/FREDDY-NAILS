@@ -124,7 +124,7 @@ function daysUntil(dateString) {
 }
 
 function getLoyaltyTier(visitCount) {
-  if (visitCount >= 6) {
+  if (visitCount >= 12) {
     return {
       id: "elite",
       label: "Elite",
@@ -134,14 +134,14 @@ function getLoyaltyTier(visitCount) {
       remaining: 0,
     };
   }
-  if (visitCount >= 3) {
+  if (visitCount >= 6) {
     return {
       id: "vip",
       label: "VIP",
       sub: "Valued Client",
       next: "Elite",
-      progress: (visitCount - 3) / 3,
-      remaining: 6 - visitCount,
+      progress: (visitCount - 6) / 6,
+      remaining: 12 - visitCount,
     };
   }
   if (visitCount >= 1) {
@@ -150,8 +150,8 @@ function getLoyaltyTier(visitCount) {
       label: "Regular",
       sub: "Returning Client",
       next: "VIP",
-      progress: (visitCount - 1) / 2,
-      remaining: 3 - visitCount,
+      progress: (visitCount - 1) / 5,
+      remaining: 6 - visitCount,
     };
   }
   return {

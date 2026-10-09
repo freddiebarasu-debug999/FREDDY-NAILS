@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 const TIERS = [
   { name: "New", at: 0, sub: "Welcome" },
   { name: "Regular", at: 1, sub: "Returning Client" },
-  { name: "VIP", at: 3, sub: "Valued Client" },
-  { name: "Elite", at: 6, sub: "Gold Member" },
+  { name: "VIP", at: 6, sub: "Valued Client" },
+  { name: "Elite", at: 12, sub: "Gold Member" },
 ];
 
 // Milestone rewards. Edit the text here any time.
@@ -17,8 +17,8 @@ const REWARDS = [
 
 // Where each tier sits on the bar (column centres of a 4-column grid).
 function fillPercent(visits) {
-  if (visits >= 6) return 100;
-  const points = [0, 1, 3, 6];
+  if (visits >= 12) return 100;
+  const points = [0, 1, 6, 12];
   const spots = [0, 33.333, 66.667, 100];
   for (let i = 0; i < points.length - 1; i += 1) {
     if (visits >= points[i] && visits < points[i + 1]) {
