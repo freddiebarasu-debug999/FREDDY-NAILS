@@ -43,7 +43,12 @@ export async function POST(request) {
       body: JSON.stringify({
         from:
           process.env.RESEND_FROM_EMAIL ||
-          "Freddy Nails <onboarding@resend.dev>",
+          "Freddy Nails <bookings@freddynails.co.za>",
+
+        reply_to:
+          process.env.REPLY_TO_EMAIL ||
+          process.env.OWNER_EMAIL ||
+          "freddynails.business@gmail.com",
 
         to: [email],
 
