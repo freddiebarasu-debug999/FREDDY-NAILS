@@ -654,6 +654,27 @@ export default function Booking() {
     setPromoError("");
   }
 
+  // One-tap rebook: the account page can pass in the service from the
+  // client's last visit. Use it once, then clear it.
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("freddynails_rebook_service");
+      if (!saved) return;
+      window.localStorage.removeItem("freddynails_rebook_service");
+      const matches = SERVICE_OPTIONS.filter((option) =>
+        saved.includes(option.name)
+      ).map((option) => option.name);
+      if (matches.length > 0) {
+        setForm((current) => ({
+          ...current,
+          clientServices: [matches, ...current.clientServices.slice(1)],
+        }));
+      }
+    } catch (e) {
+      // localStorage unavailable: ignore
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 

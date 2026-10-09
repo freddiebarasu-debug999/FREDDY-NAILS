@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import ReminderSettings from "@/components/ReminderSettings";
+import AvatarUploader from "@/components/AvatarUploader";
+import QuickActions from "@/components/QuickActions";
+import RewardsLadder from "@/components/RewardsLadder";
+import MySets from "@/components/MySets";
+import ReviewReward from "@/components/ReviewReward";
 
 const CHOSEN_PROMO_KEY = "freddynails_chosen_promo";
 
@@ -642,9 +647,7 @@ export default function AccountPage() {
         {/* ── PROFILE HERO ── */}
         <header className="profile-hero">
           <div className="profile-left">
-            <div className={`avatar tier-${loyalty.id}`} aria-hidden="true">
-              <span>{initials}</span>
-            </div>
+            <AvatarUploader user={user} initials={initials} tier={loyalty.id} />
 
             <div className="profile-text">
               <div className="eyebrow-row">
@@ -694,7 +697,7 @@ export default function AccountPage() {
           </div>
         </header>
 
-        <ReminderSettings />
+        <QuickActions appointments={appointments} />
 
         {/* ── LOYALTY CARD ── */}
         <section className="loyalty-card">
@@ -753,6 +756,8 @@ export default function AccountPage() {
             </p>
           )}
         </section>
+
+        <RewardsLadder visits={successfulVisits} />
 
         {/* ── QUICK STATS ── */}
         <div className="stats-row">
@@ -1162,6 +1167,8 @@ export default function AccountPage() {
           )}
         </section>
 
+        <MySets user={user} />
+
         {/* ── BOOK AGAIN CTA ── */}
         <section className="book-again">
           <div className="book-again-content">
@@ -1180,6 +1187,10 @@ export default function AccountPage() {
             Book Again
           </button>
         </section>
+
+        <ReviewReward />
+
+        <ReminderSettings />
       </div>
 
       {/* ── PROFILE EDIT MODAL ── */}
