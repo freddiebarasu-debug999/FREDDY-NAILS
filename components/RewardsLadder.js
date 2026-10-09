@@ -9,6 +9,12 @@ const TIERS = [
   { name: "Elite", at: 6, sub: "Gold Member" },
 ];
 
+// Milestone rewards. Edit the text here any time.
+const REWARDS = [
+  { visit: 6, title: "Free pedicure", tag: "VIP perk" },
+  { visit: 12, title: "Free nail set", tag: "Elite perk" },
+];
+
 // Where each tier sits on the bar (column centres of a 4-column grid).
 function fillPercent(visits) {
   if (visits >= 6) return 100;
@@ -104,6 +110,61 @@ export default function RewardsLadder({ visits }) {
             );
           })}
         </ol>
+      </div>
+
+      <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {REWARDS.map(function (reward) {
+          const earned = count >= reward.visit;
+          const nextUp = count === reward.visit - 1;
+          const pct = Math.min(100, Math.round((count / reward.visit) * 100));
+          const togo = reward.visit - count;
+          return (
+            <div
+              key={reward.visit}
+              className={
+                "relative overflow-hidden rounded-2xl border p-4 transition-colors duration-300 " +
+                (earned
+                  ? "border-[#d6b36a]/60 bg-[#d6b36a]/15"
+                  : nextUp
+                  ? "border-[#d6b36a]/50 bg-[#d6b36a]/10"
+                  : "border-white/10 bg-white/[0.02]")
+              }
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[#d6b36a]">
+                    {reward.tag}
+                  </p>
+                  <p className="mt-1 font-serif text-lg text-[#f4eee6]">
+                    {reward.title}
+                  </p>
+                  <p className="text-xs text-[#a79a87]">on your {reward.visit}th visit</p>
+                </div>
+                <span
+                  className={"text-2xl " + (nextUp && !earned ? "animate-bounce" : "")}
+                  aria-hidden="true"
+                >
+                  {earned ? "✅" : "🎁"}
+                </span>
+              </div>
+
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#ad8a4e] to-[#f0d58f] transition-[width] duration-[1400ms] ease-out"
+                  style={{ width: (animated > 0 || count === 0 ? pct : 0) + "%" }}
+                />
+              </div>
+
+              <p className="mt-2 text-xs text-[#c9c0b6]">
+                {earned
+                  ? "Earned on your " + reward.visit + "th visit"
+                  : nextUp
+                  ? "Your next visit is your " + reward.visit + "th. This one's on us!"
+                  : togo + " more visits to go"}
+              </p>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
