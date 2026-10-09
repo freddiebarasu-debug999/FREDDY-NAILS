@@ -1169,28 +1169,12 @@ export default function AccountPage() {
 
         <MySets user={user} />
 
-        {/* ── BOOK AGAIN CTA ── */}
-        <section className="book-again">
-          <div className="book-again-content">
-            <p className="section-label">READY FOR YOUR NEXT SET?</p>
-            <h2>Keep your nails looking perfect.</h2>
-            <p>
-              Book your next Freddy Nails appointment whenever you&apos;re
-              ready — same great care, every time.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="primary-button book-cta"
-            onClick={() => router.push("/account/book")}
-          >
-            Book Again
-          </button>
-        </section>
 
         <ReviewReward />
 
-        <ReminderSettings />
+        <div id="reminders" className="scroll-mt-6">
+          <ReminderSettings />
+        </div>
       </div>
 
       {/* ── PROFILE EDIT MODAL ── */}

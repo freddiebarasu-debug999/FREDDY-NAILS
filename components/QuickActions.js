@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 
 const REBOOK_KEY = "freddynails_rebook_service";
-const REVIEW_URL = "https://g.page/r/CcR1DUgY4s7NEBM/review";
 
 function findLastSet(appointments) {
   const today = new Date();
@@ -54,13 +53,17 @@ const ICONS = {
       <path d="M21 15l-5-5L5 21" />
     </>
   ),
-  review: (
-    <path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.9L12 17.8 5.8 21.1 7 14.2 2 9.3l6.9-1z" />
+  reminders: (
+    <>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+    </>
   ),
 };
 
-function Tile({ icon, title, sub, onClick, href, external, index, mounted, highlight }) {
+function Tile({ icon, title, sub, onClick, index, mounted, highlight, wide }) {
   const classes =
+    (wide ? "col-span-2 md:col-span-1 " : "") +
     "group relative flex w-full flex-col items-start gap-3 overflow-hidden rounded-2xl border p-4 text-left transition-all duration-500 hover:-translate-y-1 hover:border-[#d6b36a]/70 active:scale-[0.96] " +
     (highlight
       ? "border-[#d6b36a]/50 bg-gradient-to-br from-[#d6b36a]/25 to-[#ad8a4e]/5 "
@@ -87,19 +90,6 @@ function Tile({ icon, title, sub, onClick, href, external, index, mounted, highl
 
   const style = { transitionDelay: mounted ? index * 70 + "ms" : "0ms" };
 
-  if (href) {
-    return (
-      <a
-        href={href}
-        className={classes}
-        style={style}
-        target={external ? "_blank" : undefined}
-        rel={external ? "noopener noreferrer" : undefined}
-      >
-        {inner}
-      </a>
-    );
-  }
   return (
     <button type="button" onClick={onClick} className={classes} style={style}>
       {inner}
@@ -130,32 +120,30 @@ export default function QuickActions({ appointments }) {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function goToReminders() {
+    const el = document.getElementById("reminders");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
-    <section aria-label="Quick actions" className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-4">
-      <Tile
-        index={0}
-        mounted={mounted}
-        icon="book"
-        title="Book a visit"
-        sub="Pick a service, date and time"
-        href="/account/book"
-      />
+    <section
+      aria-label="Quick actions"
+      className="mt-7 grid grid-cols-2 gap-3 md:grid-cols-3"
+    >
+      {last && (
+        <Tile
+          index={0}
+          mounted={mounted}
+          wide
+          highlight
+          icon="rebook"
+          title="Rebook my last set"
+          sub={last.service_name + " · " + shortDate(last.booking_date)}
+          onClick={rebook}
+        />
+      )}
       <Tile
         index={1}
-        mounted={mounted}
-        icon="rebook"
-        highlight={Boolean(last)}
-        title={last ? "Rebook my last set" : "Your first set"}
-        sub={
-          last
-            ? last.service_name + " · " + shortDate(last.booking_date)
-            : "Book your first appointment"
-        }
-        onClick={last ? rebook : undefined}
-        href={last ? undefined : "/account/book"}
-      />
-      <Tile
-        index={2}
         mounted={mounted}
         icon="sets"
         title="My sets"
@@ -163,13 +151,12 @@ export default function QuickActions({ appointments }) {
         onClick={goToSets}
       />
       <Tile
-        index={3}
+        index={2}
         mounted={mounted}
-        icon="review"
-        title="Review and reward"
-        sub="Leave a Google review, win a discount"
-        href={REVIEW_URL}
-        external
+        icon="reminders"
+        title="Reminders"
+        sub="Notifications and emails"
+        onClick={goToReminders}
       />
     </section>
   );
