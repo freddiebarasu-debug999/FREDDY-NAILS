@@ -29,6 +29,47 @@ function maskEmail(email) {
   return parts[0].charAt(0) + "***@" + parts[1];
 }
 
+function buildMessage(booking) {
+  if (!booking) {
+    return "Hey Freddy! I just booked an appointment on your website 💅";
+  }
+
+  const lines = [];
+  lines.push(
+    "Hey Freddy!" + (booking.customerName ? " " + booking.customerName + " here." : "")
+  );
+
+  const clients = booking.clients || [];
+
+  if (clients.length > 1) {
+    lines.push("I just booked " + clients.length + " appointments:");
+    clients.forEach(function (c, i) {
+      lines.push(
+        i + 1 + ". " + (c.service || "Appointment") + " on " +
+          formatDate(c.bookingDate) + " at " + formatTime(c.startTime)
+      );
+    });
+  } else {
+    const c = clients[0] || {};
+    const service = c.service || booking.service || "an appointment";
+    const date = c.bookingDate || booking.bookingDate;
+    const time = c.startTime || booking.startTime;
+    lines.push(
+      "I just booked " + service +
+        (date ? " for " + formatDate(date) : "") +
+        (time ? " at " + formatTime(time) : "") + "."
+    );
+  }
+
+  const notes = String(booking.notes || "").trim();
+  if (notes) {
+    lines.push("Notes: " + notes.slice(0, 400));
+  }
+
+  lines.push("I can't wait to get this set done 💅");
+  return lines.join("\n");
+}
+
 function WhatsAppIcon({ size, color }) {
   return (
     <svg
@@ -83,7 +124,7 @@ export default function BookingSuccessPopup() {
       } catch (e) {
         // try again below
       }
-      if (!cancelled && attempt < 4) {
+      if (!cancelled && attempt < 8) {
         setTimeout(function () {
           load(attempt + 1);
         }, 2000);
@@ -117,25 +158,12 @@ export default function BookingSuccessPopup() {
 
   if (!open) return null;
 
-  const name = booking && booking.customer_name ? booking.customer_name : "";
-  const when =
-    booking && booking.booking_date
-      ? formatDate(booking.booking_date) +
-        (booking.start_time ? " at " + formatTime(booking.start_time) : "")
-      : "";
-
-  const message = when
-    ? "Hey Freddy! " +
-      (name ? name + " here.\n" : "") +
-      "I just booked an appointment for " +
-      when +
-      ".\nI can't wait to get this set done 💅"
-    : "Hey Freddy! I just booked an appointment on your website 💅";
+  const message = buildMessage(booking);
 
   const whatsappUrl =
     "https://wa.me/" + WHATSAPP_NUMBER + "?text=" + encodeURIComponent(message);
 
-  const masked = booking ? maskEmail(booking.customer_email) : "";
+  const masked = booking ? maskEmail(booking.customerEmail) : "";
 
   return (
     <div
