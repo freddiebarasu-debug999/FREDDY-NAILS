@@ -97,38 +97,46 @@ const NAIL_SHAPES = [
   {
     name: "Oval",
     desc: "Rounded tip, classic & soft",
-    radius: "45% 45% 40% 40% / 12% 12% 55% 55%",
-    clip: "polygon(18% 4%, 82% 4%, 92% 22%, 88% 88%, 70% 100%, 30% 100%, 12% 88%, 8% 22%)",
+    radius: "40% 40% 45% 45% / 18% 18% 55% 55%",
+    height: 48,
+    width: 26,
   },
   {
     name: "Square",
     desc: "Flat edge, sharp corners",
-    radius: "8% 8% 12% 12% / 4% 4% 20% 20%",
-    clip: "polygon(16% 6%, 84% 6%, 84% 92%, 70% 100%, 30% 100%, 16% 92%)",
+    radius: "8px 8px 5px 5px",
+    height: 44,
+    width: 26,
   },
   {
     name: "Squoval",
     desc: "Square with soft corners",
-    radius: "18% 18% 28% 28% / 8% 8% 40% 40%",
-    clip: "polygon(16% 6%, 84% 6%, 88% 18%, 86% 90%, 68% 100%, 32% 100%, 14% 90%, 12% 18%)",
+    radius: "10px 10px 12px 12px",
+    height: 46,
+    width: 26,
   },
   {
     name: "Almond",
     desc: "Tapered, rounded tip",
-    radius: "50% 50% 35% 35% / 8% 8% 55% 55%",
-    clip: "polygon(28% 2%, 72% 2%, 94% 28%, 88% 88%, 70% 100%, 30% 100%, 12% 88%, 6% 28%)",
+    radius: "50% 50% 40% 40% / 12% 12% 60% 60%",
+    height: 54,
+    width: 24,
   },
   {
     name: "Coffin",
     desc: "Tapered, squared tip (Ballerina)",
-    radius: "6% 6% 30% 30% / 3% 3% 45% 45%",
-    clip: "polygon(22% 4%, 78% 4%, 96% 30%, 88% 90%, 68% 100%, 32% 100%, 12% 90%, 4% 30%)",
+    radius: "6px 6px 3px 3px",
+    clip: "polygon(18% 0%, 82% 0%, 100% 28%, 92% 100%, 8% 100%, 0% 28%)",
+    height: 56,
+    width: 24,
   },
   {
     name: "Stiletto",
     desc: "Long, sharp point",
-    radius: "50% 50% 28% 28% / 2% 2% 50% 50%",
-    clip: "polygon(42% 0%, 58% 0%, 96% 32%, 88% 88%, 70% 100%, 30% 100%, 12% 88%, 4% 32%)",
+    radius: "50% 50% 30% 30% / 8% 8% 55% 55%",
+    clip: "polygon(38% 0%, 62% 0%, 100% 30%, 90% 100%, 10% 100%, 0% 30%)",
+    height: 60,
+    width: 22,
   },
 ];
 
@@ -2537,23 +2545,26 @@ export default function Booking() {
                                 >
                                   <span className="flex items-center gap-3">
                                     <span
-                                      className="relative h-12 w-6 flex-shrink-0 overflow-hidden"
+                                      className="relative flex-shrink-0 overflow-hidden"
                                       style={{
+                                        width: shape.width || 26,
+                                        height: shape.height || 48,
                                         background:
-                                          "linear-gradient(165deg, #D4B5A5 0%, #C4A090 48%, #A88878 100%)",
+                                          "linear-gradient(180deg, #E8D0C4 0%, #D9B9AB 35%, #CFA898 70%, #C49A8A 100%)",
                                         borderRadius: shape.radius,
                                         clipPath: shape.clip,
                                         boxShadow:
-                                          "inset 0 1px 3px rgba(255,255,255,0.5), inset 0 -4px 8px rgba(0,0,0,0.25), 0 4px 10px rgba(0,0,0,0.35)",
+                                          "inset 0 1px 2px rgba(255,255,255,0.65), inset 0 -4px 8px rgba(140,100,85,0.22), 0 4px 10px rgba(0,0,0,0.3)",
                                       }}
                                       aria-hidden="true"
                                     >
                                       <span
-                                        className="absolute left-[15%] top-[10%] h-[38%] w-[30%] rounded-full"
+                                        className="absolute left-[16%] top-[12%] h-[55%] w-[36%] rounded-full"
                                         style={{
                                           background:
-                                            "linear-gradient(180deg, rgba(255,255,255,0.7), transparent)",
-                                          filter: "blur(0.8px)",
+                                            "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.2) 55%, transparent 100%)",
+                                          filter: "blur(1px)",
+                                          transform: "rotate(-6deg)",
                                         }}
                                       />
                                     </span>
