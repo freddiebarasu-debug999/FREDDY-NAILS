@@ -2,6 +2,7 @@ import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import InstallPrompt from "@/components/InstallPrompt";
+import BookingSuccessPopup from "@/components/BookingSuccessPopup";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -190,6 +191,7 @@ export default function RootLayout({ children }) {
         {children}
         <ServiceWorkerRegister />
         <InstallPrompt />
+        <BookingSuccessPopup />
       </body>
     </html>
   );
