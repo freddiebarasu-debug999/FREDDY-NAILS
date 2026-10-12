@@ -1,1 +1,1 @@
-Shapes: soft nude photo-style tips (not boxy). Soft Square label.
+Individual finger crops for each shape under public/shapes/
