@@ -1,24 +1,3 @@
-WHY THE LIVE SITE LOOKED UNCHANGED
-----------------------------------
-Code was updated, but the finger images were never on the server.
-https://freddynails.co.za/shapes/oval.jpg returned 404.
-
-WHAT TO UPLOAD
---------------
-Extract this zip into your repo ROOT. Confirm GitHub shows:
-
-  public/gallery/shapes/oval.jpg
-  public/gallery/shapes/square.jpg
-  public/gallery/shapes/soft-square.jpg
-  public/gallery/shapes/almond.jpg
-  public/gallery/shapes/coffin.jpg
-  public/gallery/shapes/stiletto.jpg
-  components/ShapeGuide.js
-
-Commit → push → wait for Vercel → hard refresh (Ctrl+Shift+R)
-
-GitHub website method:
-  1. Repo → public → gallery → Add file → Upload files
-  2. Name the first file: shapes/oval.jpg  (creates the shapes folder)
-  3. Upload the other 5 jpgs into that folder
-  4. Replace components/ShapeGuide.js
+REPLACE ONLY: components/ShapeGuide.js
+Photos are embedded inside this file — no public/shapes upload needed.
+Commit, push, wait for Vercel, hard-refresh.
