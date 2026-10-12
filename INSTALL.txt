@@ -1,0 +1,25 @@
+FREDDY NAILS — UI UPGRADE (for your latest main zip)
+====================================================
+
+Extract into the ROOT of your GitHub repo. Overwrite when prompted.
+
+INCLUDED
+--------
+app/page.js
+app/sitemap.js
+components/Booking.js
+components/BookingCalendar.js   (new)
+components/ColourPalette.js     (new)
+components/ShapeGuide.js
+components/Header.js
+
+Already present in your latest main — do NOT overwrite with older versions:
+- app/ChatBot.js + ChatBotCore.js
+- app/api/chat/route.js
+- app/globals.css
+- app/layout.js
+
+After extract → commit → push → Vercel redeploys.
+Hard-refresh (Ctrl+Shift+R).
+
+Booking calendar and visual shapes are fully wired — no manual edits.

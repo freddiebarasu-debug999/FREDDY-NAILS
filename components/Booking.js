@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import BookingCalendar from "@/components/BookingCalendar";
 
 const DEPOSIT_PER_CLIENT = 90;
 const CLIENT_GAP = 15;
@@ -94,28 +95,34 @@ const SERVICE_OPTIONS =
 
 const NAIL_SHAPES = [
   {
-    name: "Almond",
-    desc: "Tapered, rounded tip",
+    name: "Oval",
+    desc: "Rounded tip, classic & soft",
+    d: "M18 4 C22 4 26 8 26 14 L24 38 C24 42 20 46 16 46 C12 46 8 42 8 38 L6 14 C6 8 10 4 14 4 Z",
   },
   {
     name: "Square",
     desc: "Flat edge, sharp corners",
+    d: "M8 6 L24 6 L24 40 C24 44 20 46 16 46 C12 46 8 44 8 40 Z",
   },
   {
     name: "Squoval",
     desc: "Square with soft corners",
+    d: "M9 6 L23 6 C24 6 25 8 25 10 L24 40 C24 44 20 46 16 46 C12 46 8 44 8 40 L7 10 C7 8 8 6 9 6 Z",
   },
   {
-    name: "Oval",
-    desc: "Rounded, classic",
+    name: "Almond",
+    desc: "Tapered, rounded tip",
+    d: "M16 2 C20 2 26 10 26 16 L24 38 C24 42 20 46 16 46 C12 46 8 42 8 38 L6 16 C6 10 12 2 16 2 Z",
   },
   {
     name: "Coffin",
-    desc: "Tapered, squared tip",
+    desc: "Tapered, squared tip (Ballerina)",
+    d: "M10 4 L22 4 L26 16 L24 38 C24 42 20 46 16 46 C12 46 8 42 8 38 L6 16 Z",
   },
   {
     name: "Stiletto",
     desc: "Long, sharp point",
+    d: "M16 0 C19 4 26 14 26 20 L24 38 C24 42 20 46 16 46 C12 46 8 42 8 38 L6 20 C6 14 13 4 16 0 Z",
   },
 ];
 
@@ -2522,22 +2529,37 @@ export default function Booking() {
                                       : "bg-[#181614] border border-white/[0.09] text-[#f4eee6] hover:border-gold/40"
                                   }`}
                                 >
-                                  <span
-                                    className={`block text-xs font-bold ${
-                                      selected
-                                        ? "text-gold"
-                                        : "text-[#f4eee6]"
-                                    }`}
-                                  >
-                                    {
-                                      shape.name
-                                    }
-                                  </span>
-
-                                  <span className="block text-[0.68rem] text-[#9f978f] mt-1">
-                                    {
-                                      shape.desc
-                                    }
+                                  <span className="flex items-center gap-2.5">
+                                    <svg
+                                      viewBox="0 0 32 48"
+                                      className={`h-10 w-5 flex-shrink-0 ${
+                                        selected
+                                          ? "text-gold"
+                                          : "text-[#c9c0b6]"
+                                      }`}
+                                      fill="currentColor"
+                                      aria-hidden="true"
+                                    >
+                                      <path d={shape.d} />
+                                    </svg>
+                                    <span>
+                                      <span
+                                        className={`block text-xs font-bold ${
+                                          selected
+                                            ? "text-gold"
+                                            : "text-[#f4eee6]"
+                                        }`}
+                                      >
+                                        {
+                                          shape.name
+                                        }
+                                      </span>
+                                      <span className="block text-[0.68rem] text-[#9f978f] mt-1">
+                                        {
+                                          shape.desc
+                                        }
+                                      </span>
+                                    </span>
                                   </span>
                                 </button>
                               );
@@ -2546,50 +2568,39 @@ export default function Booking() {
                         </div>
                       </div>
 
-                      <div className="grid gap-5 sm:grid-cols-2 mt-7">
-                        <label>
-                          <span
-                            className={
-                              labelClass
-                            }
-                          >
-                            Preferred date
-                          </span>
-
-                          <input
-                            type="date"
-                            min={
-                              todayString
-                            }
-                            className={
-                              inputClass
-                            }
+                      <div className="mt-7">
+                        <span
+                          className={
+                            labelClass
+                          }
+                        >
+                          Preferred date
+                        </span>
+                        <div className="mt-2">
+                          <BookingCalendar
                             value={
                               form
                                 .clientDates[
                                 clientIndex
                               ] || ""
                             }
+                            todayString={
+                              todayString
+                            }
                             onChange={(
-                              event
+                              date
                             ) =>
                               updateClientDate(
                                 clientIndex,
-                                event
-                                  .target
-                                  .value
+                                date
                               )
                             }
-                            required
                           />
+                        </div>
+                      </div>
 
-                          <p className="text-[0.68rem] text-[#8f877e] mt-2">
-                            Sundays are
-                            unavailable.
-                          </p>
-                        </label>
-
-                        <label>
+                      <div className="grid gap-5 sm:grid-cols-2 mt-5">
+                        <label className="sm:col-span-2 sm:max-w-sm">
                           <span
                             className={
                               labelClass

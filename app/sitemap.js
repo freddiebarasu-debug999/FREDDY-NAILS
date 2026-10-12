@@ -1,5 +1,9 @@
 const SITE_URL = "https://freddynails.co.za";
 
+/**
+ * Expanded sitemap for local visibility (Fresha / GoDaddy-style coverage).
+ * Include every public page clients and Google should discover.
+ */
 export default function sitemap() {
   const lastModified = new Date();
 
@@ -14,13 +18,25 @@ export default function sitemap() {
       url: `${SITE_URL}/services`,
       lastModified,
       changeFrequency: "monthly",
-      priority: 0.9,
+      priority: 0.95,
+    },
+    {
+      url: `${SITE_URL}/shape-guide`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.85,
+    },
+    {
+      url: `${SITE_URL}/offers`,
+      lastModified,
+      changeFrequency: "weekly",
+      priority: 0.8,
     },
     {
       url: `${SITE_URL}/faq`,
       lastModified,
       changeFrequency: "monthly",
-      priority: 0.8,
+      priority: 0.75,
     },
     {
       url: `${SITE_URL}/about`,
@@ -29,10 +45,16 @@ export default function sitemap() {
       priority: 0.7,
     },
     {
-      url: `${SITE_URL}/offers`,
+      url: `${SITE_URL}/privacy`,
       lastModified,
-      changeFrequency: "weekly",
-      priority: 0.6,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${SITE_URL}/terms`,
+      lastModified,
+      changeFrequency: "yearly",
+      priority: 0.3,
     },
   ];
 }
