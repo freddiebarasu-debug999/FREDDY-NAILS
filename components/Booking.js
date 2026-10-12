@@ -97,32 +97,38 @@ const NAIL_SHAPES = [
   {
     name: "Oval",
     desc: "Rounded tip, classic & soft",
-    d: "M18 4 C22 4 26 8 26 14 L24 38 C24 42 20 46 16 46 C12 46 8 42 8 38 L6 14 C6 8 10 4 14 4 Z",
+    radius: "45% 45% 40% 40% / 12% 12% 55% 55%",
+    clip: "polygon(18% 4%, 82% 4%, 92% 22%, 88% 88%, 70% 100%, 30% 100%, 12% 88%, 8% 22%)",
   },
   {
     name: "Square",
     desc: "Flat edge, sharp corners",
-    d: "M8 6 L24 6 L24 40 C24 44 20 46 16 46 C12 46 8 44 8 40 Z",
+    radius: "8% 8% 12% 12% / 4% 4% 20% 20%",
+    clip: "polygon(16% 6%, 84% 6%, 84% 92%, 70% 100%, 30% 100%, 16% 92%)",
   },
   {
     name: "Squoval",
     desc: "Square with soft corners",
-    d: "M9 6 L23 6 C24 6 25 8 25 10 L24 40 C24 44 20 46 16 46 C12 46 8 44 8 40 L7 10 C7 8 8 6 9 6 Z",
+    radius: "18% 18% 28% 28% / 8% 8% 40% 40%",
+    clip: "polygon(16% 6%, 84% 6%, 88% 18%, 86% 90%, 68% 100%, 32% 100%, 14% 90%, 12% 18%)",
   },
   {
     name: "Almond",
     desc: "Tapered, rounded tip",
-    d: "M16 2 C20 2 26 10 26 16 L24 38 C24 42 20 46 16 46 C12 46 8 42 8 38 L6 16 C6 10 12 2 16 2 Z",
+    radius: "50% 50% 35% 35% / 8% 8% 55% 55%",
+    clip: "polygon(28% 2%, 72% 2%, 94% 28%, 88% 88%, 70% 100%, 30% 100%, 12% 88%, 6% 28%)",
   },
   {
     name: "Coffin",
     desc: "Tapered, squared tip (Ballerina)",
-    d: "M10 4 L22 4 L26 16 L24 38 C24 42 20 46 16 46 C12 46 8 42 8 38 L6 16 Z",
+    radius: "6% 6% 30% 30% / 3% 3% 45% 45%",
+    clip: "polygon(22% 4%, 78% 4%, 96% 30%, 88% 90%, 68% 100%, 32% 100%, 12% 90%, 4% 30%)",
   },
   {
     name: "Stiletto",
     desc: "Long, sharp point",
-    d: "M16 0 C19 4 26 14 26 20 L24 38 C24 42 20 46 16 46 C12 46 8 42 8 38 L6 20 C6 14 13 4 16 0 Z",
+    radius: "50% 50% 28% 28% / 2% 2% 50% 50%",
+    clip: "polygon(42% 0%, 58% 0%, 96% 32%, 88% 88%, 70% 100%, 30% 100%, 12% 88%, 4% 32%)",
   },
 ];
 
@@ -2529,19 +2535,28 @@ export default function Booking() {
                                       : "bg-[#181614] border border-white/[0.09] text-[#f4eee6] hover:border-gold/40"
                                   }`}
                                 >
-                                  <span className="flex items-center gap-2.5">
-                                    <svg
-                                      viewBox="0 0 32 48"
-                                      className={`h-10 w-5 flex-shrink-0 ${
-                                        selected
-                                          ? "text-gold"
-                                          : "text-[#c9c0b6]"
-                                      }`}
-                                      fill="currentColor"
+                                  <span className="flex items-center gap-3">
+                                    <span
+                                      className="relative h-12 w-6 flex-shrink-0 overflow-hidden"
+                                      style={{
+                                        background:
+                                          "linear-gradient(165deg, #D4B5A5 0%, #C4A090 48%, #A88878 100%)",
+                                        borderRadius: shape.radius,
+                                        clipPath: shape.clip,
+                                        boxShadow:
+                                          "inset 0 1px 3px rgba(255,255,255,0.5), inset 0 -4px 8px rgba(0,0,0,0.25), 0 4px 10px rgba(0,0,0,0.35)",
+                                      }}
                                       aria-hidden="true"
                                     >
-                                      <path d={shape.d} />
-                                    </svg>
+                                      <span
+                                        className="absolute left-[15%] top-[10%] h-[38%] w-[30%] rounded-full"
+                                        style={{
+                                          background:
+                                            "linear-gradient(180deg, rgba(255,255,255,0.7), transparent)",
+                                          filter: "blur(0.8px)",
+                                        }}
+                                      />
+                                    </span>
                                     <span>
                                       <span
                                         className={`block text-xs font-bold ${

@@ -3,54 +3,129 @@
 import { useState } from "react";
 
 /**
- * Visual nail shape guide — illustrated silhouettes + short descriptions.
- * Matches the style of salon shape charts (oval, square, soft square, almond, coffin, stiletto).
+ * Realistic 3D nail shape guide — product-photo style tips in soft nude.
+ * Each shape has a distinct free-edge silhouette.
  */
+
 const SHAPES = [
   {
     name: "Oval",
     desc: "Rounded tip, classic & soft",
     detail:
       "A timeless rounded tip that flatters most hands. Easy to wear every day.",
-    // Soft oval tip
-    d: "M18 4 C22 4 26 8 26 14 L24 38 C24 42 20 46 16 46 C12 46 8 42 8 38 L6 14 C6 8 10 4 14 4 Z",
+    // clip-path: rounded oval free edge
+    clip: "polygon(18% 4%, 82% 4%, 92% 22%, 88% 88%, 70% 100%, 30% 100%, 12% 88%, 8% 22%)",
+    radius: "45% 45% 40% 40% / 12% 12% 55% 55%",
   },
   {
     name: "Square",
     desc: "Flat edge, sharp corners",
     detail:
       "Straight free edge with clean corners. Strong look, great for shorter lengths.",
-    d: "M8 6 L24 6 L24 40 C24 44 20 46 16 46 C12 46 8 44 8 40 Z",
+    clip: "polygon(16% 6%, 84% 6%, 84% 92%, 70% 100%, 30% 100%, 16% 92%)",
+    radius: "8% 8% 12% 12% / 4% 4% 20% 20%",
   },
   {
     name: "Squoval",
     desc: "Square with soft corners",
     detail:
       "The best of both — square strength with gently rounded corners.",
-    d: "M9 6 L23 6 C24 6 25 8 25 10 L24 40 C24 44 20 46 16 46 C12 46 8 44 8 40 L7 10 C7 8 8 6 9 6 Z",
+    clip: "polygon(16% 6%, 84% 6%, 88% 18%, 86% 90%, 68% 100%, 32% 100%, 14% 90%, 12% 18%)",
+    radius: "18% 18% 28% 28% / 8% 8% 40% 40%",
   },
   {
     name: "Almond",
     desc: "Tapered, rounded tip",
     detail:
       "Tapers toward a soft point. Elongates fingers and suits medium to long sets.",
-    d: "M16 2 C20 2 26 10 26 16 L24 38 C24 42 20 46 16 46 C12 46 8 42 8 38 L6 16 C6 10 12 2 16 2 Z",
+    clip: "polygon(28% 2%, 72% 2%, 94% 28%, 88% 88%, 70% 100%, 30% 100%, 12% 88%, 6% 28%)",
+    radius: "50% 50% 35% 35% / 8% 8% 55% 55%",
   },
   {
     name: "Coffin",
     desc: "Tapered, squared tip (Ballerina)",
     detail:
       "Tapers in then finishes with a flat tip. Popular for long glamorous sets.",
-    d: "M10 4 L22 4 L26 16 L24 38 C24 42 20 46 16 46 C12 46 8 42 8 38 L6 16 Z",
+    clip: "polygon(22% 4%, 78% 4%, 96% 30%, 88% 90%, 68% 100%, 32% 100%, 12% 90%, 4% 30%)",
+    radius: "6% 6% 30% 30% / 3% 3% 45% 45%",
   },
   {
     name: "Stiletto",
     desc: "Long, sharp point",
     detail:
       "Dramatic tapered point. Statement length — best for experienced wearers.",
-    d: "M16 0 C19 4 26 14 26 20 L24 38 C24 42 20 46 16 46 C12 46 8 42 8 38 L6 20 C6 14 13 4 16 0 Z",
+    clip: "polygon(42% 0%, 58% 0%, 96% 32%, 88% 88%, 70% 100%, 30% 100%, 12% 88%, 4% 32%)",
+    radius: "50% 50% 28% 28% / 2% 2% 50% 50%",
   },
 ];
+
+const NUDE = {
+  base: "#D4B5A5",
+  mid: "#C4A090",
+  deep: "#A88878",
+};
+
+function ShapeNail({ shape, active }) {
+  const gradient = `linear-gradient(165deg, ${NUDE.base} 0%, ${NUDE.mid} 48%, ${NUDE.deep} 100%)`;
+
+  return (
+    <div className="relative mx-auto w-[56px] h-[120px] sm:w-[64px] sm:h-[138px]">
+      <div
+        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-9 h-2.5 rounded-full bg-black/35 blur-md"
+        aria-hidden
+      />
+      <div
+        className="relative h-full w-full overflow-hidden transition-shadow duration-300"
+        style={{
+          background: gradient,
+          borderRadius: shape.radius,
+          clipPath: shape.clip,
+          boxShadow: active
+            ? `
+              inset 0 2px 6px rgba(255,255,255,0.5),
+              inset 0 -8px 14px rgba(0,0,0,0.25),
+              inset 3px 0 8px rgba(255,255,255,0.15),
+              inset -4px 0 10px rgba(0,0,0,0.2),
+              0 0 0 1px rgba(214,179,106,0.55),
+              0 14px 28px rgba(0,0,0,0.5)
+            `
+            : `
+              inset 0 2px 6px rgba(255,255,255,0.45),
+              inset 0 -8px 14px rgba(0,0,0,0.22),
+              inset 3px 0 8px rgba(255,255,255,0.12),
+              inset -4px 0 10px rgba(0,0,0,0.18),
+              0 10px 22px rgba(0,0,0,0.4)
+            `,
+        }}
+      >
+        <div
+          className="pointer-events-none absolute left-[16%] top-[8%] h-[40%] w-[26%] rounded-full"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.12) 60%, transparent 100%)",
+            filter: "blur(1.2px)",
+            transform: "rotate(-7deg)",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute right-[10%] top-[18%] h-[28%] w-[9%] rounded-full"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%)",
+            filter: "blur(1px)",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[30%]"
+          style={{
+            background:
+              "linear-gradient(to top, rgba(0,0,0,0.3), transparent)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function ShapeGuide() {
   const [selected, setSelected] = useState(null);
@@ -71,8 +146,8 @@ export default function ShapeGuide() {
           </h2>
           <div className="mt-5 h-px w-16 bg-[#d6b36a]/60" />
           <p className="mt-5 text-[0.95rem] text-[#c9c0b6] leading-relaxed">
-            Tap a shape to see the look, then take it straight into your
-            booking.
+            Real product-style tips — tap a shape to see the look, then take it
+            into your booking.
           </p>
         </div>
 
@@ -87,34 +162,16 @@ export default function ShapeGuide() {
                 onClick={() =>
                   setSelected(isSelected ? null : shape.name)
                 }
-                className={`relative rounded-xl border px-3 pt-6 pb-5 text-center transition-all duration-300 ${
+                className={`relative rounded-xl border px-3 pt-7 pb-5 text-center transition-all duration-300 ${
                   isSelected
                     ? "border-[#d6b36a] bg-[#211e1a] shadow-[0_0_0_1px_rgba(214,179,106,0.35)]"
                     : "border-white/[0.08] bg-[#181614] hover:border-[#d6b36a]/40 hover:bg-[#1d1a17]"
                 }`}
               >
-                <div className="mx-auto mb-4 flex h-24 items-end justify-center">
-                  <svg
-                    viewBox="0 0 32 48"
-                    className={`h-24 w-12 transition-colors ${
-                      isSelected ? "text-[#d6b36a]" : "text-[#c9c0b6]"
-                    }`}
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d={shape.d} opacity="0.92" />
-                    <path
-                      d={shape.d}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="0.6"
-                      opacity="0.5"
-                    />
-                  </svg>
-                </div>
+                <ShapeNail shape={shape} active={isSelected} />
 
                 <p
-                  className={`text-xs font-bold tracking-[0.14em] uppercase ${
+                  className={`mt-4 text-xs font-bold tracking-[0.14em] uppercase ${
                     isSelected ? "text-[#d6b36a]" : "text-[#f4eee6]"
                   }`}
                 >
@@ -133,16 +190,10 @@ export default function ShapeGuide() {
             {SHAPES.filter((s) => s.name === selected).map((shape) => (
               <div
                 key={shape.name}
-                className="flex flex-col sm:flex-row sm:items-center gap-5"
+                className="flex flex-col sm:flex-row sm:items-center gap-6"
               >
-                <div className="flex-shrink-0">
-                  <svg
-                    viewBox="0 0 32 48"
-                    className="h-28 w-14 text-[#d6b36a]"
-                    fill="currentColor"
-                  >
-                    <path d={shape.d} />
-                  </svg>
+                <div className="flex-shrink-0 self-center sm:self-auto">
+                  <ShapeNail shape={shape} active />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-serif text-2xl text-[#f4eee6]">

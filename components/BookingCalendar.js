@@ -91,6 +91,11 @@ export default function BookingCalendar({
 
   function pick(day) {
     if (!day.bookable) return;
+    // Click again to deselect
+    if (value === day.dateString) {
+      onChange?.("");
+      return;
+    }
     onChange?.(day.dateString);
   }
 
