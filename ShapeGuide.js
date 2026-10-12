@@ -3,53 +3,43 @@
 import { useState } from "react";
 import Image from "next/image";
 
-/**
- * Each shape uses a real finger cropped from the nude shape chart photo.
- */
-
 const SHAPES = [
   {
     name: "Oval",
     desc: "Rounded tip, classic & soft",
-    detail:
-      "A timeless rounded tip that flatters most hands. Easy to wear every day.",
-    src: "/shapes/oval.jpg",
+    detail: "A timeless rounded tip that flatters most hands. Easy to wear every day.",
+    src: "/gallery/shapes/oval.jpg",
   },
   {
     name: "Square",
     desc: "Flat edge, sharp corners",
-    detail:
-      "Straight free edge with clean corners. Strong look, great for shorter lengths.",
-    src: "/shapes/square.jpg",
+    detail: "Straight free edge with clean corners. Strong look, great for shorter lengths.",
+    src: "/gallery/shapes/square.jpg",
   },
   {
     name: "Soft Square",
     desc: "Square with soft corners",
     bookingName: "Squoval",
-    detail:
-      "The best of both — square strength with gently rounded corners.",
-    src: "/shapes/soft-square.jpg",
+    detail: "The best of both — square strength with gently rounded corners.",
+    src: "/gallery/shapes/soft-square.jpg",
   },
   {
     name: "Almond",
     desc: "Tapered, rounded tip",
-    detail:
-      "Tapers toward a soft point. Elongates fingers and suits medium to long sets.",
-    src: "/shapes/almond.jpg",
+    detail: "Tapers toward a soft point. Elongates fingers and suits medium to long sets.",
+    src: "/gallery/shapes/almond.jpg",
   },
   {
     name: "Coffin",
     desc: "Tapered, squared tip (Ballerina)",
-    detail:
-      "Tapers in then finishes with a flat tip. Popular for long glamorous sets.",
-    src: "/shapes/coffin.jpg",
+    detail: "Tapers in then finishes with a flat tip. Popular for long glamorous sets.",
+    src: "/gallery/shapes/coffin.jpg",
   },
   {
     name: "Stiletto",
     desc: "Long, sharp point",
-    detail:
-      "Dramatic tapered point. Statement length — best for experienced wearers.",
-    src: "/shapes/stiletto.jpg",
+    detail: "Dramatic tapered point. Statement length — best for experienced wearers.",
+    src: "/gallery/shapes/stiletto.jpg",
   },
 ];
 
@@ -82,14 +72,11 @@ export default function ShapeGuide() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
           {SHAPES.map((shape) => {
             const isSelected = selected === shape.name;
-
             return (
               <button
                 key={shape.name}
                 type="button"
-                onClick={() =>
-                  setSelected(isSelected ? null : shape.name)
-                }
+                onClick={() => setSelected(isSelected ? null : shape.name)}
                 className={`relative overflow-hidden rounded-xl border text-left transition-all duration-300 ${
                   isSelected
                     ? "border-[#d6b36a] bg-[#211e1a] shadow-[0_0_0_1px_rgba(214,179,106,0.35)]"
@@ -106,16 +93,10 @@ export default function ShapeGuide() {
                   />
                 </div>
                 <div className="px-3 py-3.5">
-                  <p
-                    className={`text-xs font-bold tracking-[0.14em] uppercase ${
-                      isSelected ? "text-[#d6b36a]" : "text-[#f4eee6]"
-                    }`}
-                  >
+                  <p className={`text-xs font-bold tracking-[0.14em] uppercase ${isSelected ? "text-[#d6b36a]" : "text-[#f4eee6]"}`}>
                     {shape.name}
                   </p>
-                  <p className="mt-1 text-[0.68rem] leading-snug text-[#9f978f]">
-                    {shape.desc}
-                  </p>
+                  <p className="mt-1 text-[0.68rem] leading-snug text-[#9f978f]">{shape.desc}</p>
                 </div>
               </button>
             );
@@ -126,21 +107,11 @@ export default function ShapeGuide() {
           <div className="mt-8 rounded-xl border border-[#d6b36a]/25 bg-[#181614] p-5 md:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-6">
               <div className="relative w-full sm:w-56 aspect-[5/3] flex-shrink-0 overflow-hidden rounded-lg border border-white/10">
-                <Image
-                  src={active.src}
-                  alt={active.name}
-                  fill
-                  sizes="224px"
-                  className="object-cover"
-                />
+                <Image src={active.src} alt={active.name} fill sizes="224px" className="object-cover" />
               </div>
               <div className="flex-1">
-                <h3 className="font-serif text-2xl text-[#f4eee6]">
-                  {active.name}
-                </h3>
-                <p className="mt-2 text-sm text-[#c9c0b6] leading-relaxed">
-                  {active.detail}
-                </p>
+                <h3 className="font-serif text-2xl text-[#f4eee6]">{active.name}</h3>
+                <p className="mt-2 text-sm text-[#c9c0b6] leading-relaxed">{active.detail}</p>
                 <button
                   type="button"
                   onClick={() => bookShape(active)}
