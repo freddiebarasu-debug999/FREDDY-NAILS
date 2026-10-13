@@ -37,11 +37,6 @@ const MENU_LINKS = [
     blurb: "Compare nail shapes so you can choose the look that suits your hands.",
   },
   {
-    href: "/colours",
-    label: "Gel Colours",
-    blurb: "Browse the gel colour palette and find the shade you love before you book.",
-  },
-  {
     href: "/about",
     label: "About",
     blurb: "Meet the studio — our story, location in Quigney, and what makes Freddy Nails different.",

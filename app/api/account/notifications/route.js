@@ -87,12 +87,7 @@ export async function POST(request) {
     );
     if (error) {
       console.error("Subscribe error:", error);
-      return NextResponse.json(
-        {
-          error: `Could not save notifications. (${error.code || "no code"}: ${error.message || "unknown"})`,
-        },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Could not save notifications." }, { status: 500 });
     }
     return NextResponse.json({ success: true });
   }
@@ -121,12 +116,7 @@ export async function POST(request) {
     );
     if (error) {
       console.error("Prefs error:", error);
-      return NextResponse.json(
-        {
-          error: `Could not save your choices. (${error.code || "no code"}: ${error.message || "unknown"})`,
-        },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Could not save your choices." }, { status: 500 });
     }
     return NextResponse.json({ success: true });
   }

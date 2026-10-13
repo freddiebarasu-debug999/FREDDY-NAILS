@@ -1,5 +1,3 @@
-import { SERVICE_LANDINGS } from "@/lib/serviceLandings";
-
 const SITE_URL = "https://freddynails.co.za";
 
 export default function sitemap() {
@@ -19,12 +17,6 @@ export default function sitemap() {
       priority: 0.9,
     },
     {
-      url: `${SITE_URL}/colours`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
-    {
       url: `${SITE_URL}/faq`,
       lastModified,
       changeFrequency: "monthly",
@@ -42,11 +34,5 @@ export default function sitemap() {
       changeFrequency: "weekly",
       priority: 0.6,
     },
-    ...SERVICE_LANDINGS.map((service) => ({
-      url: `${SITE_URL}/services/${service.slug}`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    })),
   ];
 }

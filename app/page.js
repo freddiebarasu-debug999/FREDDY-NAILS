@@ -3,6 +3,7 @@ import OfferTab from "@/components/OfferTab";
 import AccountPromptBanner from "@/components/AccountPromptBanner";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
+import ColourLab from "@/components/ColourLab";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
 import Contact from "@/components/Contact";
@@ -67,6 +68,11 @@ export default function Home() {
           </div>
         </Reveal>
       </section>
+
+      <div className="h-px max-w-[1180px] mx-auto bg-line" />
+
+      {/* Gel colour inspiration */}
+      <ColourLab />
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
 
