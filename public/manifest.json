@@ -1,0 +1,22 @@
+{
+  "name": "Freddy Nails",
+  "short_name": "Freddy Nails",
+  "description": "Book luxury acrylic, gel, pedicure, nail art and lash appointments with Freddy Nails in Quigney, East London.",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0c0b0a",
+  "theme_color": "#0c0b0a",
+  "lang": "en-ZA",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Book now", "url": "/account/book", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "My account", "url": "/account", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
