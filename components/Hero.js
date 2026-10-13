@@ -1,0 +1,51 @@
+import Image from "next/image";
+
+export default function Hero() {
+  return (
+    <section
+      id="home"
+      className="relative min-h-[640px] md:min-h-[760px] flex items-center overflow-hidden bg-[#0c0b0a]"
+    >
+      {/* Background photo (main / LCP image: preloaded, never lazy-loaded) */}
+      <div className="absolute inset-0">
+        <Image
+          src="/hero-slide-1.jpg"
+          alt="Freddy Nails gold leaf signature set"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0c0b0a] via-[#0c0b0a]/70 to-[#0c0b0a]/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0c0b0a]/60 via-transparent to-transparent" />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 max-w-[1180px] mx-auto px-5 w-full">
+        <div className="max-w-[620px]">
+          <h1 className="font-serif font-medium leading-[1.05] text-[clamp(2.6rem,6vw,4.2rem)] text-[#f4eee6]">
+            Nails by Freddy,
+            <br />
+            Crafted to Perfection
+          </h1>
+
+          <div className="mt-6 h-px w-16 bg-[#d6b36a]/70" />
+
+          <p className="mt-6 text-[1.05rem] leading-relaxed text-[#c9c0b6] max-w-[46ch]">
+            Luxury nail services designed to elevate your style and
+            confidence.
+          </p>
+
+          <div className="mt-6">
+            <a
+              href="/account/signup"
+              className="inline-flex items-center gap-2 border border-[#d6b36a] text-[#d6b36a] px-5 py-2.5 rounded-sm text-[0.8rem] font-semibold hover:bg-[#d6b36a] hover:text-[#11100f] transition-colors"
+            >
+              Book now
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
