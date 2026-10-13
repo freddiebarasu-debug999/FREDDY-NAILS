@@ -3,10 +3,9 @@ import OfferTab from "@/components/OfferTab";
 import AccountPromptBanner from "@/components/AccountPromptBanner";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
+import ColourLab from "@/components/ColourLab";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
-import ShapeGuide from "@/components/ShapeGuide";
-import ColourPalette from "@/components/ColourPalette";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 import ChatBot from "./ChatBot";
@@ -72,26 +71,17 @@ export default function Home() {
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
 
+      {/* Gel colour inspiration */}
+      <ColourLab />
+
+      <div className="h-px max-w-[1180px] mx-auto bg-line" />
+
       {/* Gallery */}
       <div className="py-4 md:py-7">
         <Reveal>
           <Gallery />
         </Reveal>
       </div>
-
-      <div className="h-px max-w-[1180px] mx-auto bg-line" />
-
-      {/* Shape guide */}
-      <Reveal>
-        <ShapeGuide />
-      </Reveal>
-
-      <div className="h-px max-w-[1180px] mx-auto bg-line" />
-
-      {/* Gel colour inspiration */}
-      <Reveal>
-        <ColourPalette />
-      </Reveal>
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
 

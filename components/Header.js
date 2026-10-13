@@ -37,6 +37,11 @@ const MENU_LINKS = [
     blurb: "Compare nail shapes so you can choose the look that suits your hands.",
   },
   {
+    href: "/colours",
+    label: "Gel Colours",
+    blurb: "Browse the gel colour palette and find the shade you love before you book.",
+  },
+  {
     href: "/about",
     label: "About",
     blurb: "Meet the studio — our story, location in Quigney, and what makes Freddy Nails different.",
@@ -70,6 +75,26 @@ const GUIDE_ITEMS = [
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+
+  // Light check for an existing login (no library loaded): Supabase keeps the
+  // session in localStorage under a key like "sb-xxxx-auth-token".
+  useEffect(() => {
+    try {
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const key = window.localStorage.key(i) || "";
+        if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
+          setSignedIn(true);
+          return;
+        }
+      }
+    } catch {
+      // localStorage unavailable: keep the logged-out label.
+    }
+  }, []);
+
+  const accountHref = signedIn ? "/account" : "/account/login";
+  const accountLabel = signedIn ? "My Account" : "Sign up / Log in";
   const [menuOpen, setMenuOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideVisible, setGuideVisible] = useState(false);
@@ -122,8 +147,11 @@ export default function Header() {
               className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-[#d6b36a] overflow-hidden shadow-[0_0_0_1px_rgba(214,179,106,0.15)] transition-transform hover:scale-[1.04] active:scale-95"
             >
               <img
-                src="/freddy-nails-logo.png"
+                src="/freddy-nails-logo-sm.webp"
                 alt=""
+                width={144}
+                height={144}
+                decoding="async"
                 className="h-full w-full object-cover"
               />
               <span className="pointer-events-none absolute inset-0 rounded-full ring-0 transition-all duration-300 group-hover:ring-2 group-hover:ring-[#d6b36a]/40" />
@@ -190,10 +218,10 @@ export default function Header() {
           {/* Desktop Actions */}
           <div className="hidden items-center gap-3 md:flex">
             <a
-              href="/account"
+              href={accountHref}
               className="px-3 py-[9px] text-xs font-bold uppercase tracking-wide text-[#f4eee6]/90 transition-colors hover:text-[#d6b36a]"
             >
-              My Account
+              {accountLabel}
             </a>
             <a
               href="/account/book"
@@ -247,11 +275,11 @@ export default function Header() {
                 Book now
               </a>
               <a
-                href="/account"
+                href={accountHref}
                 onClick={closeMenus}
                 className="rounded-sm border border-[#d6b36a]/35 py-2.5 text-center text-[0.7rem] font-bold uppercase tracking-wide text-[#d6b36a]"
               >
-                My Account
+                {accountLabel}
               </a>
             </div>
 
@@ -327,8 +355,12 @@ export default function Header() {
               <div className="flex items-center gap-3 min-w-0">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#d6b36a]/50">
                   <img
-                    src="/freddy-nails-logo.png"
+                    src="/freddy-nails-logo-sm.webp"
                     alt=""
+                    width={144}
+                    height={144}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover"
                   />
                 </span>

@@ -1,8 +1,11 @@
+import { SERVICE_LANDINGS } from "@/lib/serviceLandings";
+
 const LINKS = [
   { href: "/#gallery", label: "Gallery" },
   { href: "/#reviews", label: "Reviews" },
   { href: "/services", label: "Services" },
   { href: "/offers", label: "Specials & Promos" },
+  { href: "/colours", label: "Gel Colours" },
   { href: "/faq", label: "FAQs" },
   { href: "/about", label: "About" },
   { href: "/#contact", label: "Contact" },
@@ -44,6 +47,20 @@ export default function Footer() {
               </a>
             ))}
           </div>
+        </div>
+
+        {/* Popular services (helps people and search engines find every page) */}
+        <div className="max-w-[1180px] mx-auto mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.75rem] text-[#817970]">
+          <span className="text-[#a79a87]">Popular in East London:</span>
+          {SERVICE_LANDINGS.map((service) => (
+            <a
+              key={service.slug}
+              href={"/services/" + service.slug}
+              className="hover:text-[#d6b36a] transition-colors duration-300"
+            >
+              {service.short}
+            </a>
+          ))}
         </div>
 
         {/* Bottom line */}
