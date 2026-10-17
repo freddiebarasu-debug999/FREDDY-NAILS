@@ -1,3 +1,9 @@
-REPLACE ONLY: components/ShapeGuide.js
-Photos are embedded inside this file — no public/shapes upload needed.
-Commit, push, wait for Vercel, hard-refresh.
+Replace these into your repo:
+  components/Hero.js
+  components/HomeServices.js
+  components/TryOnPromo.js
+  components/HomePromoRow.js
+  app/page.js  (if different)
+
+Layout matches the studio mockup:
+  Hero (text left, photo right) → Services cream grid → Try-on dark → Gallery → Promo row
