@@ -562,7 +562,7 @@ export default function AccountPage() {
         <style jsx>{`
           .account-page {
             min-height: 100vh;
-            background: #11100f;
+            background: transparent;
             color: #f4eee6;
             display: flex;
             align-items: center;
@@ -1287,13 +1287,14 @@ export default function AccountPage() {
         .account-page {
           position: relative;
           min-height: 100vh;
-          background: #11100f;
+          background: transparent;
           color: #f4eee6;
           padding: 48px 20px 90px;
           overflow-x: hidden;
         }
 
         .bg-glow {
+          display: none;
           position: absolute;
           border-radius: 50%;
           pointer-events: none;

@@ -37,6 +37,12 @@ export default function ColoursPage() {
 
         <div className="mt-14 text-center">
           <a
+            href="/try-on"
+            className="mr-3 inline-block rounded-full border border-[#d6b36a]/60 px-8 py-3 text-sm font-bold text-[#d6b36a] transition-colors hover:bg-[#d6b36a]/10"
+          >
+            Try it on your hand
+          </a>
+          <a
             href="/account/book"
             className="inline-block rounded-full bg-[#d6b36a] px-8 py-3 text-sm font-bold text-[#11100f] transition-transform hover:scale-105"
           >

@@ -46,6 +46,7 @@ export async function GET(request) {
         start_time,
         end_time,
         deposit_amount,
+        notes,
         payment_status,
         booking_status
         `
@@ -170,6 +171,9 @@ export async function GET(request) {
 
         depositAmount:
           appointment.deposit_amount,
+
+        notes:
+          appointment.notes || "",
 
         clients:
           (clients || []).map(

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import SlotPicker from "@/components/SlotPicker";
+import NailShapeIcon from "@/components/NailShapeIcon";
 
 const DEPOSIT_PER_CLIENT = 90;
 const CLIENT_GAP = 15;
@@ -672,6 +674,30 @@ export default function Booking() {
       }
     } catch (e) {
       // localStorage unavailable: ignore
+    }
+  }, []);
+
+  // Try-on: carry the client's chosen shape and a note into the booking form.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("freddynails_tryon");
+      if (!raw) return;
+      window.localStorage.removeItem("freddynails_tryon");
+      const saved = JSON.parse(raw);
+      const shapeMatch = NAIL_SHAPES.find((item) => item.name === saved.shape);
+      setForm((current) => ({
+        ...current,
+        clientShapes: shapeMatch
+          ? [shapeMatch.name, ...current.clientShapes.slice(1)]
+          : current.clientShapes,
+        notes: saved.note
+          ? current.notes
+            ? current.notes + "\n" + saved.note
+            : saved.note
+          : current.notes,
+      }));
+    } catch (e) {
+      // ignore bad data
     }
   }, []);
 
@@ -2516,12 +2542,20 @@ export default function Booking() {
                                       shape.name
                                     )
                                   }
-                                  className={`px-3 py-3 rounded-md text-left transition-all ${
+                                  className={`px-3 py-3 rounded-md text-center transition-all ${
                                     selected
                                       ? "bg-gold/10 text-gold border border-gold/60"
                                       : "bg-[#181614] border border-white/[0.09] text-[#f4eee6] hover:border-gold/40"
                                   }`}
                                 >
+                                  <span className="mb-2 block">
+                                    <NailShapeIcon
+                                      shape={shape.name}
+                                      selected={selected}
+                                      height={58}
+                                    />
+                                  </span>
+
                                   <span
                                     className={`block text-xs font-bold ${
                                       selected
@@ -2546,126 +2580,20 @@ export default function Booking() {
                         </div>
                       </div>
 
-                      <div className="grid gap-5 sm:grid-cols-2 mt-7">
-                        <label>
-                          <span
-                            className={
-                              labelClass
-                            }
-                          >
-                            Preferred date
-                          </span>
-
-                          <input
-                            type="date"
-                            min={
-                              todayString
-                            }
-                            className={
-                              inputClass
-                            }
-                            value={
-                              form
-                                .clientDates[
-                                clientIndex
-                              ] || ""
-                            }
-                            onChange={(
-                              event
-                            ) =>
-                              updateClientDate(
-                                clientIndex,
-                                event
-                                  .target
-                                  .value
-                              )
-                            }
-                            required
-                          />
-
-                          <p className="text-[0.68rem] text-[#8f877e] mt-2">
-                            Sundays are
-                            unavailable.
-                          </p>
-                        </label>
-
-                        <label>
-                          <span
-                            className={
-                              labelClass
-                            }
-                          >
-                            Available time
-                          </span>
-
-                          <select
-                            className={
-                              inputClass
-                            }
-                            value={
-                              form
-                                .clientTimes[
-                                clientIndex
-                              ] || ""
-                            }
-                            onChange={(
-                              event
-                            ) =>
-                              updateClientTime(
-                                clientIndex,
-                                event
-                                  .target
-                                  .value
-                              )
-                            }
-                            disabled={
-                              !form
-                                .clientDates[
-                                clientIndex
-                              ] ||
-                              loadingAvailability[
-                                clientIndex
-                              ]
-                            }
-                            required
-                          >
-                            <option value="">
-                              {loadingAvailability[
-                                clientIndex
-                              ]
-                                ? "Checking availability..."
-                                : !form
-                                    .clientDates[
-                                    clientIndex
-                                  ]
-                                ? "Choose a date first"
-                                : times.length ===
-                                  0
-                                ? "No times available"
-                                : "Choose a time"}
-                            </option>
-
-                            {times.map(
-                              (
-                                time
-                              ) => (
-                                <option
-                                  key={
-                                    time
-                                  }
-                                  value={
-                                    time
-                                  }
-                                >
-                                  {formatTime(
-                                    time
-                                  )}
-                                </option>
-                              )
-                            )}
-                          </select>
-                        </label>
-                      </div>
+                      <SlotPicker
+                        date={form.clientDates[clientIndex] || ""}
+                        time={form.clientTimes[clientIndex] || ""}
+                        times={times}
+                        loading={Boolean(loadingAvailability[clientIndex])}
+                        duration={clientDurations[clientIndex] || 0}
+                        minDate={todayString}
+                        onDate={(value) =>
+                          updateClientDate(clientIndex, value)
+                        }
+                        onTime={(value) =>
+                          updateClientTime(clientIndex, value)
+                        }
+                      />
 
                       {availabilityErrors[
                         clientIndex
