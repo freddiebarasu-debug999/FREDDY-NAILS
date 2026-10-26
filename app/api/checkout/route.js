@@ -1,6 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { createClient } from "@supabase/supabase-js";
+import {
+  findFreeSetCode,
+  checkFreeSetCode,
+} from "@/lib/freeSetCodes";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -98,6 +102,17 @@ const BUILT_IN_PROMOS = {
     description: "Birthday special — R50 off",
     active: true,
     new_clients_only: false,
+  },
+
+  // Complimentary set — deposit waived (social thank-you / free set)
+  FREESET: {
+    code: "FREESET",
+    discount_type: "fixed",
+    discount_value: 0,
+    description: "Complimentary set — booking deposit waived",
+    active: true,
+    new_clients_only: false,
+    waive_deposit: true,
   },
 };
 
@@ -787,7 +802,23 @@ export async function POST(request) {
     |--------------------------------------------------------------------------
     */
 
+    let freeSetCodeId = null;
+
     if (typeof promoCode === "string" && promoCode.trim()) {
+      // Personal single-use free-set codes (Supabase free_set_codes)
+      const { row: freeRow } = await findFreeSetCode(supabase, promoCode);
+      if (freeRow) {
+        const freeCheck = checkFreeSetCode(freeRow);
+        if (!freeCheck.valid) {
+          return Response.json(
+            { error: freeCheck.error || "That code isn't valid." },
+            { status: 400 }
+          );
+        }
+        freeSetCodeId = freeRow.id;
+        appliedPromoCode = normalizePromoCode(freeRow.code);
+        // No service discount; deposit waived below via freeSetCodeId
+      } else {
       const promo = await getPromo(promoCode);
 
       if (!promo || !promo.active) {
@@ -832,14 +863,26 @@ export async function POST(request) {
       serviceDiscountAmount = discount.discountAmount;
 
       appliedPromoCode = normalizedPromoCode;
+      } // end normal promo branch
     }
 
     /*
-     * IMPORTANT:
-     * The deposit is NEVER discounted.
-     * It remains R90 per client.
+     * Deposit is R90 per client unless:
+     * - a personal free_set_codes entry is used, or
+     * - a built-in promo has waive_deposit (e.g. FREESET)
      */
-    const depositAmount = DEPOSIT_PER_CLIENT * clientCount;
+    const appliedPromoRow =
+      !freeSetCodeId && appliedPromoCode
+        ? await getPromo(appliedPromoCode)
+        : null;
+
+    const depositWaived =
+      Boolean(freeSetCodeId) ||
+      appliedPromoRow?.waive_deposit === true;
+
+    const depositAmount = depositWaived
+      ? 0
+      : DEPOSIT_PER_CLIENT * clientCount;
 
     const serviceSummary = clientServices
       .map(
@@ -856,9 +899,9 @@ export async function POST(request) {
 
     const parentDuration = clientDurations[0];
 
-    const expiresAt = new Date(
-      Date.now() + 15 * 60 * 1000
-    ).toISOString();
+    const expiresAt = depositWaived
+      ? null
+      : new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
     const appointmentInsert = {
       customer_name: name,
@@ -870,10 +913,10 @@ export async function POST(request) {
       start_time: parentStartTime,
       end_time: parentEndTime,
       duration_minutes: parentDuration,
-      deposit_per_client: DEPOSIT_PER_CLIENT,
+      deposit_per_client: depositWaived ? 0 : DEPOSIT_PER_CLIENT,
       deposit_amount: depositAmount,
-      payment_status: "pending",
-      booking_status: "pending",
+      payment_status: depositWaived ? "paid" : "pending",
+      booking_status: depositWaived ? "confirmed" : "pending",
       expires_at: expiresAt,
       notes: notes || null,
       profile_id: profileId,
@@ -944,7 +987,95 @@ export async function POST(request) {
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
 
-    const successUrl = profileId
+        // Complimentary promo: no deposit — confirm immediately (skip Yoco)
+    if (depositWaived) {
+      await supabase
+        .from("appointment_clients")
+        .update({ booking_status: "confirmed" })
+        .eq("appointment_id", appointmentId);
+
+      let calendarEventId = null;
+      try {
+        const { createGoogleCalendarEvent } = await import(
+          "@/lib/google-calendar"
+        );
+        const calendarResult = await createGoogleCalendarEvent({
+          id: appointmentId,
+          customer_name: name,
+          customer_phone: phone,
+          customer_email: email,
+          service_name: serviceSummary,
+          client_count: clientCount,
+          booking_date: clientDates[0],
+          start_time: parentStartTime,
+          end_time: parentEndTime,
+          duration_minutes: parentDuration,
+          notes: notes || null,
+          deposit_amount: 0,
+          payment_status: "paid",
+          booking_status: "confirmed",
+          promo_code: appliedPromoCode,
+        });
+        calendarEventId = calendarResult?.eventId || null;
+      } catch (calendarError) {
+        console.error(
+          "Calendar error on complimentary booking:",
+          calendarError
+        );
+      }
+
+      try {
+        const {
+          sendOwnerNotification,
+          sendCustomerConfirmation,
+        } = await import("@/lib/booking-emails");
+        const appointmentPayload = {
+          id: appointmentId,
+          customer_name: name,
+          customer_phone: phone,
+          customer_email: email,
+          service_name: serviceSummary,
+          client_count: clientCount,
+          booking_date: clientDates[0],
+          start_time: parentStartTime,
+          end_time: parentEndTime,
+          duration_minutes: parentDuration,
+          notes: notes || null,
+          deposit_amount: 0,
+          payment_status: "paid",
+          booking_status: "confirmed",
+          promo_code: appliedPromoCode,
+          google_event_id: calendarEventId,
+        };
+        await Promise.allSettled([
+          sendOwnerNotification(appointmentPayload),
+          sendCustomerConfirmation(appointmentPayload),
+        ]);
+      } catch (emailError) {
+        console.error(
+          "Email error on complimentary booking:",
+          emailError
+        );
+      }
+
+      const freeSuccessUrl = profileId
+        ? `${baseUrl}/account?booking=success&appointment=${appointmentId}`
+        : `${baseUrl}/?booking=success&appointment=${appointmentId}#booking`;
+
+      return Response.json({
+        redirectUrl: freeSuccessUrl,
+        appointmentId,
+        serviceTotalAmount,
+        discountAmount: serviceDiscountAmount,
+        discountedServiceTotal,
+        promoCode: appliedPromoCode,
+        depositAmount: 0,
+        yocoAmount: 0,
+        depositWaived: true,
+      });
+    }
+
+const successUrl = profileId
       ? `${baseUrl}/account?booking=success&appointment=${appointmentId}`
       : `${baseUrl}/?booking=success&appointment=${appointmentId}#booking`;
 

@@ -1,6 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { createClient } from "@supabase/supabase-js";
+import {
+  findFreeSetCode,
+  checkFreeSetCode,
+} from "@/lib/freeSetCodes";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -58,6 +62,15 @@ const BUILT_IN_PROMOS = {
     description: "Birthday special — R50 off",
     active: true,
     new_clients_only: false,
+  },
+  FREESET: {
+    code: "FREESET",
+    discount_type: "fixed",
+    discount_value: 0,
+    description: "Complimentary set — deposit waived",
+    active: true,
+    new_clients_only: false,
+    waive_deposit: true,
   },
 };
 
@@ -373,6 +386,36 @@ export async function GET(request) {
         },
         { status: 400 }
       );
+    }
+
+    // Personal single-use free-set codes
+    const { row: freeRow } = await findFreeSetCode(
+      supabase,
+      normalizedCode
+    );
+    if (freeRow) {
+      const freeCheck = checkFreeSetCode(freeRow);
+      if (!freeCheck.valid) {
+        return Response.json(
+          {
+            valid: false,
+            error: freeCheck.error || "That code isn't valid.",
+          },
+          { status: 400 }
+        );
+      }
+      return Response.json({
+        valid: true,
+        code: normalizePromoCode(freeRow.code),
+        discountType: "fixed",
+        discountValue: 0,
+        description:
+          freeRow.client_name
+            ? `Complimentary set for ${freeRow.client_name} — deposit waived`
+            : "Complimentary set — deposit waived",
+        waiveDeposit: true,
+        freeSet: true,
+      });
     }
 
     const promo = await getPromo(normalizedCode);

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import BookingCalendar from "@/components/BookingCalendar";
+import SlotPicker from "@/components/SlotPicker";
+import NailShapeIcon from "@/components/NailShapeIcon";
 
 const DEPOSIT_PER_CLIENT = 90;
 const CLIENT_GAP = 15;
@@ -95,48 +96,28 @@ const SERVICE_OPTIONS =
 
 const NAIL_SHAPES = [
   {
-    name: "Oval",
-    desc: "Rounded tip, classic & soft",
-    radius: "40% 40% 45% 45% / 18% 18% 55% 55%",
-    height: 48,
-    width: 26,
+    name: "Almond",
+    desc: "Tapered, rounded tip",
   },
   {
     name: "Square",
     desc: "Flat edge, sharp corners",
-    radius: "8px 8px 5px 5px",
-    height: 44,
-    width: 26,
   },
   {
     name: "Squoval",
     desc: "Square with soft corners",
-    radius: "10px 10px 12px 12px",
-    height: 46,
-    width: 26,
   },
   {
-    name: "Almond",
-    desc: "Tapered, rounded tip",
-    radius: "50% 50% 40% 40% / 12% 12% 60% 60%",
-    height: 54,
-    width: 24,
+    name: "Oval",
+    desc: "Rounded, classic",
   },
   {
     name: "Coffin",
-    desc: "Tapered, squared tip (Ballerina)",
-    radius: "6px 6px 3px 3px",
-    clip: "polygon(18% 0%, 82% 0%, 100% 28%, 92% 100%, 8% 100%, 0% 28%)",
-    height: 56,
-    width: 24,
+    desc: "Tapered, squared tip",
   },
   {
     name: "Stiletto",
     desc: "Long, sharp point",
-    radius: "50% 50% 30% 30% / 8% 8% 55% 55%",
-    clip: "polygon(38% 0%, 62% 0%, 100% 30%, 90% 100%, 10% 100%, 0% 30%)",
-    height: 60,
-    width: 22,
   },
 ];
 
@@ -446,9 +427,12 @@ export default function Booking() {
         discountedServiceTotal
     );
 
-  const depositAmount =
-    clientCount *
-    DEPOSIT_PER_CLIENT;
+  const depositWaived =
+    appliedPromo?.waiveDeposit === true;
+
+  const depositAmount = depositWaived
+    ? 0
+    : clientCount * DEPOSIT_PER_CLIENT;
 
   /*
    * Applies both built-in Freddy Nails
@@ -503,6 +487,15 @@ export default function Booking() {
           discountValue: 50,
           description:
             "R50 birthday discount",
+        },
+
+        FREESET: {
+          code: "FREESET",
+          discountType: "fixed",
+          discountValue: 0,
+          description:
+            "Complimentary set — deposit waived",
+          waiveDeposit: true,
         },
       };
 
@@ -693,6 +686,30 @@ export default function Booking() {
       }
     } catch (e) {
       // localStorage unavailable: ignore
+    }
+  }, []);
+
+  // Try-on: carry the client's chosen shape and a note into the booking form.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("freddynails_tryon");
+      if (!raw) return;
+      window.localStorage.removeItem("freddynails_tryon");
+      const saved = JSON.parse(raw);
+      const shapeMatch = NAIL_SHAPES.find((item) => item.name === saved.shape);
+      setForm((current) => ({
+        ...current,
+        clientShapes: shapeMatch
+          ? [shapeMatch.name, ...current.clientShapes.slice(1)]
+          : current.clientShapes,
+        notes: saved.note
+          ? current.notes
+            ? current.notes + "\n" + saved.note
+            : saved.note
+          : current.notes,
+      }));
+    } catch (e) {
+      // ignore bad data
     }
   }, []);
 
@@ -2537,55 +2554,36 @@ export default function Booking() {
                                       shape.name
                                     )
                                   }
-                                  className={`px-3 py-3 rounded-md text-left transition-all ${
+                                  className={`px-3 py-3 rounded-md text-center transition-all ${
                                     selected
                                       ? "bg-gold/10 text-gold border border-gold/60"
                                       : "bg-[#181614] border border-white/[0.09] text-[#f4eee6] hover:border-gold/40"
                                   }`}
                                 >
-                                  <span className="flex items-center gap-3">
-                                    <span
-                                      className="relative flex-shrink-0 overflow-hidden"
-                                      style={{
-                                        width: shape.width || 26,
-                                        height: shape.height || 48,
-                                        background:
-                                          "linear-gradient(180deg, #E8D0C4 0%, #D9B9AB 35%, #CFA898 70%, #C49A8A 100%)",
-                                        borderRadius: shape.radius,
-                                        clipPath: shape.clip,
-                                        boxShadow:
-                                          "inset 0 1px 2px rgba(255,255,255,0.65), inset 0 -4px 8px rgba(140,100,85,0.22), 0 4px 10px rgba(0,0,0,0.3)",
-                                      }}
-                                      aria-hidden="true"
-                                    >
-                                      <span
-                                        className="absolute left-[16%] top-[12%] h-[55%] w-[36%] rounded-full"
-                                        style={{
-                                          background:
-                                            "linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.2) 55%, transparent 100%)",
-                                          filter: "blur(1px)",
-                                          transform: "rotate(-6deg)",
-                                        }}
-                                      />
-                                    </span>
-                                    <span>
-                                      <span
-                                        className={`block text-xs font-bold ${
-                                          selected
-                                            ? "text-gold"
-                                            : "text-[#f4eee6]"
-                                        }`}
-                                      >
-                                        {
-                                          shape.name
-                                        }
-                                      </span>
-                                      <span className="block text-[0.68rem] text-[#9f978f] mt-1">
-                                        {
-                                          shape.desc
-                                        }
-                                      </span>
-                                    </span>
+                                  <span className="mb-2 block">
+                                    <NailShapeIcon
+                                      shape={shape.name}
+                                      selected={selected}
+                                      height={58}
+                                    />
+                                  </span>
+
+                                  <span
+                                    className={`block text-xs font-bold ${
+                                      selected
+                                        ? "text-gold"
+                                        : "text-[#f4eee6]"
+                                    }`}
+                                  >
+                                    {
+                                      shape.name
+                                    }
+                                  </span>
+
+                                  <span className="block text-[0.68rem] text-[#9f978f] mt-1">
+                                    {
+                                      shape.desc
+                                    }
                                   </span>
                                 </button>
                               );
@@ -2594,115 +2592,20 @@ export default function Booking() {
                         </div>
                       </div>
 
-                      <div className="mt-7">
-                        <span
-                          className={
-                            labelClass
-                          }
-                        >
-                          Preferred date
-                        </span>
-                        <div className="mt-2">
-                          <BookingCalendar
-                            value={
-                              form
-                                .clientDates[
-                                clientIndex
-                              ] || ""
-                            }
-                            todayString={
-                              todayString
-                            }
-                            onChange={(
-                              date
-                            ) =>
-                              updateClientDate(
-                                clientIndex,
-                                date
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid gap-5 sm:grid-cols-2 mt-5">
-                        <label className="sm:col-span-2 sm:max-w-sm">
-                          <span
-                            className={
-                              labelClass
-                            }
-                          >
-                            Available time
-                          </span>
-
-                          <select
-                            className={
-                              inputClass
-                            }
-                            value={
-                              form
-                                .clientTimes[
-                                clientIndex
-                              ] || ""
-                            }
-                            onChange={(
-                              event
-                            ) =>
-                              updateClientTime(
-                                clientIndex,
-                                event
-                                  .target
-                                  .value
-                              )
-                            }
-                            disabled={
-                              !form
-                                .clientDates[
-                                clientIndex
-                              ] ||
-                              loadingAvailability[
-                                clientIndex
-                              ]
-                            }
-                            required
-                          >
-                            <option value="">
-                              {loadingAvailability[
-                                clientIndex
-                              ]
-                                ? "Checking availability..."
-                                : !form
-                                    .clientDates[
-                                    clientIndex
-                                  ]
-                                ? "Choose a date first"
-                                : times.length ===
-                                  0
-                                ? "No times available"
-                                : "Choose a time"}
-                            </option>
-
-                            {times.map(
-                              (
-                                time
-                              ) => (
-                                <option
-                                  key={
-                                    time
-                                  }
-                                  value={
-                                    time
-                                  }
-                                >
-                                  {formatTime(
-                                    time
-                                  )}
-                                </option>
-                              )
-                            )}
-                          </select>
-                        </label>
-                      </div>
+                      <SlotPicker
+                        date={form.clientDates[clientIndex] || ""}
+                        time={form.clientTimes[clientIndex] || ""}
+                        times={times}
+                        loading={Boolean(loadingAvailability[clientIndex])}
+                        duration={clientDurations[clientIndex] || 0}
+                        minDate={todayString}
+                        onDate={(value) =>
+                          updateClientDate(clientIndex, value)
+                        }
+                        onTime={(value) =>
+                          updateClientTime(clientIndex, value)
+                        }
+                      />
 
                       {availabilityErrors[
                         clientIndex
@@ -2955,20 +2858,21 @@ export default function Booking() {
                 </span>
 
                 <span className="text-xs text-[#8f877e]">
-                  R90 per client
+                  {depositWaived
+                    ? "Deposit waived"
+                    : "R90 per client"}
                 </span>
               </div>
 
               <strong className="font-serif text-2xl text-gold">
-                R{depositAmount}
+                {depositWaived ? "R0" : `R${depositAmount}`}
               </strong>
             </div>
 
             <div className="text-xs text-[#8f877e] leading-relaxed">
-              The booking deposit is separate
-              from your service total and remains
-              R90 per client even when a promo
-              code is applied.
+              {depositWaived
+                ? "This code waives the booking deposit. Choose your slot and confirm — no payment is required now."
+                : "The booking deposit is separate from your service total and remains R90 per client even when a promo code is applied."}
             </div>
           </div>
 
@@ -2978,14 +2882,18 @@ export default function Booking() {
             className="flex items-center justify-center gap-2.5 w-full bg-gold text-[#11100f] py-4 rounded-sm font-bold uppercase tracking-wide text-[0.85rem] hover:bg-gold-bright transition-colors disabled:opacity-50 mt-7"
           >
             {submitting
-              ? "Preparing secure payment..."
-              : `Pay R${depositAmount} deposit`}
+              ? depositWaived
+                ? "Confirming your booking..."
+                : "Preparing secure payment..."
+              : depositWaived
+                ? "Confirm free booking"
+                : `Pay R${depositAmount} deposit`}
           </button>
 
           <p className="text-xs text-[#8f877e] text-center mt-3">
-            You&apos;ll be securely redirected
-            to Yoco to pay your R90-per-client
-            booking deposit.
+            {depositWaived
+              ? "No deposit is due. Your appointment is reserved when you confirm."
+              : "You'll be securely redirected to Yoco to pay your R90-per-client booking deposit."}
           </p>
         </form>
       </div>
