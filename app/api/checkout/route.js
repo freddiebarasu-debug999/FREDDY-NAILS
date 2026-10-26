@@ -899,10 +899,14 @@ export async function POST(request) {
 
     const parentDuration = clientDurations[0];
 
+    // Complimentary: long expiry so cleanup jobs do not cancel it.
+    // Paid pending holds still expire in 15 minutes.
     const expiresAt = depositWaived
-      ? null
+      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
       : new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
+    // Insert as pending first (matches normal booking constraints),
+    // then mark paid/confirmed when the deposit is waived.
     const appointmentInsert = {
       customer_name: name,
       customer_phone: phone,
@@ -915,8 +919,8 @@ export async function POST(request) {
       duration_minutes: parentDuration,
       deposit_per_client: depositWaived ? 0 : DEPOSIT_PER_CLIENT,
       deposit_amount: depositAmount,
-      payment_status: depositWaived ? "paid" : "pending",
-      booking_status: depositWaived ? "confirmed" : "pending",
+      payment_status: "pending",
+      booking_status: "pending",
       expires_at: expiresAt,
       notes: notes || null,
       profile_id: profileId,
@@ -943,15 +947,39 @@ export async function POST(request) {
         );
       }
 
+      const hint =
+        appointmentError.message ||
+        appointmentError.details ||
+        appointmentError.hint ||
+        appointmentError.code ||
+        "";
+
       return Response.json(
         {
-          error: "Unable to reserve the booking.",
+          error: hint
+            ? "Unable to reserve the booking. (" + hint + ")"
+            : "Unable to reserve the booking.",
         },
         { status: 500 }
       );
     }
 
     appointmentId = appointment.id;
+
+    if (depositWaived) {
+      const { error: confirmError } = await supabase
+        .from("appointments")
+        .update({
+          payment_status: "paid",
+          booking_status: "confirmed",
+        })
+        .eq("id", appointmentId);
+
+      if (confirmError) {
+        console.error("Free-set confirm update error:", confirmError);
+        // Keep the reservation; calendar/emails still run below
+      }
+    }
 
     const clientRows = clientServices.map((services, index) => ({
       appointment_id: appointmentId,
@@ -961,7 +989,7 @@ export async function POST(request) {
       start_time: clientStartTimes[index],
       end_time: clientEndTimes[index],
       duration_minutes: clientDurations[index],
-      booking_status: "pending",
+      booking_status: depositWaived ? "confirmed" : "pending",
     }));
 
     const { error: clientInsertError } = await supabase
