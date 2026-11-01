@@ -186,7 +186,7 @@ export async function POST(request) {
     if (appointment.google_event_id) {
       try {
         await deleteGoogleCalendarEvent(
-          appointment.google_event_id
+          appointment
         );
       } catch (calendarError) {
         /*

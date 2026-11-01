@@ -1,6 +1,13 @@
 export const dynamic = "force-dynamic";
 
 import { createClient } from "@supabase/supabase-js";
+import {
+  OPEN_MINUTES,
+  CLOSE_MINUTES,
+  SLOT_INTERVAL,
+  BUFFER_MINUTES,
+  MAX_CLIENTS_PER_DAY,
+} from "@/lib/bookingRules";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -13,9 +20,6 @@ const supabase = createClient(
   }
 );
 
-const OPEN_MINUTES = 9 * 60 + 30;
-const CLOSE_MINUTES = 17 * 60 + 30;
-const SLOT_INTERVAL = 15;
 
 function timeToMinutes(time) {
   const [hours, minutes] = time
@@ -220,11 +224,17 @@ export async function GET(request) {
 
     const availableTimes = [];
 
+    // A day with the maximum number of clients is full.
+    const dayIsFull =
+      (bookedClients || []).length >=
+      MAX_CLIENTS_PER_DAY;
+
     /*
      * Check every 15-minute start time.
      */
     for (
       let start = OPEN_MINUTES;
+      !dayIsFull &&
       start + duration <= CLOSE_MINUTES;
       start += SLOT_INTERVAL
     ) {
@@ -247,10 +257,11 @@ export async function GET(request) {
                 booking.end_time
               );
 
+            // Keep a 15-minute gap before and after every booking.
             return (
               proposedStart <
-                bookedEnd &&
-              proposedEnd >
+                bookedEnd + BUFFER_MINUTES &&
+              proposedEnd + BUFFER_MINUTES >
                 bookedStart
             );
           }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { bookingRef } from "@/lib/bookingRef";
 
 const WHATSAPP_NUMBER = "27710888897";
 
@@ -59,6 +60,10 @@ function buildMessage(booking) {
         (date ? " for " + formatDate(date) : "") +
         (time ? " at " + formatTime(time) : "") + "."
     );
+  }
+
+  if (booking.id) {
+    lines.push("Booking reference: " + bookingRef(booking.id));
   }
 
   const notes = String(booking.notes || "").trim();
@@ -203,6 +208,20 @@ export default function BookingSuccessPopup() {
             <p className="mt-2 text-xs leading-relaxed text-[#9f978f]">
               Can&apos;t see it? Look in your spam or promotions folder.
             </p>
+
+            {booking && booking.id && (
+              <div className="mt-5 rounded-xl border border-[#d6b36a]/30 bg-[#d6b36a]/10 px-4 py-3">
+                <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[#d6b36a]">
+                  Booking reference
+                </p>
+                <p className="mt-1 font-serif text-2xl tracking-widest text-[#f4eee6]">
+                  {bookingRef(booking.id)}
+                </p>
+                <p className="mt-1 text-[0.7rem] text-[#9f978f]">
+                  Keep this as proof of your booking.
+                </p>
+              </div>
+            )}
 
             <button
               ref={primaryRef}

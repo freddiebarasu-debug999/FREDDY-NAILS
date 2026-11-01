@@ -427,12 +427,13 @@ export default function Booking() {
         discountedServiceTotal
     );
 
-  const depositWaived =
-    appliedPromo?.waiveDeposit === true;
+  // A personal free-set code waives the deposit completely.
+  const isFreeSet = Boolean(appliedPromo?.freeSet);
 
-  const depositAmount = depositWaived
+  const depositAmount = isFreeSet
     ? 0
-    : clientCount * DEPOSIT_PER_CLIENT;
+    : clientCount *
+      DEPOSIT_PER_CLIENT;
 
   /*
    * Applies both built-in Freddy Nails
@@ -487,15 +488,6 @@ export default function Booking() {
           discountValue: 50,
           description:
             "R50 birthday discount",
-        },
-
-        FREESET: {
-          code: "FREESET",
-          discountType: "fixed",
-          discountValue: 0,
-          description:
-            "Complimentary set — deposit waived",
-          waiveDeposit: true,
         },
       };
 
@@ -2858,20 +2850,20 @@ export default function Booking() {
                 </span>
 
                 <span className="text-xs text-[#8f877e]">
-                  {depositWaived
-                    ? "Deposit waived"
+                  {isFreeSet
+                    ? "Waived with your free set code"
                     : "R90 per client"}
                 </span>
               </div>
 
               <strong className="font-serif text-2xl text-gold">
-                {depositWaived ? "R0" : `R${depositAmount}`}
+                R{depositAmount}
               </strong>
             </div>
 
             <div className="text-xs text-[#8f877e] leading-relaxed">
-              {depositWaived
-                ? "This code waives the booking deposit. Choose your slot and confirm — no payment is required now."
+              {isFreeSet
+                ? "Your free set code covers this booking. No payment is needed, and your slot is confirmed as soon as you tap the button below."
                 : "The booking deposit is separate from your service total and remains R90 per client even when a promo code is applied."}
             </div>
           </div>
@@ -2882,17 +2874,17 @@ export default function Booking() {
             className="flex items-center justify-center gap-2.5 w-full bg-gold text-[#11100f] py-4 rounded-sm font-bold uppercase tracking-wide text-[0.85rem] hover:bg-gold-bright transition-colors disabled:opacity-50 mt-7"
           >
             {submitting
-              ? depositWaived
+              ? isFreeSet
                 ? "Confirming your booking..."
                 : "Preparing secure payment..."
-              : depositWaived
-                ? "Confirm free booking"
-                : `Pay R${depositAmount} deposit`}
+              : isFreeSet
+              ? "Confirm my free set"
+              : `Pay R${depositAmount} deposit`}
           </button>
 
           <p className="text-xs text-[#8f877e] text-center mt-3">
-            {depositWaived
-              ? "No deposit is due. Your appointment is reserved when you confirm."
+            {isFreeSet
+              ? "No payment is taken with a free set code."
               : "You'll be securely redirected to Yoco to pay your R90-per-client booking deposit."}
           </p>
         </form>

@@ -5,8 +5,6 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
-import ShapeGuide from "@/components/ShapeGuide";
-import ColourPalette from "@/components/ColourPalette";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 import ChatBot from "./ChatBot";
@@ -78,20 +76,6 @@ export default function Home() {
           <Gallery />
         </Reveal>
       </div>
-
-      <div className="h-px max-w-[1180px] mx-auto bg-line" />
-
-      {/* Shape guide */}
-      <Reveal>
-        <ShapeGuide />
-      </Reveal>
-
-      <div className="h-px max-w-[1180px] mx-auto bg-line" />
-
-      {/* Gel colour inspiration */}
-      <Reveal>
-        <ColourPalette />
-      </Reveal>
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
 

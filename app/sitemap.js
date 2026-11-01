@@ -1,9 +1,7 @@
+import { SERVICE_LANDINGS } from "@/lib/serviceLandings";
+
 const SITE_URL = "https://freddynails.co.za";
 
-/**
- * Expanded sitemap for local visibility (Fresha / GoDaddy-style coverage).
- * Include every public page clients and Google should discover.
- */
 export default function sitemap() {
   const lastModified = new Date();
 
@@ -18,25 +16,25 @@ export default function sitemap() {
       url: `${SITE_URL}/services`,
       lastModified,
       changeFrequency: "monthly",
-      priority: 0.95,
+      priority: 0.9,
     },
     {
-      url: `${SITE_URL}/shape-guide`,
+      url: `${SITE_URL}/try-on`,
       lastModified,
       changeFrequency: "monthly",
-      priority: 0.85,
+      priority: 0.7,
     },
     {
-      url: `${SITE_URL}/offers`,
+      url: `${SITE_URL}/colours`,
       lastModified,
-      changeFrequency: "weekly",
-      priority: 0.8,
+      changeFrequency: "monthly",
+      priority: 0.7,
     },
     {
       url: `${SITE_URL}/faq`,
       lastModified,
       changeFrequency: "monthly",
-      priority: 0.75,
+      priority: 0.8,
     },
     {
       url: `${SITE_URL}/about`,
@@ -45,16 +43,16 @@ export default function sitemap() {
       priority: 0.7,
     },
     {
-      url: `${SITE_URL}/privacy`,
+      url: `${SITE_URL}/offers`,
       lastModified,
-      changeFrequency: "yearly",
-      priority: 0.3,
+      changeFrequency: "weekly",
+      priority: 0.6,
     },
-    {
-      url: `${SITE_URL}/terms`,
+    ...SERVICE_LANDINGS.map((service) => ({
+      url: `${SITE_URL}/services/${service.slug}`,
       lastModified,
-      changeFrequency: "yearly",
-      priority: 0.3,
-    },
+      changeFrequency: "monthly",
+      priority: 0.8,
+    })),
   ];
 }

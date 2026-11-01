@@ -63,15 +63,6 @@ const BUILT_IN_PROMOS = {
     active: true,
     new_clients_only: false,
   },
-  FREESET: {
-    code: "FREESET",
-    discount_type: "fixed",
-    discount_value: 0,
-    description: "Complimentary set — deposit waived",
-    active: true,
-    new_clients_only: false,
-    waive_deposit: true,
-  },
 };
 
 /*
@@ -388,32 +379,27 @@ export async function GET(request) {
       );
     }
 
-    // Personal single-use free-set codes
-    const { row: freeRow } = await findFreeSetCode(
-      supabase,
-      normalizedCode
-    );
-    if (freeRow) {
-      const freeCheck = checkFreeSetCode(freeRow);
+    // Personal "free set" codes (no deposit, free set) are checked first.
+    const freeLookup = await findFreeSetCode(supabase, normalizedCode);
+
+    if (freeLookup.row) {
+      const freeCheck = checkFreeSetCode(freeLookup.row);
+
       if (!freeCheck.valid) {
         return Response.json(
-          {
-            valid: false,
-            error: freeCheck.error || "That code isn't valid.",
-          },
+          { valid: false, error: freeCheck.error },
           { status: 400 }
         );
       }
+
       return Response.json({
         valid: true,
-        code: normalizePromoCode(freeRow.code),
-        discountType: "fixed",
-        discountValue: 0,
+        code: normalizedCode,
+        discountType: "percent",
+        discountValue: 100,
         description:
-          freeRow.client_name
-            ? `Complimentary set for ${freeRow.client_name} — deposit waived`
-            : "Complimentary set — deposit waived",
-        waiveDeposit: true,
+          "Free set code applied. No deposit is needed, so your slot is confirmed straight away.",
+        newClientsOnly: false,
         freeSet: true,
       });
     }

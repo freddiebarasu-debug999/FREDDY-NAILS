@@ -2,8 +2,22 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from "@supabase/supabase-js";
 import {
+  OPEN_MINUTES,
+  CLOSE_MINUTES,
+  MAX_CLIENTS_PER_DAY,
+  clashesWithBuffer,
+} from "@/lib/bookingRules";
+import { createGoogleCalendarEvent } from "@/lib/google-calendar";
+import {
+  sendOwnerNotification,
+  sendCustomerConfirmation,
+} from "@/lib/booking-emails";
+import {
   findFreeSetCode,
   checkFreeSetCode,
+  claimFreeSetCode,
+  releaseFreeSetCodeById,
+  releaseFreeSetCodeByAppointment,
 } from "@/lib/freeSetCodes";
 
 const supabaseUrl =
@@ -34,8 +48,6 @@ const DEPOSIT_PER_CLIENT = 90;
 const MAX_CLIENTS = 4;
 const MAX_SERVICES_PER_CLIENT = 4;
 
-const OPEN_MINUTES = 9 * 60 + 30;
-const CLOSE_MINUTES = 17 * 60 + 30;
 
 const SERVICE_OPTIONS = {
   "Acrylic — Plain Short–Medium (R200)": 90,
@@ -102,17 +114,6 @@ const BUILT_IN_PROMOS = {
     description: "Birthday special — R50 off",
     active: true,
     new_clients_only: false,
-  },
-
-  // Complimentary set — deposit waived (social thank-you / free set)
-  FREESET: {
-    code: "FREESET",
-    discount_type: "fixed",
-    discount_value: 0,
-    description: "Complimentary set — booking deposit waived",
-    active: true,
-    new_clients_only: false,
-    waive_deposit: true,
   },
 };
 
@@ -501,6 +502,9 @@ async function cancelAppointment(appointmentId) {
       booking_status: "cancelled",
     })
     .eq("id", appointmentId);
+
+  // If this booking used a free-set code, give the code back.
+  await releaseFreeSetCodeByAppointment(supabase, appointmentId);
 }
 
 export async function POST(request) {
@@ -788,6 +792,48 @@ export async function POST(request) {
 
     await cancelExpiredPendingBookings();
 
+    /*
+     * Final safety check, so nobody can book a time that breaks the rules:
+     * a 15-minute gap between clients, and a daily maximum.
+     */
+    for (const checkDate of [...new Set(clientDates)]) {
+      const { data: existingForDate } = await supabase
+        .from("appointment_clients")
+        .select("start_time, end_time")
+        .eq("booking_date", checkDate)
+        .in("booking_status", ["pending", "confirmed"]);
+
+      const booked = (existingForDate || []).map((row) => ({
+        start: timeToMinutes(row.start_time),
+        end: timeToMinutes(row.end_time),
+      }));
+
+      const newForDate = clientDates.filter((d) => d === checkDate).length;
+
+      if (booked.length + newForDate > MAX_CLIENTS_PER_DAY) {
+        return Response.json(
+          { error: "Freddy Nails is fully booked on that day. Please choose another date." },
+          { status: 409 }
+        );
+      }
+
+      for (let i = 0; i < clientCount; i++) {
+        if (clientDates[i] !== checkDate) continue;
+
+        const startMin = timeToMinutes(clientStartTimes[i]);
+        const endMin = timeToMinutes(clientEndTimes[i]);
+
+        if (clashesWithBuffer(startMin, endMin, booked)) {
+          return Response.json(
+            {
+              error: `Client ${i + 1}'s time is no longer available. Please choose another time.`,
+            },
+            { status: 409 }
+          );
+        }
+      }
+    }
+
     const serviceTotalAmount = calculateServiceTotal(clientServices);
 
     let discountedServiceTotal = serviceTotalAmount;
@@ -802,23 +848,30 @@ export async function POST(request) {
     |--------------------------------------------------------------------------
     */
 
-    let freeSetCodeId = null;
+    let freeSetRow = null;
 
     if (typeof promoCode === "string" && promoCode.trim()) {
-      // Personal single-use free-set codes (Supabase free_set_codes)
-      const { row: freeRow } = await findFreeSetCode(supabase, promoCode);
-      if (freeRow) {
-        const freeCheck = checkFreeSetCode(freeRow);
+      const freeLookup = await findFreeSetCode(supabase, promoCode);
+
+      if (freeLookup.row) {
+        const freeCheck = checkFreeSetCode(freeLookup.row);
+
         if (!freeCheck.valid) {
           return Response.json(
-            { error: freeCheck.error || "That code isn't valid." },
+            { error: freeCheck.error },
             { status: 400 }
           );
         }
-        freeSetCodeId = freeRow.id;
-        appliedPromoCode = normalizePromoCode(freeRow.code);
-        // No service discount; deposit waived below via freeSetCodeId
-      } else {
+
+        freeSetRow = freeLookup.row;
+      }
+    }
+
+    if (
+      !freeSetRow &&
+      typeof promoCode === "string" &&
+      promoCode.trim()
+    ) {
       const promo = await getPromo(promoCode);
 
       if (!promo || !promo.active) {
@@ -863,24 +916,31 @@ export async function POST(request) {
       serviceDiscountAmount = discount.discountAmount;
 
       appliedPromoCode = normalizedPromoCode;
-      } // end normal promo branch
+    }
+
+    // Free-set code: claim it now so it can only ever be used once.
+    if (freeSetRow) {
+      const claimed = await claimFreeSetCode(supabase, freeSetRow);
+
+      if (!claimed) {
+        return Response.json(
+          { error: "That code has already been used." },
+          { status: 400 }
+        );
+      }
+
+      appliedPromoCode = normalizePromoCode(freeSetRow.code);
+      discountedServiceTotal = 0;
+      serviceDiscountAmount = serviceTotalAmount;
     }
 
     /*
-     * Deposit is R90 per client unless:
-     * - a personal free_set_codes entry is used, or
-     * - a built-in promo has waive_deposit (e.g. FREESET)
+     * IMPORTANT:
+     * The deposit is NEVER discounted.
+     * It remains R90 per client.
+     * The only exception is a personal free-set code, which waives it.
      */
-    const appliedPromoRow =
-      !freeSetCodeId && appliedPromoCode
-        ? await getPromo(appliedPromoCode)
-        : null;
-
-    const depositWaived =
-      Boolean(freeSetCodeId) ||
-      appliedPromoRow?.waive_deposit === true;
-
-    const depositAmount = depositWaived
+    const depositAmount = freeSetRow
       ? 0
       : DEPOSIT_PER_CLIENT * clientCount;
 
@@ -899,14 +959,10 @@ export async function POST(request) {
 
     const parentDuration = clientDurations[0];
 
-    // Complimentary: long expiry so cleanup jobs do not cancel it.
-    // Paid pending holds still expire in 15 minutes.
-    const expiresAt = depositWaived
-      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-      : new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const expiresAt = new Date(
+      Date.now() + 15 * 60 * 1000
+    ).toISOString();
 
-    // Insert as pending first (matches normal booking constraints),
-    // then mark paid/confirmed when the deposit is waived.
     const appointmentInsert = {
       customer_name: name,
       customer_phone: phone,
@@ -917,12 +973,17 @@ export async function POST(request) {
       start_time: parentStartTime,
       end_time: parentEndTime,
       duration_minutes: parentDuration,
-      deposit_per_client: depositWaived ? 0 : DEPOSIT_PER_CLIENT,
+      deposit_per_client: DEPOSIT_PER_CLIENT,
       deposit_amount: depositAmount,
-      payment_status: "pending",
-      booking_status: "pending",
-      expires_at: expiresAt,
-      notes: notes || null,
+      payment_status: freeSetRow ? "paid" : "pending",
+      booking_status: freeSetRow ? "confirmed" : "pending",
+      expires_at: freeSetRow ? null : expiresAt,
+      notes: freeSetRow
+        ? "FREE SET (code " +
+          appliedPromoCode +
+          "). No deposit paid." +
+          (notes ? " " + notes : "")
+        : notes || null,
       profile_id: profileId,
       promo_code: appliedPromoCode,
     };
@@ -937,6 +998,10 @@ export async function POST(request) {
     if (appointmentError) {
       console.error("Appointment insert error:", appointmentError);
 
+      if (freeSetRow) {
+        await releaseFreeSetCodeById(supabase, freeSetRow.id);
+      }
+
       if (appointmentError.code === "23P01") {
         return Response.json(
           {
@@ -947,18 +1012,9 @@ export async function POST(request) {
         );
       }
 
-      const hint =
-        appointmentError.message ||
-        appointmentError.details ||
-        appointmentError.hint ||
-        appointmentError.code ||
-        "";
-
       return Response.json(
         {
-          error: hint
-            ? "Unable to reserve the booking. (" + hint + ")"
-            : "Unable to reserve the booking.",
+          error: "Unable to reserve the booking.",
         },
         { status: 500 }
       );
@@ -966,19 +1022,11 @@ export async function POST(request) {
 
     appointmentId = appointment.id;
 
-    if (depositWaived) {
-      const { error: confirmError } = await supabase
-        .from("appointments")
-        .update({
-          payment_status: "paid",
-          booking_status: "confirmed",
-        })
-        .eq("id", appointmentId);
-
-      if (confirmError) {
-        console.error("Free-set confirm update error:", confirmError);
-        // Keep the reservation; calendar/emails still run below
-      }
+    if (freeSetRow) {
+      await supabase
+        .from("free_set_codes")
+        .update({ used_appointment_id: appointmentId })
+        .eq("id", freeSetRow.id);
     }
 
     const clientRows = clientServices.map((services, index) => ({
@@ -989,7 +1037,7 @@ export async function POST(request) {
       start_time: clientStartTimes[index],
       end_time: clientEndTimes[index],
       duration_minutes: clientDurations[index],
-      booking_status: depositWaived ? "confirmed" : "pending",
+      booking_status: freeSetRow ? "confirmed" : "pending",
     }));
 
     const { error: clientInsertError } = await supabase
@@ -1015,101 +1063,60 @@ export async function POST(request) {
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
 
-        // Complimentary promo: no deposit — confirm immediately (skip Yoco)
-    if (depositWaived) {
-      await supabase
-        .from("appointment_clients")
-        .update({ booking_status: "confirmed" })
-        .eq("appointment_id", appointmentId);
-
-      let calendarEventId = null;
-      try {
-        const { createGoogleCalendarEvent } = await import(
-          "@/lib/google-calendar"
-        );
-        const calendarResult = await createGoogleCalendarEvent({
-          id: appointmentId,
-          customer_name: name,
-          customer_phone: phone,
-          customer_email: email,
-          service_name: serviceSummary,
-          client_count: clientCount,
-          booking_date: clientDates[0],
-          start_time: parentStartTime,
-          end_time: parentEndTime,
-          duration_minutes: parentDuration,
-          notes: notes || null,
-          deposit_amount: 0,
-          payment_status: "paid",
-          booking_status: "confirmed",
-          promo_code: appliedPromoCode,
-        });
-        calendarEventId = calendarResult?.eventId || null;
-      } catch (calendarError) {
-        console.error(
-          "Calendar error on complimentary booking:",
-          calendarError
-        );
-      }
-
-      try {
-        const {
-          sendOwnerNotification,
-          sendCustomerConfirmation,
-        } = await import("@/lib/booking-emails");
-        const appointmentPayload = {
-          id: appointmentId,
-          customer_name: name,
-          customer_phone: phone,
-          customer_email: email,
-          service_name: serviceSummary,
-          client_count: clientCount,
-          booking_date: clientDates[0],
-          start_time: parentStartTime,
-          end_time: parentEndTime,
-          duration_minutes: parentDuration,
-          notes: notes || null,
-          deposit_amount: 0,
-          payment_status: "paid",
-          booking_status: "confirmed",
-          promo_code: appliedPromoCode,
-          google_event_id: calendarEventId,
-        };
-        await Promise.allSettled([
-          sendOwnerNotification(appointmentPayload),
-          sendCustomerConfirmation(appointmentPayload),
-        ]);
-      } catch (emailError) {
-        console.error(
-          "Email error on complimentary booking:",
-          emailError
-        );
-      }
-
-      const freeSuccessUrl = profileId
-        ? `${baseUrl}/account?booking=success&appointment=${appointmentId}`
-        : `${baseUrl}/?booking=success&appointment=${appointmentId}#booking`;
-
-      return Response.json({
-        redirectUrl: freeSuccessUrl,
-        appointmentId,
-        serviceTotalAmount,
-        discountAmount: serviceDiscountAmount,
-        discountedServiceTotal,
-        promoCode: appliedPromoCode,
-        depositAmount: 0,
-        yocoAmount: 0,
-        depositWaived: true,
-      });
-    }
-
-const successUrl = profileId
+    const successUrl = profileId
       ? `${baseUrl}/account?booking=success&appointment=${appointmentId}`
       : `${baseUrl}/?booking=success&appointment=${appointmentId}#booking`;
 
     const cancelUrl = `${baseUrl}/?booking=cancelled&appointment=${appointmentId}#booking`;
 
     const failureUrl = `${baseUrl}/?booking=failed&appointment=${appointmentId}#booking`;
+
+    // Free set: no payment is taken. Confirm it now, exactly like a paid booking.
+    if (freeSetRow) {
+      const { data: freeAppointment } = await supabase
+        .from("appointments")
+        .select(
+          "id, customer_name, customer_phone, customer_email, service_name, client_count, booking_date, start_time, end_time, duration_minutes, notes, deposit_amount, payment_status, booking_status, google_event_id"
+        )
+        .eq("id", appointmentId)
+        .maybeSingle();
+
+      if (freeAppointment) {
+        try {
+          await createGoogleCalendarEvent({
+            ...freeAppointment,
+            payment_status: "paid",
+            booking_status: "confirmed",
+          });
+        } catch (calendarError) {
+          console.error("Free set calendar error:", calendarError);
+        }
+
+        try {
+          await sendOwnerNotification(freeAppointment);
+        } catch (ownerError) {
+          console.error("Free set owner email error:", ownerError);
+        }
+
+        try {
+          await sendCustomerConfirmation(freeAppointment);
+        } catch (customerError) {
+          console.error("Free set customer email error:", customerError);
+        }
+      }
+
+      return Response.json({
+        redirectUrl: successUrl,
+        appointmentId,
+        free: true,
+        serviceTotalAmount,
+        discountAmount: serviceDiscountAmount,
+        discountedServiceTotal,
+        promoCode: appliedPromoCode,
+        depositAmount: 0,
+        yocoAmount: 0,
+      });
+    }
 
     const yocoAmountCents = Math.round(depositAmount * 100);
 
