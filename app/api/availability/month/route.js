@@ -124,7 +124,7 @@ export async function GET(request) {
       if (taken.length < MAX_CLIENTS_PER_DAY) {
         for (
           let start = OPEN_MINUTES;
-          start + duration <= CLOSE_MINUTES;
+          start <= CLOSE_MINUTES;
           start += SLOT_INTERVAL
         ) {
           const end = start + duration;

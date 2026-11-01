@@ -230,12 +230,13 @@ export async function GET(request) {
       MAX_CLIENTS_PER_DAY;
 
     /*
-     * Check every 15-minute start time.
+     * Check every 30-minute start time. Closing time is the latest
+     * permitted START time; treatment duration may extend beyond closing.
      */
     for (
       let start = OPEN_MINUTES;
       !dayIsFull &&
-      start + duration <= CLOSE_MINUTES;
+      start <= CLOSE_MINUTES;
       start += SLOT_INTERVAL
     ) {
       const proposedStart =

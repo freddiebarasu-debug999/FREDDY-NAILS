@@ -735,9 +735,12 @@ export async function POST(request) {
           const endMinutes =
             startMinutes + clientDurations[clientIndex];
 
+          // 18:30 is the latest permitted appointment START time.
+          // Treatments may finish after closing; the 15-minute buffer
+          // still applies between clients booked on the same day.
           if (
             startMinutes < OPEN_MINUTES ||
-            endMinutes > CLOSE_MINUTES
+            startMinutes > CLOSE_MINUTES
           ) {
             throw new Error(
               `Client ${
