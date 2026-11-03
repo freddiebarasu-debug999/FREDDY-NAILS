@@ -32,46 +32,38 @@ function maskEmail(email) {
 
 function buildMessage(booking) {
   if (!booking) {
-    return "Hey Freddy! I just booked an appointment on your website 💅";
+    return "Hello Freddy Nails! My booking has been confirmed. Please find my details below. 💅";
   }
 
-  const lines = [];
-  lines.push(
-    "Hey Freddy!" + (booking.customerName ? " " + booking.customerName + " here." : "")
-  );
+  const lines = ["💅 *FREDDY NAILS — BOOKING CONFIRMATION*", ""];
+  lines.push("*Customer:* " + (booking.customerName || "Not provided"));
+  lines.push("");
 
   const clients = booking.clients || [];
-
   if (clients.length > 1) {
-    lines.push("I just booked " + clients.length + " appointments:");
+    lines.push("*Appointments booked:*");
     clients.forEach(function (c, i) {
       lines.push(
-        i + 1 + ". " + (c.service || "Appointment") + " on " +
-          formatDate(c.bookingDate) + " at " + formatTime(c.startTime)
+        (i + 1) + ". *Service:* " + (c.service || "Not specified") +
+        "\n   *Date:* " + (c.bookingDate ? formatDate(c.bookingDate) : "Not provided") +
+        "\n   *Time:* " + (c.startTime ? formatTime(c.startTime) : "Not provided")
       );
     });
   } else {
     const c = clients[0] || {};
-    const service = c.service || booking.service || "an appointment";
-    const date = c.bookingDate || booking.bookingDate;
-    const time = c.startTime || booking.startTime;
-    lines.push(
-      "I just booked " + service +
-        (date ? " for " + formatDate(date) : "") +
-        (time ? " at " + formatTime(time) : "") + "."
-    );
+    lines.push("*Service:* " + (c.service || booking.service || "Not specified"));
+    lines.push("*Date:* " + ((c.bookingDate || booking.bookingDate) ? formatDate(c.bookingDate || booking.bookingDate) : "Not provided"));
+    lines.push("*Time:* " + ((c.startTime || booking.startTime) ? formatTime(c.startTime || booking.startTime) : "Not provided"));
   }
 
-  if (booking.id) {
-    lines.push("Booking reference: " + bookingRef(booking.id));
-  }
+  lines.push("");
+  lines.push("*Promotion:* " + (booking.promoCode ? booking.promoCode + " (applied)" : "No promo applied"));
+  lines.push("*Booking reference:* " + (booking.id ? bookingRef(booking.id) : "Not available"));
 
   const notes = String(booking.notes || "").trim();
-  if (notes) {
-    lines.push("Notes: " + notes.slice(0, 400));
-  }
-
-  lines.push("I can't wait to get this set done 💅");
+  lines.push("*Additional notes:* " + (notes ? notes.slice(0, 400) : "None"));
+  lines.push("");
+  lines.push("Thank you! I look forward to my appointment. 💅");
   return lines.join("\n");
 }
 
