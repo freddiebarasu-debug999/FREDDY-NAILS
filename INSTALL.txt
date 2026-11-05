@@ -1,9 +1,26 @@
-Replace these into your repo:
-  components/Hero.js
-  components/HomeServices.js
-  components/TryOnPromo.js
-  components/HomePromoRow.js
-  app/page.js  (if different)
+FREDDY NAILS — PREMIUM HOMEPAGE REDESIGN (preview package)
 
-Layout matches the studio mockup:
-  Hero (text left, photo right) → Services cream grid → Try-on dark → Gallery → Promo row
+WHAT THIS DELIVERS
+- Cinematic hero: “Nails, Made an Occasion.” + dual CTAs
+- Soft gold particle accents (CSS — no heavy 3D dependency)
+- Multi-stop photo fade so nail photography stays visible
+- HomeServices interactive card grid with gallery images
+- Homepage flow: Hero → Services → About → Shapes → Colours → Gallery → Reviews → Contact
+- Booking, Supabase, Yoco, promos, calendar, free-set codes: UNCHANGED
+
+FILES TO ADD / REPLACE
+  app/page.js
+  app/globals.css
+  components/Hero.js
+  components/HomeServices.js   ← new
+
+BRANCH
+  Commit to a preview branch first. Do not force to production until reviewed.
+
+NOT IN THIS PACKAGE (phase 2 if you want)
+  Full React Three Fiber nail canvas
+  GSAP scroll timelines site-wide
+  Full visual restyle of Booking / Account pages
+
+FREE CODE
+  FNFREE639 remains as configured in free_set_codes.

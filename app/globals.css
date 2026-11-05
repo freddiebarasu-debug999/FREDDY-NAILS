@@ -207,3 +207,43 @@ body::after {
     animation: none;
   }
 }
+
+/* —— Premium redesign motion —— */
+@keyframes float-gold {
+  0%,
+  100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translateY(-18px) translateX(6px);
+    opacity: 0.7;
+  }
+}
+
+.animate-float-gold {
+  animation: float-gold 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-gold {
+    animation: none !important;
+  }
+}
+
+/* Glass / gold card utility */
+.fn-glass {
+  background: rgba(24, 22, 20, 0.72);
+  border: 1px solid rgba(214, 179, 106, 0.18);
+  backdrop-filter: blur(12px);
+}
+
+.fn-gold-line {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(214, 179, 106, 0.55),
+    transparent
+  );
+}
