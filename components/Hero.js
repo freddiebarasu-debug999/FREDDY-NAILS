@@ -29,30 +29,30 @@ export default function Hero() {
           }`}
         />
 
-        {/* Left readability fade */}
+        {/* Left readability fade - LIGHTER NOW, photo shows more */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(90deg, #0c0b0a 0%, #0c0b0a 22%, rgba(12,11,10,0.88) 38%, rgba(12,11,10,0.45) 55%, rgba(12,11,10,0.12) 72%, transparent 88%)",
+              "linear-gradient(90deg, rgba(12,11,10,0.82) 0%, rgba(12,11,10,0.65) 22%, rgba(12,11,10,0.35) 38%, rgba(12,11,10,0.10) 55%, transparent 72%)",
           }}
         />
 
-        {/* Soft top (under header) */}
+        {/* Soft top (under header) - LIGHTER */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, rgba(12,11,10,0.55) 0%, transparent 18%)",
+              "linear-gradient(180deg, rgba(12,11,10,0.25) 0%, transparent 18%)",
           }}
         />
 
-        {/* Tall bottom blend into homepage — no hard cut */}
+        {/* Bottom blend - SHORTER + LIGHTER, no hard black block */}
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] md:h-[48%]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[22%] md:h-[25%]"
           style={{
             background:
-              "linear-gradient(to top, #0c0b0a 0%, #0c0b0a 18%, rgba(12,11,10,0.92) 40%, rgba(12,11,10,0.55) 62%, rgba(12,11,10,0.2) 82%, transparent 100%)",
+              "linear-gradient(to top, rgba(12,11,10,0.75) 0%, rgba(12,11,10,0.35) 45%, transparent 100%)",
           }}
         />
       </div>
