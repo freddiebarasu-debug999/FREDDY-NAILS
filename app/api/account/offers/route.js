@@ -466,6 +466,17 @@ export async function GET(
       const promo of
       promotions || []
     ) {
+      // The 15% first-visit offer is no longer displayed in the client portal.
+      const promoCode = String(promo.code || "").trim().toUpperCase();
+      const promoType = String(promo.discount_type || "").trim().toLowerCase();
+      const promoValue = Number(promo.discount_value || 0);
+      if (
+        promoCode === "FIRSTVISIT" ||
+        ((promoType === "percent" || promoType === "percentage") && promoValue === 15)
+      ) {
+        continue;
+      }
+
       if (
         !isCurrentlyActive(
           promo

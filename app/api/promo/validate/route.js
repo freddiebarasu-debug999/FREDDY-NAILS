@@ -407,6 +407,22 @@ export async function GET(request) {
       );
     }
 
+    const promoType = String(promo.discount_type || "").trim().toLowerCase();
+    const promoValue = Number(promo.discount_value || 0);
+    if (
+      normalizedCode === "FIRSTVISIT" ||
+      ((promoType === "percent" || promoType === "percentage") && promoValue === 15)
+    ) {
+      return Response.json(
+        {
+          valid: false,
+          error: "The 15% first-visit offer is no longer available.",
+          promoCode: normalizedCode,
+        },
+        { status: 400 }
+      );
+    }
+
     if (promo.active === false) {
       return Response.json(
         {

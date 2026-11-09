@@ -878,6 +878,17 @@ export async function POST(request) {
       }
 
       const normalizedPromoCode = normalizePromoCode(promo.code);
+      const promoType = String(promo.discount_type || "").trim().toLowerCase();
+      const promoValue = Number(promo.discount_value || 0);
+      if (
+        normalizedPromoCode === "FIRSTVISIT" ||
+        ((promoType === "percent" || promoType === "percentage") && promoValue === 15)
+      ) {
+        return Response.json(
+          { error: "The 15% first-visit offer is no longer available." },
+          { status: 400 }
+        );
+      }
 
       // Any promo flagged new_clients_only (FIRSTVISIT, or a database
       // code with the flag switched on) is checked on the server

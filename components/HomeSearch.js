@@ -3,18 +3,12 @@
 import { useMemo, useState } from "react";
 
 const SEARCH_ITEMS = [
-  { title: "Acrylic Nails", description: "Explore acrylic nail services", href: "/services" },
-  { title: "Gel Nails", description: "Gel overlays, colour and finishes", href: "/services" },
-  { title: "Pedicures", description: "Pedicure services and treatments", href: "/services" },
-  { title: "Eyelash Extensions", description: "Explore lash services", href: "/services" },
-  { title: "Foot Spa", description: "Foot spa treatments", href: "/services" },
-  { title: "Nail Gallery", description: "Browse real Freddy Nails work", href: "/#gallery" },
-  { title: "Nail Shapes", description: "Almond, square, coffin and more", href: "/shape-guide" },
-  { title: "Gel Colours", description: "Explore the colour palette", href: "/colours" },
-  { title: "Try On Nail Designs", description: "Preview a nail design", href: "/try-on" },
-  { title: "Book an Appointment", description: "Choose a service and appointment time", href: "/account/book" },
-  { title: "Contact Freddy Nails", description: "WhatsApp, location and contact details", href: "/#contact" },
-  { title: "Frequently Asked Questions", description: "Booking, deposits and aftercare", href: "/faq" },
+  { title: "Acrylic Nails", description: "Acrylic sets, French tips and ombré", search: "acrylic" },
+  { title: "Gel Nails", description: "Gel overlays, plain gel and French gel", search: "gel" },
+  { title: "Pedicures", description: "Pedicure sets and foot treatments", search: "pedicure" },
+  { title: "Nail Art & Extras", description: "Nail art, repairs, soak-off and add-ons", search: "nail art" },
+  { title: "Eyelash Extensions", description: "Classic, cat-eye and cluster lashes", search: "eyelash" },
+  { title: "Foot Spa", description: "Basic and luxury foot spa treatments", search: "foot spa" },
 ];
 
 export default function HomeSearch() {
@@ -24,8 +18,11 @@ export default function HomeSearch() {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     return SEARCH_ITEMS.filter((item) =>
-      `${item.title} ${item.description}`.toLowerCase().includes(q)
-    ).slice(0, 6);
+      `${item.title} ${item.description} ${item.search}`.toLowerCase().includes(q)
+    ).slice(0, 6).map((item) => ({
+      ...item,
+      href: `/services?search=${encodeURIComponent(item.search)}`,
+    }));
   }, [query]);
 
   return (
@@ -47,7 +44,7 @@ export default function HomeSearch() {
               if (event.key === "Escape") setQuery("");
             }}
             placeholder="What are you looking for?"
-            aria-label="Search services, designs and website pages"
+            aria-label="Search Freddy Nails services"
             className="min-w-0 flex-1 bg-transparent py-3 text-sm text-[#f4eee6] outline-none placeholder:text-[#9a9186]"
           />
           {query && <button type="button" onClick={() => setQuery("")} className="px-2 text-xs text-[#d6b36a]">Clear</button>}
@@ -59,11 +56,11 @@ export default function HomeSearch() {
                 <span><span className="block text-sm text-[#f4eee6]">{item.title}</span><span className="mt-1 block text-xs text-[#aaa096]">{item.description}</span></span>
                 <span aria-hidden="true" className="text-[#d6b36a]">↗</span>
               </a>
-            )) : <p className="px-4 py-3 text-sm text-[#aaa096]">No matches yet. Try “acrylic”, “gallery” or “booking”.</p>}
+            )) : <p className="px-4 py-3 text-sm text-[#aaa096]">No matching service found. Try “acrylic”, “gel”, “pedicure”, “lashes” or “foot spa”.</p>}
           </div>
         )}
       </div>
-      <p className="mt-3 text-center text-[0.68rem] uppercase tracking-[0.18em] text-[#aaa096]">Find a service, nail style or page</p>
+      <p className="mt-3 text-center text-[0.68rem] uppercase tracking-[0.18em] text-[#aaa096]">Search our nail and beauty services</p>
     </section>
   );
 }

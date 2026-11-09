@@ -20,14 +20,14 @@ export const metadata = {
   },
 };
 
-export default function ServicesPage() {
+export default function ServicesPage({ searchParams = {} }) {
   return (
     <>
       <OfferTab />
       <Header />
 
       <main className="min-h-screen bg-[#11100f] text-[#f4eee6]">
-        <Services />
+        <Services searchQuery={searchParams.search || ""} />
       </main>
 
       <Footer />

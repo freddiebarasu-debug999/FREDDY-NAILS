@@ -293,7 +293,19 @@ const servicesJsonLd = {
   })),
 };
 
-export default function Services() {
+export default function Services({ searchQuery = "" }) {
+  const normalizedQuery = String(searchQuery).trim().toLowerCase();
+  const visibleGroups = normalizedQuery
+    ? GROUPS.map((group) => {
+        const groupText = `${group.title} ${group.blurb}`.toLowerCase();
+        const matchingItems = group.items.filter((item) =>
+          `${item.name} ${item.description}`.toLowerCase().includes(normalizedQuery)
+        );
+        if (groupText.includes(normalizedQuery)) return group;
+        return matchingItems.length ? { ...group, items: matchingItems } : null;
+      }).filter(Boolean)
+    : GROUPS;
+
   return (
     <section
       id="services"
@@ -322,13 +334,20 @@ export default function Services() {
           East London (KuGompo City). Browse the menu below and book your
           appointment online.
         </p>
+        {normalizedQuery && (
+          <p className="mt-4 text-sm text-gold" aria-live="polite">
+            Showing services matching “{searchQuery}”.{" "}
+            <a href="/services" className="underline underline-offset-4">View all services</a>
+          </p>
+        )}
 
         <div className="mt-5 h-px w-16 bg-gold/60" />
       </div>
 
       {/* Services */}
+      {visibleGroups.length ? (
       <div className="grid gap-x-14 gap-y-16 md:grid-cols-2">
-        {GROUPS.map((g) => (
+        {visibleGroups.map((g) => (
           <div key={g.title} className="relative">
             {/* Category heading */}
             <div className="flex items-center gap-3 mb-2">
@@ -381,6 +400,13 @@ export default function Services() {
           </div>
         ))}
       </div>
+      ) : (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-10 text-center">
+          <p className="text-lg text-[#f4eee6]">No matching service found</p>
+          <p className="mt-2 text-sm text-[#c9c0b6]">Try searching for acrylic, gel, pedicure, nail art, eyelash or foot spa.</p>
+          <a href="/services" className="mt-5 inline-flex text-sm text-gold underline underline-offset-4">View all services</a>
+        </div>
+      )}
 
       {/* Good to know */}
       <div className="relative mt-16 pt-8 border-t border-white/[0.09]">

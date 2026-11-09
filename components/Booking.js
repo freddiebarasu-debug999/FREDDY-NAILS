@@ -440,9 +440,8 @@ export default function Booking() {
    * promotions and database promotions.
    *
    * Built-in codes:
-   * FIRSTVISIT = 15% off
-   * FRIEND50   = R50 off
-   * BIRTHDAY   = R50 off
+   * FRIEND50 = R50 off
+   * BIRTHDAY = R50 off
    *
    * Database codes such as WELCOME10
    * continue through /api/promo/validate
@@ -2724,8 +2723,7 @@ export default function Booking() {
 
                 <p className="text-xs text-gold/80 mt-2">
                   Your offer has been
-                  automatically applied to
-                  your service total.
+                  applied to eligible services.
                 </p>
               </div>
             ) : (
@@ -2791,49 +2789,6 @@ export default function Booking() {
 
           <div className="border-t border-white/[0.09] pt-6 mt-6 space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-xs uppercase tracking-[0.12em] text-[#8f877e]">
-                Service total
-              </span>
-
-              <strong className="font-serif text-xl text-[#f4eee6]">
-                R
-                {
-                  totalServiceAmount
-                }
-              </strong>
-            </div>
-
-            {appliedPromo && (
-              <>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs uppercase tracking-[0.12em] text-gold">
-                    Promo discount
-                  </span>
-
-                  <strong className="text-gold">
-                    −R
-                    {
-                      serviceDiscountAmount
-                    }
-                  </strong>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-xs uppercase tracking-[0.12em] text-[#8f877e]">
-                    Discounted service total
-                  </span>
-
-                  <strong className="font-serif text-2xl text-gold">
-                    R
-                    {
-                      discountedServiceTotal
-                    }
-                  </strong>
-                </div>
-              </>
-            )}
-
-            <div className="flex justify-between items-center pt-4 border-t border-white/[0.08]">
               <div>
                 <span className="block text-xs uppercase tracking-[0.12em] text-[#8f877e] mb-1">
                   Booking deposit
@@ -2854,7 +2809,7 @@ export default function Booking() {
             <div className="text-xs text-[#8f877e] leading-relaxed">
               {isFreeSet
                 ? "Your free set code covers this booking. No payment is needed, and your slot is confirmed as soon as you tap the button below."
-                : "The booking deposit is separate from your service total and remains R90 per client even when a promo code is applied."}
+                : "Your booking deposit is R90 per client. The final service price can be confirmed with Freddy Nails before your appointment."}
             </div>
           </div>
 
