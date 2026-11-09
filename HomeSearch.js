@@ -78,7 +78,6 @@ export default function HomeSearch() {
   function goTo(href) {
     navigating.current = true;
     setOpen(false);
-    // assign works reliably on iOS Safari
     window.location.assign(href);
   }
 
@@ -89,6 +88,23 @@ export default function HomeSearch() {
       }`}
       aria-label="Search Freddy Nails"
     >
+      <style jsx global>{`
+        /* Hide browser’s native blue search clear (X) */
+        input[type="text"]::-webkit-search-cancel-button,
+        input[type="text"]::-webkit-search-decoration,
+        input[type="text"]::-webkit-search-results-button,
+        input[type="text"]::-webkit-search-results-decoration {
+          -webkit-appearance: none;
+          appearance: none;
+          display: none;
+        }
+        input[type="text"]::-ms-clear {
+          display: none;
+          width: 0;
+          height: 0;
+        }
+      `}</style>
+
       <div
         ref={wrapRef}
         className="pointer-events-auto relative mx-auto w-full max-w-[584px]"
@@ -115,7 +131,7 @@ export default function HomeSearch() {
           </svg>
 
           <input
-            type="search"
+            type="text"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -136,8 +152,14 @@ export default function HomeSearch() {
             aria-label="Search Freddy Nails services"
             autoComplete="off"
             enterKeyHint="search"
-            className="min-w-0 flex-1 bg-transparent py-3.5 text-[16px] text-[#f4eee6] outline-none placeholder:text-[#9a9186]"
-            style={{ border: "none", boxShadow: "none", WebkitAppearance: "none" }}
+            className="fn-search-input min-w-0 flex-1 appearance-none bg-transparent py-3.5 text-[16px] text-[#f4eee6] shadow-none outline-none ring-0 placeholder:text-[#9a9186] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+            style={{
+              border: "none",
+              boxShadow: "none",
+              outline: "none",
+              WebkitAppearance: "none",
+              appearance: "none",
+            }}
           />
 
           {query ? (
@@ -168,7 +190,10 @@ export default function HomeSearch() {
             className="absolute left-0 right-0 top-full z-[60] m-0 list-none overflow-hidden rounded-b-[24px] bg-[#181614] p-0 pb-2 shadow-[0_12px_32px_rgba(0,0,0,0.6)]"
             role="listbox"
           >
-            <li className="mx-4 list-none border-t border-[#d6b36a]/20" aria-hidden />
+            <li
+              className="mx-4 list-none border-t border-[#d6b36a]/20"
+              aria-hidden
+            />
             {results.length ? (
               results.map((item) => (
                 <li key={item.title} className="list-none">
@@ -179,12 +204,11 @@ export default function HomeSearch() {
                       e.preventDefault();
                       goTo(item.href);
                     }}
-                    onPointerDown={(e) => {
-                      // Stop the document closer; keep the input from stealing the gesture
-                      e.stopPropagation();
-                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
                     className="flex min-h-[52px] cursor-pointer touch-manipulation items-center gap-3 px-4 py-3 transition active:bg-[#2a2620] hover:bg-[#211e1a]"
-                    style={{ WebkitTapHighlightColor: "rgba(214,179,106,0.15)" }}
+                    style={{
+                      WebkitTapHighlightColor: "rgba(214,179,106,0.15)",
+                    }}
                   >
                     <svg
                       aria-hidden

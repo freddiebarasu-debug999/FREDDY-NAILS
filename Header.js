@@ -6,16 +6,19 @@ const HOME_LINKS = [
   {
     href: "/#gallery",
     label: "Gallery",
+    icon: "💅",
     blurb: "Browse real client sets — acrylics, gels, art and finishes from the studio.",
   },
   {
     href: "/#reviews",
     label: "Reviews",
+    icon: "⭐",
     blurb: "See what clients say about their visits and results at Freddy Nails.",
   },
   {
     href: "/#contact",
     label: "Contact",
+    icon: "📍",
     blurb: "Find our Quigney address, WhatsApp number and how to get in touch.",
   },
 ];
@@ -24,26 +27,37 @@ const MENU_LINKS = [
   {
     href: "/services",
     label: "Services",
+    icon: "✨",
     blurb: "Full menu of acrylics, gels, pedicures, nail art and lash extensions with pricing guidance.",
   },
   {
     href: "/offers",
     label: "Specials & Promos",
+    icon: "🎁",
     blurb: "Current promo codes and ways to save — first visit, birthday, friend and more.",
   },
   {
     href: "/shape-guide",
     label: "Shape Guide",
+    icon: "🤲",
     blurb: "Compare nail shapes so you can choose the look that suits your hands.",
+  },
+  {
+    href: "/colours",
+    label: "Gel Colours",
+    icon: "🎨",
+    blurb: "Browse the gel colour palette and find the shade you love before you book.",
   },
   {
     href: "/about",
     label: "About",
+    icon: "🖤",
     blurb: "Meet the studio — our story, location in Quigney, and what makes Freddy Nails different.",
   },
   {
     href: "/faq",
     label: "FAQs",
+    icon: "💬",
     blurb: "Booking, deposits, aftercare and common questions answered clearly.",
   },
 ];
@@ -52,6 +66,7 @@ const GUIDE_ITEMS = [
   {
     href: "/",
     label: "Home",
+    icon: "🏠",
     blurb: "Welcome page with studio intro, gallery, reviews and contact.",
   },
   ...HOME_LINKS,
@@ -59,17 +74,39 @@ const GUIDE_ITEMS = [
   {
     href: "/account",
     label: "My Account",
+    icon: "👤",
     blurb: "Log in to manage bookings, pay deposits, view offers and loyalty status.",
   },
   {
     href: "/account/book",
     label: "Book now",
+    icon: "📅",
     blurb: "Reserve your appointment online — choose service, date and time.",
   },
 ];
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+
+  // Light check for an existing login (no library loaded): Supabase keeps the
+  // session in localStorage under a key like "sb-xxxx-auth-token".
+  useEffect(() => {
+    try {
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const key = window.localStorage.key(i) || "";
+        if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
+          setSignedIn(true);
+          return;
+        }
+      }
+    } catch {
+      // localStorage unavailable: keep the logged-out label.
+    }
+  }, []);
+
+  const accountHref = signedIn ? "/account" : "/account/login";
+  const accountLabel = signedIn ? "My Account" : "Sign up / Log in";
   const [menuOpen, setMenuOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideVisible, setGuideVisible] = useState(false);
@@ -122,8 +159,11 @@ export default function Header() {
               className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-[#d6b36a] overflow-hidden shadow-[0_0_0_1px_rgba(214,179,106,0.15)] transition-transform hover:scale-[1.04] active:scale-95"
             >
               <img
-                src="/freddy-nails-logo.png"
+                src="/freddy-nails-logo-sm.webp"
                 alt=""
+                width={144}
+                height={144}
+                decoding="async"
                 className="h-full w-full object-cover"
               />
               <span className="pointer-events-none absolute inset-0 rounded-full ring-0 transition-all duration-300 group-hover:ring-2 group-hover:ring-[#d6b36a]/40" />
@@ -131,26 +171,38 @@ export default function Header() {
             <a
               href="/"
               onClick={closeMenus}
-              className="font-serif text-xl tracking-tight text-[#f4eee6] transition-colors hover:text-[#d6b36a]"
+              className="group flex flex-col leading-none transition-colors"
             >
-              Freddy <span className="text-[#d6b36a]">Nails</span>
+              <span
+                className="text-[1.15rem] font-medium tracking-tight text-[#f4eee6] group-hover:text-[#d6b36a] sm:text-xl"
+                style={{ fontFamily: "var(--font-fraunces), Georgia, serif" }}
+              >
+                Freddy <span className="text-[#d6b36a]">Nails</span>
+              </span>
+              <span className="mt-1 text-[0.58rem] font-semibold uppercase tracking-[0.22em] text-[#d6b36a]/85">
+                Crafted to Perfection
+              </span>
             </a>
           </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden items-center gap-5 text-sm font-semibold md:flex">
+          {/* Desktop Navigation — portal-style chips */}
+          <nav className="hidden items-center gap-2 text-sm md:flex">
             <a
               href="/"
-              className="nav-link text-[#f4eee6]/85 transition-colors hover:text-[#d6b36a]"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[0.8rem] font-semibold tracking-wide text-[#e8e0d6]/90 transition-colors hover:text-[#d6b36a]"
             >
+              <span className="text-[0.95rem] leading-none" aria-hidden>🏠</span>
               Home
             </a>
             {HOME_LINKS.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
-                className="nav-link text-[#f4eee6]/85 transition-colors hover:text-[#d6b36a]"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[0.8rem] font-semibold tracking-wide text-[#e8e0d6]/90 transition-colors hover:text-[#d6b36a]"
               >
+                <span className="text-[0.95rem] leading-none" aria-hidden>
+                  {link.icon}
+                </span>
                 {link.label}
               </a>
             ))}
@@ -158,12 +210,13 @@ export default function Header() {
               <button
                 type="button"
                 onClick={() => setMenuOpen((v) => !v)}
-                className="flex items-center gap-1.5 text-[#f4eee6]/85 transition-colors hover:text-[#d6b36a]"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[0.8rem] font-semibold tracking-wide text-[#e8e0d6]/90 transition-colors hover:text-[#d6b36a]"
                 aria-expanded={menuOpen}
               >
+                <span className="text-[0.95rem] leading-none" aria-hidden>📋</span>
                 Menu
                 <span
-                  className={`text-[0.65rem] transition-transform duration-300 ${
+                  className={`text-[0.6rem] transition-transform duration-300 ${
                     menuOpen ? "rotate-180" : ""
                   }`}
                 >
@@ -171,14 +224,17 @@ export default function Header() {
                 </span>
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-[calc(100%+14px)] w-52 overflow-hidden rounded-sm border border-[#d6b36a]/20 bg-[#151311] shadow-2xl">
+                <div className="absolute right-0 top-[calc(100%+10px)] w-56 overflow-hidden rounded-2xl border border-[#d6b36a]/20 bg-[#151311] shadow-[0_16px_40px_rgba(0,0,0,0.75)]">
                   {MENU_LINKS.map((link) => (
                     <a
                       key={link.href}
                       href={link.href}
                       onClick={() => setMenuOpen(false)}
-                      className="block border-b border-white/[0.06] px-4 py-3 text-[0.8rem] font-semibold text-[#f4eee6] transition-colors last:border-b-0 hover:bg-[#211e1a] hover:text-[#d6b36a]"
+                      className="flex items-center gap-2.5 border-b border-white/[0.06] px-4 py-3 text-[0.8rem] font-semibold tracking-wide text-[#f4eee6] transition-colors last:border-b-0 hover:bg-[#211e1a] hover:text-[#d6b36a]"
                     >
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#d6b36a]/20 bg-[#d6b36a]/10 text-[0.95rem]" aria-hidden>
+                        {link.icon}
+                      </span>
                       {link.label}
                     </a>
                   ))}
@@ -190,15 +246,16 @@ export default function Header() {
           {/* Desktop Actions */}
           <div className="hidden items-center gap-3 md:flex">
             <a
-              href="/account"
-              className="px-3 py-[9px] text-xs font-bold uppercase tracking-wide text-[#f4eee6]/90 transition-colors hover:text-[#d6b36a]"
+              href={accountHref}
+              className="rounded-xl px-3 py-2 text-[0.72rem] font-bold uppercase tracking-[0.12em] text-[#f4eee6]/90 transition-colors hover:text-[#d6b36a]"
             >
-              My Account
+              {accountLabel}
             </a>
             <a
               href="/account/book"
-              className="rounded-sm bg-[#d6b36a] px-5 py-[10px] text-xs font-bold uppercase tracking-wide text-[#11100f] transition-colors hover:bg-[#ad8a4e]"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#d6b36a] px-5 py-2.5 text-[0.72rem] font-bold uppercase tracking-[0.12em] text-[#11100f] shadow-[0_0_24px_rgba(214,179,106,0.2)] transition-colors hover:bg-[#e0c078]"
             >
+              <span aria-hidden>📅</span>
               Book now
             </a>
           </div>
@@ -247,11 +304,11 @@ export default function Header() {
                 Book now
               </a>
               <a
-                href="/account"
+                href={accountHref}
                 onClick={closeMenus}
                 className="rounded-sm border border-[#d6b36a]/35 py-2.5 text-center text-[0.7rem] font-bold uppercase tracking-wide text-[#d6b36a]"
               >
-                My Account
+                {accountLabel}
               </a>
             </div>
 
@@ -260,8 +317,9 @@ export default function Header() {
               <a
                 href="/"
                 onClick={closeMenus}
-                className="border-b border-white/[0.05] py-2.5 text-[0.9rem] font-semibold text-[#f4eee6] hover:text-[#d6b36a]"
+                className="mb-2 flex items-center gap-3 rounded-xl border border-[#d6b36a]/15 bg-[#181614]/90 px-3 py-3 text-[0.9rem] font-semibold tracking-wide text-[#f4eee6] hover:border-[#d6b36a]/35 hover:text-[#d6b36a]"
               >
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#d6b36a]/20 bg-[#d6b36a]/10 text-base" aria-hidden>🏠</span>
                 Home
               </a>
               {HOME_LINKS.map((link) => (
@@ -269,13 +327,14 @@ export default function Header() {
                   key={link.href}
                   href={link.href}
                   onClick={closeMenus}
-                  className="border-b border-white/[0.05] py-2.5 text-[0.9rem] font-semibold text-[#f4eee6] hover:text-[#d6b36a]"
+                  className="mb-2 flex items-center gap-3 rounded-xl border border-[#d6b36a]/15 bg-[#181614]/90 px-3 py-3 text-[0.9rem] font-semibold tracking-wide text-[#f4eee6] hover:border-[#d6b36a]/35 hover:text-[#d6b36a]"
                 >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#d6b36a]/20 bg-[#d6b36a]/10 text-base" aria-hidden>{link.icon}</span>
                   {link.label}
                 </a>
               ))}
 
-              <p className="pb-1 pt-3.5 text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[#d6b36a]/80">
+              <p className="pb-2 pt-3 text-[0.6rem] font-bold uppercase tracking-[0.2em] text-[#d6b36a]/80">
                 Explore
               </p>
               {MENU_LINKS.map((link) => (
@@ -283,8 +342,9 @@ export default function Header() {
                   key={link.href}
                   href={link.href}
                   onClick={closeMenus}
-                  className="border-b border-white/[0.05] py-2.5 text-[0.9rem] font-semibold text-[#f4eee6] hover:text-[#d6b36a]"
+                  className="mb-2 flex items-center gap-3 rounded-xl border border-[#d6b36a]/15 bg-[#181614]/90 px-3 py-3 text-[0.9rem] font-semibold tracking-wide text-[#f4eee6] hover:border-[#d6b36a]/35 hover:text-[#d6b36a]"
                 >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#d6b36a]/20 bg-[#d6b36a]/10 text-base" aria-hidden>{link.icon}</span>
                   {link.label}
                 </a>
               ))}
@@ -327,8 +387,12 @@ export default function Header() {
               <div className="flex items-center gap-3 min-w-0">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#d6b36a]/50">
                   <img
-                    src="/freddy-nails-logo.png"
+                    src="/freddy-nails-logo-sm.webp"
                     alt=""
+                    width={144}
+                    height={144}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover"
                   />
                 </span>
@@ -375,12 +439,12 @@ export default function Header() {
                       onClick={closeGuide}
                       className="group flex gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-colors hover:border-[#d6b36a]/20 hover:bg-white/[0.03]"
                     >
-                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#d6b36a]/25 bg-[#d6b36a]/10 text-[0.65rem] font-bold text-[#d6b36a]">
-                        {String(index + 1).padStart(2, "0")}
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#d6b36a]/25 bg-[#d6b36a]/10 text-[0.9rem] leading-none">
+                        {item.icon || String(index + 1).padStart(2, "0")}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-[0.9rem] font-semibold text-[#f4eee6] group-hover:text-[#d6b36a] transition-colors">
-                          {item.label}
+                          {item.icon ? `${item.icon} ` : ""}{item.label}
                         </span>
                         <span className="mt-0.5 block text-[0.75rem] leading-snug text-[#8a8178]">
                           {item.blurb}
