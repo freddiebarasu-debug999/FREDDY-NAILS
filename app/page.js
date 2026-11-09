@@ -25,8 +25,6 @@ export default function Home() {
         <HomeSearch />
       </div>
 
-      <div className="h-px max-w-[1180px] mx-auto bg-line" />
-
       {/* About / Services intro (SEO text) */}
       <section
         aria-labelledby="about-freddy-nails"
