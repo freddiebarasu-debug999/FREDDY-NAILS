@@ -189,7 +189,7 @@ export default function Header() {
           <nav className="hidden items-center gap-2 text-sm md:flex">
             <a
               href="/"
-              className="inline-flex items-center gap-2 rounded-xl border border-[#d6b36a]/18 bg-[#181614]/80 px-3 py-2 text-[0.78rem] font-semibold tracking-wide text-[#f4eee6] transition-all hover:border-[#d6b36a]/40 hover:bg-[#211e1a] hover:text-[#d6b36a]"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[0.8rem] font-semibold tracking-wide text-[#e8e0d6]/90 transition-colors hover:text-[#d6b36a]"
             >
               <span className="text-[0.95rem] leading-none" aria-hidden>🏠</span>
               Home
@@ -198,7 +198,7 @@ export default function Header() {
               <a
                 key={link.href}
                 href={link.href}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#d6b36a]/18 bg-[#181614]/80 px-3 py-2 text-[0.78rem] font-semibold tracking-wide text-[#f4eee6] transition-all hover:border-[#d6b36a]/40 hover:bg-[#211e1a] hover:text-[#d6b36a]"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[0.8rem] font-semibold tracking-wide text-[#e8e0d6]/90 transition-colors hover:text-[#d6b36a]"
               >
                 <span className="text-[0.95rem] leading-none" aria-hidden>
                   {link.icon}
@@ -210,7 +210,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={() => setMenuOpen((v) => !v)}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#d6b36a]/18 bg-[#181614]/80 px-3 py-2 text-[0.78rem] font-semibold tracking-wide text-[#f4eee6] transition-all hover:border-[#d6b36a]/40 hover:bg-[#211e1a] hover:text-[#d6b36a]"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[0.8rem] font-semibold tracking-wide text-[#e8e0d6]/90 transition-colors hover:text-[#d6b36a]"
                 aria-expanded={menuOpen}
               >
                 <span className="text-[0.95rem] leading-none" aria-hidden>📋</span>
