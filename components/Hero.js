@@ -14,7 +14,8 @@ export default function Hero() {
   return (
     <section
       id="home"
-      className="relative flex min-h-[70vh] items-center overflow-hidden md:min-h-[78vh]"
+      // FIX 1: Slightly shorter so image isn't stretched so large
+      className="relative flex min-h-[62vh] items-center overflow-hidden md:min-h-[68vh]"
     >
       {/* Photo layer */}
       <div className="absolute inset-0">
@@ -23,13 +24,14 @@ export default function Hero() {
           alt="Freddy Nails gold leaf signature set"
           fill
           priority
-          sizes="100vw"
-          className={`object-cover object-[70%_center] transition-transform duration-[1.6s] ease-out md:object-[75%_center] ${
-            ready ? "scale-100" : "scale-105"
-          }`}
+          quality={90}
+          // FIX 1: Correct sizes so browser doesn't load a too-small / too-large version
+          sizes="(max-width: 768px) 100vw, 100vw"
+          // FIX 1: REMOVED scale-105 zoom - that zoom was causing blur
+          className="object-cover object-[70%_center] md:object-[75%_center]"
         />
 
-        {/* Left readability fade - LIGHTER NOW, photo shows more */}
+        {/* Left readability fade - kept light from last fix */}
         <div
           className="absolute inset-0"
           style={{
@@ -38,7 +40,7 @@ export default function Hero() {
           }}
         />
 
-        {/* Soft top (under header) - LIGHTER */}
+        {/* Soft top (under header) */}
         <div
           className="absolute inset-0"
           style={{
@@ -47,12 +49,12 @@ export default function Hero() {
           }}
         />
 
-        {/* Bottom blend - SHORTER + LIGHTER, no hard black block */}
+        {/* FIX 2: NO MORE HARD CUT - taller, smoother bottom fade */}
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[22%] md:h-[25%]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[55%] md:h-[60%]"
           style={{
             background:
-              "linear-gradient(to top, rgba(12,11,10,0.75) 0%, rgba(12,11,10,0.35) 45%, transparent 100%)",
+              "linear-gradient(to top, #0c0b0a 0%, rgba(12,11,10,0.95) 15%, rgba(12,11,10,0.75) 30%, rgba(12,11,10,0.45) 50%, rgba(12,11,10,0.18) 75%, transparent 100%)",
           }}
         />
       </div>
