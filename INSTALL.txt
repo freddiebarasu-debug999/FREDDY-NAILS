@@ -1,3 +1,11 @@
-REPLACE ONLY: components/ShapeGuide.js
-Photos are embedded inside this file — no public/shapes upload needed.
-Commit, push, wait for Vercel, hard-refresh.
+HEADER + LOGO SLOGAN + SEARCH OVERLAY
+
+Replace:
+  components/Header.js     — portal-style nav chips, slogan under logo
+  components/HomeSearch.js — floats on hero (if included)
+  components/Hero.js       — top padding for search (if included)
+  app/page.js              — search overlaid on hero (if included)
+
+Logo shows:
+  Freddy Nails
+  CRAFTED TO PERFECTION

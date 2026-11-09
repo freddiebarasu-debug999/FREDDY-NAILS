@@ -19,11 +19,11 @@ export default function Home() {
       <OfferTab />
       <Header />
 
-      {/* Homepage service search sits at the top, directly below navigation. */}
-      <HomeSearch />
-
-      {/* Hero */}
-      <Hero />
+      {/* Hero + floating search (search overlays the hero image) */}
+      <div className="relative">
+        <Hero />
+        <HomeSearch />
+      </div>
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
 

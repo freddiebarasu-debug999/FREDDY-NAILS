@@ -21,7 +21,7 @@ export default function Hero() {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-[1180px] mx-auto px-5 w-full">
+      <div className="relative z-10 mx-auto w-full max-w-[1180px] px-5 pt-16 md:pt-20">
         <div className="max-w-[620px]">
           <h1 className="font-serif font-medium leading-[1.05] text-[clamp(2.6rem,6vw,4.2rem)] text-[#f4eee6]">
             Nails by Freddy,
