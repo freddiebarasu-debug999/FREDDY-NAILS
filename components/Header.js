@@ -224,7 +224,7 @@ export default function Header() {
                 </span>
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-[calc(100%+10px)] w-56 overflow-hidden rounded-xl border border-[#d6b36a]/25 bg-[#151311]/98 shadow-2xl backdrop-blur-md">
+                <div className="absolute right-0 top-[calc(100%+10px)] w-56 overflow-hidden rounded-2xl border border-[#d6b36a]/20 bg-[#151311] shadow-[0_16px_40px_rgba(0,0,0,0.75)]">
                   {MENU_LINKS.map((link) => (
                     <a
                       key={link.href}
