@@ -9,13 +9,6 @@ const CHOSEN_PROMO_KEY = "freddynails_chosen_promo";
 
 const OFFERS = [
   {
-    title: "First Visit",
-    code: "FIRSTVISIT",
-    discount: "15% OFF",
-    description:
-      "New to Freddy Nails? Enjoy 15% off your first visit.",
-  },
-  {
     title: "Book Online",
     code: "WELCOME10",
     discount: "10% OFF",

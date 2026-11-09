@@ -3,6 +3,7 @@ import OfferTab from "@/components/OfferTab";
 import AccountPromptBanner from "@/components/AccountPromptBanner";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
+import HomeSearch from "@/components/HomeSearch";
 import Gallery from "@/components/Gallery";
 import Reviews from "@/components/Reviews";
 import Contact from "@/components/Contact";
@@ -20,6 +21,7 @@ export default function Home() {
 
       {/* Hero */}
       <Hero />
+      <HomeSearch />
 
       <div className="h-px max-w-[1180px] mx-auto bg-line" />
 

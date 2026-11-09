@@ -89,15 +89,6 @@ const SERVICE_OPTIONS = {
 };
 
 const BUILT_IN_PROMOS = {
-  FIRSTVISIT: {
-    code: "FIRSTVISIT",
-    discount_type: "percent",
-    discount_value: 15,
-    description: "15% off your first visit",
-    active: true,
-    new_clients_only: true,
-  },
-
   FRIEND50: {
     code: "FRIEND50",
     discount_type: "fixed",

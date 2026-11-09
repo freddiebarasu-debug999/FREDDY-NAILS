@@ -121,31 +121,6 @@ export default function WelcomePopup() {
           work, made just for you.
         </p>
 
-        <div className="border border-gold/30 rounded-sm px-5 py-4 mb-5 bg-gold/5">
-          <p className="text-[0.68rem] font-bold tracking-[0.2em] uppercase text-gold-bright mb-1">
-            New here?
-          </p>
-          <p className="font-serif text-xl text-nude">
-            15% off your first visit
-          </p>
-          <p className="text-xs text-nude/60 mt-1.5">
-            Brand new to Freddy Nails? Use code{" "}
-            <span className="text-gold-bright font-bold">FIRSTVISIT</span>{" "}
-            when you book.
-          </p>
-
-          <div className="border-t border-gold/20 mt-4 pt-4">
-            <p className="font-serif text-lg text-nude">
-              10% off when you book online
-            </p>
-            <p className="text-xs text-nude/60 mt-1.5">
-              Use code{" "}
-              <span className="text-gold-bright font-bold">WELCOME10</span>{" "}
-              when you book through our website.
-            </p>
-          </div>
-        </div>
-
         <div className="border-t border-nude/10 pt-5 text-left">
           <p className="text-[0.68rem] font-bold tracking-[0.2em] uppercase text-gold mb-2 text-center">
             We&apos;re growing 💅

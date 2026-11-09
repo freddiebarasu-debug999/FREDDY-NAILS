@@ -466,14 +466,6 @@ export default function Booking() {
 
     try {
       const BUILT_IN_PROMOS = {
-        FIRSTVISIT: {
-          code: "FIRSTVISIT",
-          discountType: "percent",
-          discountValue: 15,
-          description:
-            "15% off your first visit",
-        },
-
         FRIEND50: {
           code: "FRIEND50",
           discountType: "fixed",
@@ -2451,9 +2443,7 @@ export default function Booking() {
                                               option.disabled
                                             }
                                           >
-                                            {
-                                              option.name
-                                            }
+                                            {option.name.replace(/\s*\(R[^)]*\)/g, "")}
                                           </option>
                                         )
                                       )}
