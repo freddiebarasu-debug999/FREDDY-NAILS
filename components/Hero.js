@@ -34,25 +34,30 @@ export default function Hero() {
               from { opacity: 0; transform: translate3d(0, 24px, 0); }
               to { opacity: 1; transform: translate3d(0, 0, 0); }
             }
-            @keyframes hero-line {
-              from { opacity: 0; transform: scaleX(0); }
-              to { opacity: 1; transform: scaleX(1); }
-            }
             .hero-photo-anim {
               animation: hero-kenburns 22s ease-in-out infinite alternate;
               will-change: transform;
             }
             .hero-rise-1 { animation: hero-fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both; }
+            .hero-rise-2 { animation: hero-fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both; }
             .hero-rise-3 { animation: hero-fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both; }
-            .hero-line-anim {
-              transform-origin: left center;
-              animation: hero-line 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.32s both;
+            .hero-headline {
+              font-family: var(--font-anton), 'Archivo Black', 'Oswald', sans-serif;
+              font-weight: 400;
+              letter-spacing: -0.01em;
+            }
+            .hero-badge {
+              font-family: var(--font-inter), sans-serif;
+              letter-spacing: 0.14em;
+            }
+            .hero-sub {
+              font-family: var(--font-inter), sans-serif;
             }
             @media (prefers-reduced-motion: reduce) {
               .hero-photo-anim,
               .hero-rise-1,
-              .hero-rise-3,
-              .hero-line-anim {
+              .hero-rise-2,
+              .hero-rise-3 {
                 animation: none !important;
                 opacity: 1 !important;
                 transform: none !important;
@@ -76,12 +81,12 @@ export default function Hero() {
           />
         </div>
 
-        {/* Light left fade — only enough for text, nails stay bright on the right */}
+        {/* Light left fade — reduced, hand stays bright */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(90deg, rgba(12,11,10,0.92) 0%, rgba(12,11,10,0.72) 18%, rgba(12,11,10,0.35) 34%, rgba(12,11,10,0.12) 48%, transparent 62%)",
+              "linear-gradient(90deg, rgba(12,11,10,0.82) 0%, rgba(12,11,10,0.58) 18%, rgba(12,11,10,0.28) 34%, rgba(12,11,10,0.10) 48%, transparent 62%)",
           }}
         />
 
@@ -90,44 +95,50 @@ export default function Hero() {
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, rgba(12,11,10,0.35) 0%, transparent 14%)",
+              "linear-gradient(180deg, rgba(12,11,10,0.30) 0%, transparent 14%)",
           }}
         />
 
-        {/* Soft bottom blend only — short fade, nails still visible */}
+        {/* Soft bottom blend only */}
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[22%] md:h-[26%]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[18%] md:h-[22%]"
           style={{
             background:
-              "linear-gradient(to top, #0c0b0a 0%, rgba(12,11,10,0.75) 35%, rgba(12,11,10,0.25) 70%, transparent 100%)",
+              "linear-gradient(to top, #0c0b0a 0%, rgba(12,11,10,0.65) 35%, rgba(12,11,10,0.20) 70%, transparent 100%)",
           }}
         />
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-[1180px] px-5 pb-20 pt-20 md:pb-28 md:pt-24">
-        <div className="max-w-[560px]">
-          <h1
-            className={`font-serif text-[clamp(2.6rem,6vw,4.2rem)] font-medium leading-[1.05] text-[#f4eee6] drop-shadow-[0_2px_18px_rgba(0,0,0,0.55)] ${
+        <div className="max-w-[640px]">
+          <div
+            className={`inline-flex items-center rounded-full border border-[#c9a86a]/70 px-3.5 py-1.5 ${
               ready ? "hero-rise-1" : "opacity-0"
             }`}
           >
-            Nails by Freddy,
+            <span className="hero-badge text-[11px] font-medium uppercase text-[#c9a86a] md:text-xs">
+              Quigney • East London
+            </span>
+          </div>
+
+          <h1
+            className={`hero-headline mt-5 text-[clamp(3.4rem,9.5vw,6.8rem)] uppercase leading-[0.88] text-[#fdf8f0] drop-shadow-[0_2px_18px_rgba(0,0,0,0.55)] ${
+              ready ? "hero-rise-2" : "opacity-0"
+            }`}
+          >
+            Hands /
             <br />
-            Crafted to Perfection
+            That /
+            <br />
+            Talk.
           </h1>
 
-          <div
-            className={`mt-6 h-px w-16 bg-[#d6b36a]/80 ${
-              ready ? "hero-line-anim" : "opacity-0"
-            }`}
-          />
-
           <p
-            className={`mt-6 max-w-[42ch] text-[1.05rem] leading-relaxed text-[#e8e0d6] drop-shadow-[0_1px_12px_rgba(0,0,0,0.5)] ${
+            className={`hero-sub mt-6 max-w-[32ch] text-[1.05rem] leading-relaxed text-[#f4eee6] drop-shadow-[0_1px_12px_rgba(0,0,0,0.5)] md:text-[1.15rem] ${
               ready ? "hero-rise-3" : "opacity-0"
             }`}
           >
-            Luxury nail services designed to elevate your style and confidence.
+            Luxury nails, built to turn heads.
           </p>
         </div>
       </div>
