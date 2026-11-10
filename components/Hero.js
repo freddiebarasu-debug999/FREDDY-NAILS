@@ -7,6 +7,13 @@ export default function Hero() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setReady(true);
+      return;
+    }
     const id = requestAnimationFrame(() => setReady(true));
     return () => cancelAnimationFrame(id);
   }, []);
@@ -14,72 +21,110 @@ export default function Hero() {
   return (
     <section
       id="home"
-      // FIX 1: Slightly shorter so image isn't stretched so large
-      className="relative flex min-h-[62vh] items-center overflow-hidden md:min-h-[68vh]"
+      className="relative flex min-h-[70vh] items-center overflow-hidden md:min-h-[78vh]"
     >
-      {/* Photo layer */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @keyframes hero-kenburns {
+              0% { transform: scale(1.04) translate3d(0, 0, 0); }
+              100% { transform: scale(1.09) translate3d(-1%, 0.5%, 0); }
+            }
+            @keyframes hero-fade-up {
+              from { opacity: 0; transform: translate3d(0, 24px, 0); }
+              to { opacity: 1; transform: translate3d(0, 0, 0); }
+            }
+            @keyframes hero-line {
+              from { opacity: 0; transform: scaleX(0); }
+              to { opacity: 1; transform: scaleX(1); }
+            }
+            .hero-photo-anim {
+              animation: hero-kenburns 22s ease-in-out infinite alternate;
+              will-change: transform;
+            }
+            .hero-rise-1 { animation: hero-fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both; }
+            .hero-rise-3 { animation: hero-fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both; }
+            .hero-line-anim {
+              transform-origin: left center;
+              animation: hero-line 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.32s both;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .hero-photo-anim,
+              .hero-rise-1,
+              .hero-rise-3,
+              .hero-line-anim {
+                animation: none !important;
+                opacity: 1 !important;
+                transform: none !important;
+              }
+            }
+          `,
+        }}
+      />
+
       <div className="absolute inset-0">
-        <Image
-          src="/hero-slide-1.jpg"
-          alt="Freddy Nails gold leaf signature set"
-          fill
-          priority
-          quality={90}
-          // FIX 1: Correct sizes so browser doesn't load a too-small / too-large version
-          sizes="(max-width: 768px) 100vw, 100vw"
-          // FIX 1: REMOVED scale-105 zoom - that zoom was causing blur
-          className="object-cover object-[70%_center] md:object-[75%_center]"
-        />
+        <div className="absolute inset-0 overflow-hidden">
+          <Image
+            src="/hero-slide-1.jpg"
+            alt="Freddy Nails gold leaf signature set"
+            fill
+            priority
+            sizes="100vw"
+            className={`object-cover object-[72%_center] md:object-[78%_center] ${
+              ready ? "hero-photo-anim" : "scale-105"
+            }`}
+          />
+        </div>
 
-        {/* Left readability fade - kept light from last fix */}
+        {/* Light left fade — only enough for text, nails stay bright on the right */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(90deg, rgba(12,11,10,0.82) 0%, rgba(12,11,10,0.65) 22%, rgba(12,11,10,0.35) 38%, rgba(12,11,10,0.10) 55%, transparent 72%)",
+              "linear-gradient(90deg, rgba(12,11,10,0.92) 0%, rgba(12,11,10,0.72) 18%, rgba(12,11,10,0.35) 34%, rgba(12,11,10,0.12) 48%, transparent 62%)",
           }}
         />
 
-        {/* Soft top (under header) */}
+        {/* Very light top under header */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, rgba(12,11,10,0.25) 0%, transparent 18%)",
+              "linear-gradient(180deg, rgba(12,11,10,0.35) 0%, transparent 14%)",
           }}
         />
 
-        {/* FIX 2: NO MORE HARD CUT - taller, smoother bottom fade */}
+        {/* Soft bottom blend only — short fade, nails still visible */}
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[55%] md:h-[60%]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[22%] md:h-[26%]"
           style={{
             background:
-              "linear-gradient(to top, #0c0b0a 0%, rgba(12,11,10,0.95) 15%, rgba(12,11,10,0.75) 30%, rgba(12,11,10,0.45) 50%, rgba(12,11,10,0.18) 75%, transparent 100%)",
+              "linear-gradient(to top, #0c0b0a 0%, rgba(12,11,10,0.75) 35%, rgba(12,11,10,0.25) 70%, transparent 100%)",
           }}
         />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[1180px] px-5 pb-24 pt-20 md:pb-32 md:pt-24">
-        <div
-          className={`max-w-[620px] transition-all duration-700 ease-out ${
-            ready ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
-          }`}
-        >
-          <h1 className="font-serif text-[clamp(2.6rem,6vw,4.2rem)] font-medium leading-[1.05] text-[#f4eee6]">
+      <div className="relative z-10 mx-auto w-full max-w-[1180px] px-5 pb-20 pt-20 md:pb-28 md:pt-24">
+        <div className="max-w-[560px]">
+          <h1
+            className={`font-serif text-[clamp(2.6rem,6vw,4.2rem)] font-medium leading-[1.05] text-[#f4eee6] drop-shadow-[0_2px_18px_rgba(0,0,0,0.55)] ${
+              ready ? "hero-rise-1" : "opacity-0"
+            }`}
+          >
             Nails by Freddy,
             <br />
             Crafted to Perfection
           </h1>
 
           <div
-            className={`mt-6 h-px w-16 origin-left bg-[#d6b36a]/70 transition-all delay-150 duration-700 ${
-              ready ? "scale-x-100 opacity-100" : "scale-x-0 opacity-0"
+            className={`mt-6 h-px w-16 bg-[#d6b36a]/80 ${
+              ready ? "hero-line-anim" : "opacity-0"
             }`}
           />
 
           <p
-            className={`mt-6 max-w-[46ch] text-[1.05rem] leading-relaxed text-[#c9c0b6] transition-all delay-200 duration-700 ${
-              ready ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+            className={`mt-6 max-w-[42ch] text-[1.05rem] leading-relaxed text-[#e8e0d6] drop-shadow-[0_1px_12px_rgba(0,0,0,0.5)] ${
+              ready ? "hero-rise-3" : "opacity-0"
             }`}
           >
             Luxury nail services designed to elevate your style and confidence.
