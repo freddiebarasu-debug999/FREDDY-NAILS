@@ -127,6 +127,8 @@ export default function Hero() {
             }`}
           >
             Luxury nails, built to turn heads.
+            Acrylics, gel, art and eyelashes -
+            made to be noticed. 
           </p>
         </div>
       </div>
