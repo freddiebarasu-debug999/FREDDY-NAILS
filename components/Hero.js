@@ -21,14 +21,14 @@ export default function Hero() {
   return (
     <section
       id="home"
-      className="relative flex min-h-[70vh] items-center overflow-hidden md:min-h-[78vh]"
+      className="relative flex min-h-[88vh] items-center overflow-hidden md:min-h-[82vh]"
     >
       <style
         dangerouslySetInnerHTML={{
           __html: `
             @keyframes hero-kenburns {
-              0% { transform: scale(1.04) translate3d(0, 0, 0); }
-              100% { transform: scale(1.09) translate3d(-1%, 0.5%, 0); }
+              0% { transform: scale(1.0) translate3d(0, 0, 0); }
+              100% { transform: scale(1.03) translate3d(-0.5%, 0.3%, 0); }
             }
             @keyframes hero-fade-up {
               from { opacity: 0; transform: translate3d(0, 24px, 0); }
@@ -44,7 +44,11 @@ export default function Hero() {
             .hero-headline {
               font-family: var(--font-anton), 'Archivo Black', 'Oswald', sans-serif;
               font-weight: 400;
-              letter-spacing: -0.01em;
+              letter-spacing: 0.01em;
+              line-height: 0.98;
+            }
+            .hero-headline span {
+              display: block;
             }
             .hero-badge {
               font-family: var(--font-inter), sans-serif;
@@ -75,18 +79,18 @@ export default function Hero() {
             fill
             priority
             sizes="100vw"
-            className={`object-cover object-[72%_center] md:object-[78%_center] ${
-              ready ? "hero-photo-anim" : "scale-105"
+            className={`object-cover object-[62%_center] md:object-[68%_center] ${
+              ready ? "hero-photo-anim" : "scale-100"
             }`}
           />
         </div>
 
-        {/* Light left fade — reduced, hand stays bright */}
+        {/* Light left fade - reduced, hand stays bright. Slightly stronger on mobile only so text reads */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(90deg, rgba(12,11,10,0.82) 0%, rgba(12,11,10,0.58) 18%, rgba(12,11,10,0.28) 34%, rgba(12,11,10,0.10) 48%, transparent 62%)",
+              "linear-gradient(90deg, rgba(12,11,10,0.82) 0%, rgba(12,11,10,0.55) 22%, rgba(12,11,10,0.25) 42%, rgba(12,11,10,0.08) 55%, transparent 68%)",
           }}
         />
 
@@ -101,18 +105,19 @@ export default function Hero() {
 
         {/* Soft bottom blend only */}
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[18%] md:h-[22%]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[16%] md:h-[20%]"
           style={{
             background:
-              "linear-gradient(to top, #0c0b0a 0%, rgba(12,11,10,0.65) 35%, rgba(12,11,10,0.20) 70%, transparent 100%)",
+              "linear-gradient(to top, #0c0b0a 0%, rgba(12,11,10,0.60) 35%, rgba(12,11,10,0.18) 70%, transparent 100%)",
           }}
         />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[1180px] px-5 pb-20 pt-20 md:pb-28 md:pt-24">
-        <div className="max-w-[640px]">
+      {/* Added pt-36 so header + search bar don't sit on the headline */}
+      <div className="relative z-10 mx-auto w-full max-w-[1180px] px-5 pb-16 pt-36 md:pb-28 md:pt-28">
+        <div className="max-w-[620px]">
           <div
-            className={`inline-flex items-center rounded-full border border-[#c9a86a]/70 px-3.5 py-1.5 ${
+            className={`inline-flex items-center rounded-full border border-[#c9a86a]/70 bg-black/25 px-3.5 py-1.5 backdrop-blur-[2px] ${
               ready ? "hero-rise-1" : "opacity-0"
             }`}
           >
@@ -122,15 +127,13 @@ export default function Hero() {
           </div>
 
           <h1
-            className={`hero-headline mt-5 text-[clamp(3.4rem,9.5vw,6.8rem)] uppercase leading-[0.88] text-[#fdf8f0] drop-shadow-[0_2px_18px_rgba(0,0,0,0.55)] ${
+            className={`hero-headline mt-5 text-[clamp(3.2rem,15vw,5.2rem)] uppercase text-[#fdf8f0] drop-shadow-[0_2px_18px_rgba(0,0,0,0.6)] md:text-[clamp(4rem,7vw,6.8rem)] ${
               ready ? "hero-rise-2" : "opacity-0"
             }`}
           >
-            Hands /
-            <br />
-            That /
-            <br />
-            Talk.
+            <span>Hands /</span>
+            <span>That /</span>
+            <span>Talk.</span>
           </h1>
 
           <p
