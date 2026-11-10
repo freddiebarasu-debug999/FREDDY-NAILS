@@ -1,4 +1,4 @@
-import { Fraunces, Manrope } from "next/font/google";
+import { Anton, Fraunces, 【entity-Inter¦canonical_name=Inter】, Manrope } from "next/font/google";
 import "./globals.css";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -16,6 +16,21 @@ const manrope = Manrope({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-manrope",
+  display: "swap",
+});
+
+// Hero only — bold condensed headline + clean subhead
+const anton = Anton({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-anton",
+  display: "swap",
+});
+
+const 【entity-inter¦canonical_name=Inter】 = 【entity-Inter¦canonical_name=Inter】({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-【entity-inter¦canonical_name=Inter】",
   display: "swap",
 });
 
@@ -176,7 +191,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${manrope.variable}`}>
+    <html lang="en" className={`${fraunces.variable} ${manrope.variable} ${anton.variable} ${inter.variable}`}>
       <body className="font-sans antialiased">
         {/* Soft animated gold orbs — ambient luxury backdrop */}
         <div className="ambient-orb ambient-orb-1" aria-hidden="true" />
