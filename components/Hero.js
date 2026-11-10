@@ -21,7 +21,7 @@ export default function Hero() {
   return (
     <section
       id="home"
-      className="relative flex min-h-[88vh] items-center overflow-hidden md:min-h-[82vh]"
+      className="relative flex min-h-[92vh] items-center overflow-hidden bg-[#0c0b0a] md:min-h-[82vh]"
     >
       <style
         dangerouslySetInnerHTML={{
@@ -47,9 +47,7 @@ export default function Hero() {
               letter-spacing: 0.01em;
               line-height: 0.98;
             }
-            .hero-headline span {
-              display: block;
-            }
+            .hero-headline span { display: block; }
             .hero-badge {
               font-family: var(--font-inter), sans-serif;
               letter-spacing: 0.14em;
@@ -57,11 +55,16 @@ export default function Hero() {
             .hero-sub {
               font-family: var(--font-inter), sans-serif;
             }
+            /* MOBILE EXACT FADE - matches mockup: solid black left panel */
+            .hero-fade-mobile {
+              background: linear-gradient(90deg, #0c0b0a 0%, #0c0b0a 38%, rgba(12,11,10,0.88) 46%, rgba(12,11,10,0.45) 58%, rgba(12,11,10,0.12) 68%, transparent 78%);
+            }
+            /* DESKTOP - softer, full-bleed */
+            .hero-fade-desktop {
+              background: linear-gradient(90deg, rgba(12,11,10,0.82) 0%, rgba(12,11,10,0.58) 18%, rgba(12,11,10,0.28) 34%, rgba(12,11,10,0.10) 48%, transparent 62%);
+            }
             @media (prefers-reduced-motion: reduce) {
-              .hero-photo-anim,
-              .hero-rise-1,
-              .hero-rise-2,
-              .hero-rise-3 {
+              .hero-photo-anim, .hero-rise-1, .hero-rise-2, .hero-rise-3 {
                 animation: none !important;
                 opacity: 1 !important;
                 transform: none !important;
@@ -71,49 +74,46 @@ export default function Hero() {
         }}
       />
 
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 overflow-hidden">
+      {/* BACKGROUND: on mobile image is SMALLER - only right 72%, left is solid black */}
+      <div className="absolute inset-0 bg-[#0c0b0a]">
+        {/* Mobile image - right side only */}
+        <div className="absolute inset-y-0 right-0 w-[72%] overflow-hidden md:hidden">
+          <Image
+            src="/hero-slide-1.jpg"
+            alt="Freddy Nails gold leaf signature set"
+            fill
+            priority
+            sizes="72vw"
+            className={`object-cover object-[68%_center] ${ready ? "hero-photo-anim" : "scale-100"}`}
+          />
+        </div>
+        {/* Desktop image - full bleed */}
+        <div className="absolute inset-0 hidden overflow-hidden md:block">
           <Image
             src="/hero-slide-1.jpg"
             alt="Freddy Nails gold leaf signature set"
             fill
             priority
             sizes="100vw"
-            className={`object-cover object-[62%_center] md:object-[68%_center] ${
-              ready ? "hero-photo-anim" : "scale-100"
-            }`}
+            className={`object-cover object-[68%_center] ${ready ? "hero-photo-anim" : "scale-100"}`}
           />
         </div>
 
-        {/* Light left fade - reduced, hand stays bright. Slightly stronger on mobile only so text reads */}
+        {/* FADE - mobile exact, desktop soft */}
+        <div className="hero-fade-mobile absolute inset-0 md:hidden" />
+        <div className="hero-fade-desktop absolute inset-0 hidden md:block" />
+
+        {/* Top + bottom blends */}
         <div
           className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(90deg, rgba(12,11,10,0.82) 0%, rgba(12,11,10,0.55) 22%, rgba(12,11,10,0.25) 42%, rgba(12,11,10,0.08) 55%, transparent 68%)",
-          }}
+          style={{ background: "linear-gradient(180deg, rgba(12,11,10,0.30) 0%, transparent 14%)" }}
         />
-
-        {/* Very light top under header */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(180deg, rgba(12,11,10,0.30) 0%, transparent 14%)",
-          }}
-        />
-
-        {/* Soft bottom blend only */}
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 h-[16%] md:h-[20%]"
-          style={{
-            background:
-              "linear-gradient(to top, #0c0b0a 0%, rgba(12,11,10,0.60) 35%, rgba(12,11,10,0.18) 70%, transparent 100%)",
-          }}
+          style={{ background: "linear-gradient(to top, #0c0b0a 0%, rgba(12,11,10,0.60) 35%, rgba(12,11,10,0.18) 70%, transparent 100%)" }}
         />
       </div>
 
-      {/* Added pt-36 so header + search bar don't sit on the headline */}
       <div className="relative z-10 mx-auto w-full max-w-[1180px] px-5 pb-16 pt-36 md:pb-28 md:pt-28">
         <div className="max-w-[620px]">
           <div
@@ -126,8 +126,9 @@ export default function Hero() {
             </span>
           </div>
 
+          {/* LARGE on mobile, with real space between lines - no overlap */}
           <h1
-            className={`hero-headline mt-5 text-[clamp(3.2rem,15vw,5.2rem)] uppercase text-[#fdf8f0] drop-shadow-[0_2px_18px_rgba(0,0,0,0.6)] md:text-[clamp(4rem,7vw,6.8rem)] ${
+            className={`hero-headline mt-5 text-[clamp(4.1rem,21vw,5.6rem)] uppercase text-[#fdf8f0] drop-shadow-[0_2px_18px_rgba(0,0,0,0.6)] md:text-[clamp(4rem,7vw,6.8rem)] ${
               ready ? "hero-rise-2" : "opacity-0"
             }`}
           >
