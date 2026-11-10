@@ -125,10 +125,11 @@ export default function Hero() {
             className={`hero-sub mt-6 max-w-[32ch] text-[1.05rem] leading-relaxed text-[#f4eee6] drop-shadow-[0_1px_12px_rgba(0,0,0,0.5)] md:text-[1.15rem] ${
               ready ? "hero-rise-3" : "opacity-0"
             }`}
+            style={{
+              textShadow: "0 3px 16px rgba(0,0,0,0.95), 0 1px 4px rgba(0,0,0,1), 0 0 2px rgba(0,0,0,1)",
+            }}
           >
-            Luxury nails, built to turn heads. 
-              Acrylics, gel, art and eyelashes - made to be noticed. 
-              
+            Luxury nails, built to turn heads. Acrylics, gel, art and eyelashes - made to be noticed.
           </p>
         </div>
       </div>
