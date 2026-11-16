@@ -13,6 +13,8 @@ import {
   sendCustomerConfirmation,
 } from "@/lib/booking-emails";
 import {
+import { formatServiceList, depositForClientServices } from "@/lib/serviceNames";
+import { findReferrerByCode, recordSuccessfulReferral, normalizeReferralCode } from "@/lib/referralCodes";
   findFreeSetCode,
   checkFreeSetCode,
   claimFreeSetCode,
@@ -861,66 +863,96 @@ export async function POST(request) {
       }
     }
 
+    let pendingReferral = null;
+
     if (
       !freeSetRow &&
       typeof promoCode === "string" &&
       promoCode.trim()
     ) {
-      const promo = await getPromo(promoCode);
+      const referrer = await findReferrerByCode(supabase, promoCode);
 
-      if (!promo || !promo.active) {
-        return Response.json(
-          {
-            error: "That promo code isn't valid.",
-          },
-          { status: 400 }
+      if (referrer) {
+        if (profileId && profileId === referrer.id) {
+          return Response.json(
+            { error: "You can't use your own referral code." },
+            { status: 400 }
+          );
+        }
+
+        appliedPromoCode = normalizeReferralCode(promoCode);
+        pendingReferral = {
+          referrerProfileId: referrer.id,
+          referralCode: appliedPromoCode,
+        };
+
+        // Friend: 10% off final service (applied at appointment).
+        // Mark on the booking notes so you see it clearly.
+        notes = (
+          (notes ? String(notes).trim() + " " : "") +
+          "REFERRAL 10% OFF FINAL SERVICE (code " +
+          appliedPromoCode +
+          ")."
+        ).trim();
+
+        // Represent 10% for any internal service-total math still running
+        serviceDiscountAmount = Math.round(Number(serviceTotalAmount || 0) * 0.1);
+        discountedServiceTotal = Math.max(
+          0,
+          Number(serviceTotalAmount || 0) - serviceDiscountAmount
         );
-      }
+      } else {
+        const promo = await getPromo(promoCode);
 
-      const normalizedPromoCode = normalizePromoCode(promo.code);
-      const promoType = String(promo.discount_type || "").trim().toLowerCase();
-      const promoValue = Number(promo.discount_value || 0);
-      if (
-        normalizedPromoCode === "FIRSTVISIT" ||
-        ((promoType === "percent" || promoType === "percentage") && promoValue === 15)
-      ) {
-        return Response.json(
-          { error: "The 15% first-visit offer is no longer available." },
-          { status: 400 }
-        );
-      }
-
-      // Any promo flagged new_clients_only (FIRSTVISIT, or a database
-      // code with the flag switched on) is checked on the server
-      // immediately before the appointment is created.
-      if (promo.new_clients_only === true) {
-        const existingClient = await hasPreviousAppointment({
-          profileId,
-          email,
-          phone,
-        });
-
-        if (existingClient) {
+        if (!promo || !promo.active) {
           return Response.json(
             {
-              error: `${normalizedPromoCode} is available to new Freddy Nails clients only. It looks like you've booked with us before.`,
-              promoCode: normalizedPromoCode,
+              error: "That promo code isn't valid.",
             },
             { status: 400 }
           );
         }
+
+        const normalizedPromoCode = normalizePromoCode(promo.code);
+        const promoType = String(promo.discount_type || "").trim().toLowerCase();
+        const promoValue = Number(promo.discount_value || 0);
+        if (
+          normalizedPromoCode === "FIRSTVISIT" ||
+          ((promoType === "percent" || promoType === "percentage") && promoValue === 15)
+        ) {
+          return Response.json(
+            { error: "The 15% first-visit offer is no longer available." },
+            { status: 400 }
+          );
+        }
+
+        if (promo.new_clients_only === true) {
+          const existingClient = await hasPreviousAppointment({
+            profileId,
+            email,
+            phone,
+          });
+
+          if (existingClient) {
+            return Response.json(
+              {
+                error: `${normalizedPromoCode} is available to new Freddy Nails clients only. It looks like you've booked with us before.`,
+                promoCode: normalizedPromoCode,
+              },
+              { status: 400 }
+            );
+          }
+        }
+
+        const discount = calculateDiscountedAmount(
+          serviceTotalAmount,
+          promo
+        );
+
+        discountedServiceTotal = discount.finalAmount;
+        serviceDiscountAmount = discount.discountAmount;
+        appliedPromoCode = normalizedPromoCode;
       }
-
-      const discount = calculateDiscountedAmount(
-        serviceTotalAmount,
-        promo
-      );
-
-      discountedServiceTotal = discount.finalAmount;
-
-      serviceDiscountAmount = discount.discountAmount;
-
-      appliedPromoCode = normalizedPromoCode;
     }
 
     // Free-set code: claim it now so it can only ever be used once.
@@ -940,19 +972,25 @@ export async function POST(request) {
     }
 
     /*
-     * IMPORTANT:
-     * The deposit is NEVER discounted.
-     * It remains R90 per client.
-     * The only exception is a personal free-set code, which waives it.
+     * Deposit: free-set → 0; soak-off only → R50/R70 full; else R90 per client.
+     * Service labels stored without prices.
      */
     const depositAmount = freeSetRow
       ? 0
-      : DEPOSIT_PER_CLIENT * clientCount;
+      : clientServices.reduce(
+          (sum, services) =>
+            sum +
+            depositForClientServices(services, {
+              standardDeposit: DEPOSIT_PER_CLIENT,
+              waiveDeposit: false,
+            }),
+          0
+        );
 
     const serviceSummary = clientServices
       .map(
         (services, index) =>
-          `Client ${index + 1}: ${services.join(" + ")} — ${
+          `Client ${index + 1}: ${formatServiceList(services)} — ${
             clientDates[index]
           } ${clientStartTimes[index]}–${clientEndTimes[index]}`
       )
@@ -1034,10 +1072,11 @@ export async function POST(request) {
         .eq("id", freeSetRow.id);
     }
 
+
     const clientRows = clientServices.map((services, index) => ({
       appointment_id: appointmentId,
       client_number: index + 1,
-      service_name: services.join(" + "),
+      service_name: formatServiceList(services),
       booking_date: clientDates[index],
       start_time: clientStartTimes[index],
       end_time: clientEndTimes[index],

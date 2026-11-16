@@ -7,6 +7,7 @@ import ReminderSettings from "@/components/ReminderSettings";
 import AvatarUploader from "@/components/AvatarUploader";
 import QuickActions from "@/components/QuickActions";
 import RewardsLadder from "@/components/RewardsLadder";
+import ReferralDashboard from "@/components/ReferralDashboard";
 import MySets from "@/components/MySets";
 import ReviewReward from "@/components/ReviewReward";
 
@@ -251,6 +252,33 @@ export default function AccountPage() {
       }
 
       setProfile(profileData || null);
+
+      if (profileData && !profileData.referral_code) {
+        const base =
+          String(profileData.full_name || profileData.name || "FN")
+            .replace(/[^a-zA-Z]/g, "")
+            .slice(0, 5)
+            .toUpperCase() || "FN";
+        const tail = Math.random().toString(36).slice(2, 6).toUpperCase();
+        const code = `${base}-${tail}`;
+        const { data: updated } = await supabase
+          .from("profiles")
+          .update({ referral_code: code })
+          .eq("id", currentUser.id)
+          .is("referral_code", null)
+          .select("*")
+          .maybeSingle();
+        if (updated?.referral_code) {
+          setProfile(updated);
+        } else {
+          const { data: again } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", currentUser.id)
+            .maybeSingle();
+          if (again) setProfile(again);
+        }
+      }
 
       const { data: appointmentData, error: appointmentError } =
         await supabase
@@ -758,6 +786,12 @@ export default function AccountPage() {
         </section>
 
         <RewardsLadder visits={successfulVisits} />
+
+        <ReferralDashboard
+          code={profile?.referral_code || ""}
+          count={profile?.referral_count || 0}
+          profileId={user?.id || profile?.id}
+        />
 
         {/* ── QUICK STATS ── */}
         <div className="stats-row">

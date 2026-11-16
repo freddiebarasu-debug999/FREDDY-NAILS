@@ -6,6 +6,36 @@ import SlotPicker from "@/components/SlotPicker";
 import NailShapeIcon from "@/components/NailShapeIcon";
 
 const DEPOSIT_PER_CLIENT = 90;
+
+function stripServicePrice(name) {
+  return String(name || "")
+    .replace(/\s*\(R\s*[\d.,]+(?:\s*[–—-]\s*R?\s*[\d.,]+)?\)\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isSoakOffOnly(services) {
+  if (!Array.isArray(services) || !services.length) return false;
+  return services.every((s) => {
+    const n = stripServicePrice(s).toLowerCase();
+    return n.includes("soak off") || n.includes("soak-off");
+  });
+}
+
+function soakOffPrice(serviceName) {
+  const n = stripServicePrice(serviceName).toLowerCase();
+  if (n.includes("other")) return 70;
+  return 50;
+}
+
+function depositForServices(services, waive) {
+  if (waive) return 0;
+  if (isSoakOffOnly(services)) {
+    return services.reduce((sum, s) => sum + soakOffPrice(s), 0);
+  }
+  return DEPOSIT_PER_CLIENT;
+}
+
 const CLIENT_GAP = 15;
 const MAX_CLIENTS = 4;
 const WHATSAPP_NUMBER = "27710888897";
@@ -14,43 +44,43 @@ const SERVICE_CATEGORIES = [
   {
     category: "Acrylic Manicure",
     items: [
-      { name: "Acrylic — Plain Short–Medium (R200)", duration: 90 },
-      { name: "Acrylic — Plain Long (R250)", duration: 105 },
-      { name: "Acrylic — Plain XL–XXXL (R300)", duration: 120 },
-      { name: "Acrylic — French Short–Medium (R300)", duration: 100 },
-      { name: "Acrylic — French Long (R350)", duration: 115 },
-      { name: "Acrylic — French XL–XXL (R400)", duration: 130 },
-      { name: "Acrylic — Ombré Short–Medium (R250)", duration: 120 },
-      { name: "Acrylic — Ombré Long (R300)", duration: 135 },
-      { name: "Acrylic — Ombré XL–XXXL (R350)", duration: 150 },
+      { name: "Acrylic — Plain Short–Medium", duration: 90 },
+      { name: "Acrylic — Plain Long", duration: 105 },
+      { name: "Acrylic — Plain XL–XXXL", duration: 120 },
+      { name: "Acrylic — French Short–Medium", duration: 100 },
+      { name: "Acrylic — French Long", duration: 115 },
+      { name: "Acrylic — French XL–XXL", duration: 130 },
+      { name: "Acrylic — Ombré Short–Medium", duration: 120 },
+      { name: "Acrylic — Ombré Long", duration: 135 },
+      { name: "Acrylic — Ombré XL–XXXL", duration: 150 },
     ],
   },
   {
     category: "Gel Manicure",
     items: [
-      { name: "Gel — Overlay (R200)", duration: 75 },
-      { name: "Gel — Plain Short–Medium (R250)", duration: 90 },
-      { name: "Gel — Plain Long (R300)", duration: 100 },
-      { name: "Gel — French Short–Medium (R300)", duration: 95 },
-      { name: "Gel — French Long (R350)", duration: 110 },
+      { name: "Gel — Overlay", duration: 75 },
+      { name: "Gel — Plain Short–Medium", duration: 90 },
+      { name: "Gel — Plain Long", duration: 100 },
+      { name: "Gel — French Short–Medium", duration: 95 },
+      { name: "Gel — French Long", duration: 110 },
     ],
   },
   {
     category: "Pedicure Sets",
     items: [
-      { name: "Pedicure — Gel Overlay (R150)", duration: 45 },
-      { name: "Pedicure — Gel Full Tips (R200)", duration: 60 },
-      { name: "Pedicure — Acrylic Overlay (R180)", duration: 55 },
-      { name: "Pedicure — Acrylic Full Tips (R200)", duration: 65 },
-      { name: "Pedicure — Acrylic French Tips (R250)", duration: 75 },
+      { name: "Pedicure — Gel Overlay", duration: 45 },
+      { name: "Pedicure — Gel Full Tips", duration: 60 },
+      { name: "Pedicure — Acrylic Overlay", duration: 55 },
+      { name: "Pedicure — Acrylic Full Tips", duration: 65 },
+      { name: "Pedicure — Acrylic French Tips", duration: 75 },
     ],
   },
   {
     category: "Eyelash Extensions",
     items: [
-      { name: "Lashes — Cluster (R130)", duration: 45 },
-      { name: "Lashes — Cateye (R150)", duration: 60 },
-      { name: "Lashes — Classic (R180)", duration: 90 },
+      { name: "Lashes — Cluster", duration: 45 },
+      { name: "Lashes — Cateye", duration: 60 },
+      { name: "Lashes — Classic", duration: 90 },
       {
         name: "Lashes — Hybrid (Coming soon)",
         duration: 105,
@@ -71,20 +101,21 @@ const SERVICE_CATEGORIES = [
   {
     category: "Foot Spa",
     items: [
-      { name: "Foot Spa — Basic (R200)", duration: 30 },
-      { name: "Foot Spa — Luxury (R280)", duration: 45 },
+      { name: "Foot Spa — Basic", duration: 30 },
+      { name: "Foot Spa — Luxury", duration: 45 },
     ],
   },
   {
     category: "Extras — add-on to a service above",
     items: [
-      { name: "Extra — Buff & Shine (R150)", duration: 30 },
-      { name: "Extra — Fill-in @3 weeks (R180)", duration: 75 },
-      { name: "Extra — Nail Repair (R20–R30)", duration: 15 },
-      { name: "Extra — Soak Off (R50)", duration: 20 },
-      { name: "Extra — Nail Art (R30–R50)", duration: 20 },
-      { name: "Extra — Rhinestones (R10–R15)", duration: 10 },
-      { name: "Extra — 3D Art (R50–R100)", duration: 30 },
+      { name: "Extra — Buff & Shine", duration: 30 },
+      { name: "Extra — Fill-in @3 weeks", duration: 75 },
+      { name: "Extra — Nail Repair", duration: 15 },
+      { name: "Extra — Soak Off (own work)", duration: 20 },
+      { name: "Extra — Soak Off (other salon)", duration: 20 },
+      { name: "Extra — Nail Art", duration: 20 },
+      { name: "Extra — Rhinestones", duration: 10 },
+      { name: "Extra — 3D Art", duration: 30 },
     ],
   },
 ];
@@ -126,7 +157,7 @@ function isShapeEligibleService(serviceName) {
 
   if (
     serviceName ===
-    "Gel — Overlay (R200)"
+    "Gel — Overlay"
   ) {
     return false;
   }
@@ -430,10 +461,13 @@ export default function Booking() {
   // A personal free-set code waives the deposit completely.
   const isFreeSet = Boolean(appliedPromo?.freeSet);
 
-  const depositAmount = isFreeSet
-    ? 0
-    : clientCount *
-      DEPOSIT_PER_CLIENT;
+  const depositAmount = useMemo(() => {
+    if (isFreeSet) return 0;
+    return form.clientServices.reduce(
+      (sum, services) => sum + depositForServices(services, false),
+      0
+    );
+  }, [isFreeSet, form.clientServices]);
 
   /*
    * Applies both built-in Freddy Nails
@@ -2809,7 +2843,7 @@ export default function Booking() {
             <div className="text-xs text-[#8f877e] leading-relaxed">
               {isFreeSet
                 ? "Your free set code covers this booking. No payment is needed, and your slot is confirmed as soon as you tap the button below."
-                : "Your booking deposit is R90 per client. The final service price can be confirmed with Freddy Nails before your appointment."}
+                : "Standard deposit is R90 per client (soak-off only is R50 / R70 in full). Final service pricing is confirmed at your appointment with Freddy Nails before your appointment."}
             </div>
           </div>
 
@@ -2830,7 +2864,7 @@ export default function Booking() {
           <p className="text-xs text-[#8f877e] text-center mt-3">
             {isFreeSet
               ? "No payment is taken with a free set code."
-              : "You'll be securely redirected to Yoco to pay your R90-per-client booking deposit."}
+              : "You'll be securely redirected to Yoco to pay your booking deposit."}
           </p>
         </form>
       </div>

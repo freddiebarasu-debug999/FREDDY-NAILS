@@ -5,6 +5,7 @@ import {
   findFreeSetCode,
   checkFreeSetCode,
 } from "@/lib/freeSetCodes";
+import { findReferrerByCode, normalizeReferralCode } from "@/lib/referralCodes";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -392,6 +393,33 @@ export async function GET(request) {
           "Free set code applied. No deposit is needed, so your slot is confirmed straight away.",
         newClientsOnly: false,
         freeSet: true,
+      });
+    }
+
+    // Referral codes (unique per client account) → 10% off for the friend
+    const referrer = await findReferrerByCode(supabase, normalizedCode);
+    if (referrer) {
+      const authUser = await getAuthenticatedUser(request);
+      if (authUser?.id && authUser.id === referrer.id) {
+        return Response.json(
+          {
+            valid: false,
+            error: "You can't use your own referral code.",
+          },
+          { status: 400 }
+        );
+      }
+      return Response.json({
+        valid: true,
+        code: normalizedCode,
+        discountType: "percent",
+        discountValue: 10,
+        description:
+          "Referral code applied — you get 10% off your service total (confirmed at your appointment). Your deposit still secures the slot.",
+        newClientsOnly: false,
+        freeSet: false,
+        referral: true,
+        referrerName: referrer.full_name || null,
       });
     }
 

@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { createGoogleCalendarEvent } from "@/lib/google-calendar";
 import {
+import { findReferrerByCode, recordSuccessfulReferral } from "@/lib/referralCodes";
   sendOwnerNotification,
   sendCustomerConfirmation,
 } from "@/lib/booking-emails";
@@ -390,6 +391,27 @@ export async function POST(request) {
       "Appointment confirmed after successful Yoco payment:",
       appointment.id
     );
+
+    // Referral: count toward referrer progress bar only after paid deposit
+    try {
+      const code = appointment.promo_code;
+      if (code) {
+        const referrer = await findReferrerByCode(supabase, code);
+        if (
+          referrer &&
+          !(appointment.profile_id && appointment.profile_id === referrer.id)
+        ) {
+          await recordSuccessfulReferral(supabase, {
+            referrerProfileId: referrer.id,
+            friendProfileId: appointment.profile_id || null,
+            appointmentId: appointment.id,
+            referralCode: code,
+          });
+        }
+      }
+    } catch (refErr) {
+      console.error("Referral progress update failed:", refErr);
+    }
 
     // -------------------------------------------------------
     // GOOGLE CALENDAR
