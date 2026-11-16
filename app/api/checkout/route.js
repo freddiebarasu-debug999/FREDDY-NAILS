@@ -13,15 +13,8 @@ import {
   sendCustomerConfirmation,
 } from "@/lib/booking-emails";
 import {
-  formatServiceList,
-  depositForClientServices,
-} from "@/lib/serviceNames";
-import {
-  findReferrerByCode,
-  recordSuccessfulReferral,
-  normalizeReferralCode,
-} from "@/lib/referralCodes";
-import {
+import { formatServiceList, depositForClientServices } from "@/lib/serviceNames";
+import { findReferrerByCode, recordSuccessfulReferral, normalizeReferralCode } from "@/lib/referralCodes";
   findFreeSetCode,
   checkFreeSetCode,
   claimFreeSetCode,
@@ -528,7 +521,7 @@ export async function POST(request) {
       );
     }
 
-    const {
+    let {
       name,
       phone,
       email,
