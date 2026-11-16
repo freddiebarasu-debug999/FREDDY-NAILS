@@ -13,8 +13,15 @@ import {
   sendCustomerConfirmation,
 } from "@/lib/booking-emails";
 import {
-import { formatServiceList, depositForClientServices } from "@/lib/serviceNames";
-import { findReferrerByCode, recordSuccessfulReferral, normalizeReferralCode } from "@/lib/referralCodes";
+  formatServiceList,
+  depositForClientServices,
+} from "@/lib/serviceNames";
+import {
+  findReferrerByCode,
+  recordSuccessfulReferral,
+  normalizeReferralCode,
+} from "@/lib/referralCodes";
+import {
   findFreeSetCode,
   checkFreeSetCode,
   claimFreeSetCode,
