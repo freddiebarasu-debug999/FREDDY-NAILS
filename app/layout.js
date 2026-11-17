@@ -3,6 +3,7 @@ import "./globals.css";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import InstallPrompt from "@/components/InstallPrompt";
 import BookingSuccessPopup from "@/components/BookingSuccessPopup";
+import SplashScreen from "@/components/SplashScreen";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -146,8 +147,15 @@ const jsonLd = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${manrope.variable} ${anton.variable} ${inter.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${fraunces.variable} ${manrope.variable} ${anton.variable} ${inter.variable}`}>
       <body className="font-sans antialiased">
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{if(sessionStorage.getItem("fn_splash")){document.documentElement.setAttribute("data-splash","off")}else{sessionStorage.setItem("fn_splash","1")}}catch(e){}',
+          }}
+        />
+        <SplashScreen />
         <div className="ambient-orb ambient-orb-1" aria-hidden="true" />
         <div className="ambient-orb ambient-orb-2" aria-hidden="true" />
         <div className="ambient-orb ambient-orb-3" aria-hidden="true" />

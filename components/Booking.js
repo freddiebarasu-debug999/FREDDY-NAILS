@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import SlotPicker from "@/components/SlotPicker";
 import NailShapeIcon from "@/components/NailShapeIcon";
@@ -328,7 +328,7 @@ function calculateServicesDuration(
 }
 
 const inputClass =
-  "w-full px-4 py-3 border border-white/[0.12] rounded-md bg-[#181614] text-[0.92rem] text-[#f4eee6] placeholder:text-[#8f877e] focus:outline-none focus:border-[#d6b36a]/60 focus:ring-1 focus:ring-[#d6b36a]/20 transition-all";
+  "w-full px-4 py-3 border border-white/[0.12] rounded-md bg-[#181614] text-base sm:text-[0.92rem] text-[#f4eee6] placeholder:text-[#8f877e] focus:outline-none focus:border-[#d6b36a]/60 focus:ring-1 focus:ring-[#d6b36a]/20 transition-all";
 
 const labelClass =
   "block text-xs font-bold tracking-[0.12em] uppercase mb-2 text-[#c9c0b6]";
@@ -373,6 +373,18 @@ export default function Booking() {
   const [error, setError] =
     useState("");
 
+  const errorRef = useRef(null);
+
+  // Show the error next to the pay button so it is never off-screen on a phone.
+  useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [error]);
+
   const [
     confirmedBooking,
     setConfirmedBooking,
@@ -398,6 +410,9 @@ export default function Booking() {
 
   const [promoError, setPromoError] =
     useState("");
+
+  const [promoOpen, setPromoOpen] =
+    useState(false);
 
   const clientCount =
     Number(form.clients);
@@ -683,6 +698,7 @@ export default function Booking() {
     setAppliedPromo(null);
     setPromoCode("");
     setPromoError("");
+    setPromoOpen(false);
   }
 
   // One-tap rebook: the account page can pass in the service from the
@@ -1535,6 +1551,35 @@ export default function Booking() {
     }
 
     /*
+     * Promo codes are optional. If the client typed
+     * something but never pressed Apply, try it now.
+     * An invalid code never blocks the booking: it is
+     * dropped and the client books normally.
+     */
+    let promoCodeToSend =
+      appliedPromo?.code || null;
+
+    if (
+      !appliedPromo &&
+      promoCode.trim()
+    ) {
+      const typedCode =
+        promoCode.trim().toUpperCase();
+
+      const typedCodeOk =
+        await applyPromoCodeValue(
+          typedCode
+        );
+
+      if (typedCodeOk) {
+        promoCodeToSend = typedCode;
+      } else {
+        promoCodeToSend = null;
+        setPromoCode("");
+      }
+    }
+
+    /*
      * Re-check a first-time-only promo
      * immediately before checkout.
      */
@@ -1773,8 +1818,7 @@ export default function Booking() {
                 form.notes.trim(),
 
               promoCode:
-                appliedPromo?.code ||
-                null,
+                promoCodeToSend,
             }),
           }
         );
@@ -2195,7 +2239,7 @@ export default function Booking() {
   return (
     <section
       id="booking"
-      className="relative max-w-[1180px] mx-auto px-5 py-22"
+      className="relative max-w-[1180px] mx-auto px-5 py-22 overflow-x-clip"
     >
       <div className="max-w-[820px] mx-auto mb-12">
         <p className="text-[0.72rem] font-bold tracking-[0.22em] uppercase text-gold">
@@ -2226,8 +2270,8 @@ export default function Booking() {
           )}
       </div>
 
-      <div className="max-w-[820px] mx-auto">
-        <form onSubmit={handleSubmit}>
+      <div className="max-w-[820px] mx-auto min-w-0">
+        <form onSubmit={handleSubmit} className="w-full min-w-0">
           <div className="pb-8 border-b border-white/[0.09]">
             <div className="flex items-center gap-4 mb-6">
               <p className="text-[0.68rem] font-bold tracking-[0.22em] uppercase text-gold">
@@ -2237,7 +2281,7 @@ export default function Booking() {
               <div className="h-px flex-1 bg-white/[0.08]" />
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <label>
                 <span
                   className={labelClass}
@@ -2257,6 +2301,10 @@ export default function Booking() {
                     })
                   }
                   placeholder="Your full name"
+                  name="name"
+                  autoComplete="name"
+                  autoCapitalize="words"
+                  enterKeyHint="next"
                   required
                 />
               </label>
@@ -2280,6 +2328,10 @@ export default function Booking() {
                     })
                   }
                   placeholder="e.g. 071 234 5678"
+                  name="tel"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  enterKeyHint="next"
                   required
                 />
               </label>
@@ -2303,6 +2355,13 @@ export default function Booking() {
                     })
                   }
                   placeholder="you@example.com"
+                  name="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint="next"
                   required
                 />
               </label>
@@ -2424,7 +2483,7 @@ export default function Booking() {
                               className="flex gap-2 items-center"
                             >
                               <select
-                                className={`${inputClass} flex-1`}
+                                className={`${inputClass} flex-1 min-w-0`}
                                 value={
                                   serviceName
                                 }
@@ -2699,7 +2758,7 @@ export default function Booking() {
             <span
               className={labelClass}
             >
-              Notes
+              Notes (optional)
             </span>
 
             <textarea
@@ -2712,20 +2771,29 @@ export default function Booking() {
                     event.target.value,
                 })
               }
-              placeholder="Anything Freddy Nails should know?"
+              placeholder="Colour, length, shape or inspiration. Anything Freddy Nails should know?"
               rows={4}
             />
           </label>
 
-          {error && (
-            <div className="mt-5 border-l-2 border-red-400 bg-red-400/10 px-4 py-3 text-sm text-red-300">
-              {error}
-            </div>
-          )}
-
           <div className="mt-8 pt-6 border-t border-white/[0.09]">
+            {!appliedPromo &&
+            !promoOpen &&
+            !promoCode.trim() &&
+            !promoError ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setPromoOpen(true)
+                }
+                className="text-sm text-gold underline underline-offset-4"
+              >
+                Have a promo or referral code?
+              </button>
+            ) : (
+              <>
             <span className="block text-xs font-bold tracking-[0.12em] uppercase mb-2 text-[#c9c0b6]">
-              Promo code / Offer
+              Promo code / Offer (optional)
             </span>
 
             {appliedPromo ? (
@@ -2783,8 +2851,13 @@ export default function Booking() {
                       );
                     }
                   }}
-                  placeholder="Enter code"
-                  className={`${inputClass} flex-1`}
+                  placeholder="Have a code? Enter it here (optional)"
+                  name="freddy-promo-code"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  className={`${inputClass} flex-1 min-w-0`}
                 />
 
                 <button
@@ -2817,13 +2890,93 @@ export default function Booking() {
                 <p className="text-xs text-red-300 leading-relaxed">
                   {promoError}
                 </p>
+
+                <p className="text-xs text-[#c9c0b6] leading-relaxed mt-1">
+                  A promo code is optional.
+                </p>
+
+                {promoCode.trim() && (
+                  <button
+                    type="button"
+                    onClick={removePromoCode}
+                    className="text-xs text-gold underline mt-2"
+                  >
+                    Clear code
+                  </button>
+                )}
               </div>
+            )}
+              </>
             )}
           </div>
 
+          {/* Booking summary */}
+          {form.clientServices
+            .slice(0, clientCount)
+            .some(
+              (_, index) =>
+                form.clientDates[index] &&
+                form.clientTimes[index]
+            ) && (
+            <div className="mt-6 border border-white/[0.10] bg-[#181614]/80 rounded-lg px-4 py-4">
+              <p className="text-[0.68rem] font-bold tracking-[0.22em] uppercase text-gold mb-3">
+                Your booking summary
+              </p>
+
+              <div className="space-y-3">
+                {form.clientServices
+                  .slice(0, clientCount)
+                  .map((services, index) => {
+                    const date =
+                      form.clientDates[index];
+                    const start =
+                      form.clientTimes[index];
+                    const hasSlot =
+                      date && start;
+
+                    return (
+                      <div
+                        key={`summary-${index}`}
+                        className="text-sm text-[#c9c0b6] leading-relaxed break-words"
+                      >
+                        {clientCount > 1 && (
+                          <span className="block text-[#f4eee6] font-semibold">
+                            Client {index + 1}
+                          </span>
+                        )}
+
+                        <span className="block">
+                          {(services || []).length > 0
+                            ? services.join(", ")
+                            : "No service chosen yet"}
+                        </span>
+
+                        <span className="block text-[#8f877e]">
+                          {hasSlot
+                            ? `${formatDate(date)}, ${formatTime(start)} to ${formatTime(
+                                minutesToTime(
+                                  timeToMinutes(start) +
+                                    (clientDurations[index] || 0)
+                                )
+                              )}`
+                            : "Date and time not chosen yet"}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              {appliedPromo && (
+                <p className="text-xs text-gold mt-3">
+                  Code applied: {appliedPromo.code}
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="border-t border-white/[0.09] pt-6 mt-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <div>
+            <div className="flex justify-between items-center gap-4">
+              <div className="min-w-0">
                 <span className="block text-xs uppercase tracking-[0.12em] text-[#8f877e] mb-1">
                   Booking deposit
                 </span>
@@ -2835,22 +2988,33 @@ export default function Booking() {
                 </span>
               </div>
 
-              <strong className="font-serif text-2xl text-gold">
+              <strong className="font-serif text-2xl text-gold shrink-0">
                 R{depositAmount}
               </strong>
             </div>
 
-            <div className="text-xs text-[#8f877e] leading-relaxed">
+            <div className="text-xs text-[#8f877e] leading-relaxed break-words">
               {isFreeSet
                 ? "Your free set code covers this booking. No payment is needed, and your slot is confirmed as soon as you tap the button below."
                 : "Standard deposit is R90 per client (soak-off only is R50 / R70 in full). Final service pricing is confirmed at your appointment with Freddy Nails before your appointment."}
             </div>
           </div>
 
+          {error && (
+            <div
+              ref={errorRef}
+              role="alert"
+              className="mt-7 border-l-2 border-red-400 bg-red-400/10 px-4 py-3 text-sm text-red-300"
+            >
+              {error}
+            </div>
+          )}
+
+          <div className="sticky bottom-0 z-20 -mx-5 px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] mt-5 bg-[#11100f]/95 backdrop-blur border-t border-white/[0.09] sm:mx-0 sm:px-0 sm:border-t-0 sm:bg-transparent sm:backdrop-blur-none">
           <button
             type="submit"
-            disabled={submitting}
-            className="flex items-center justify-center gap-2.5 w-full bg-gold text-[#11100f] py-4 rounded-sm font-bold uppercase tracking-wide text-[0.85rem] hover:bg-gold-bright transition-colors disabled:opacity-50 mt-7"
+            disabled={submitting || promoChecking}
+            className="flex items-center justify-center gap-2.5 w-full bg-gold text-[#11100f] py-4 rounded-sm font-bold uppercase tracking-wide text-[0.85rem] hover:bg-gold-bright transition-colors disabled:opacity-50"
           >
             {submitting
               ? isFreeSet
@@ -2860,6 +3024,7 @@ export default function Booking() {
               ? "Confirm my free set"
               : `Pay R${depositAmount} deposit`}
           </button>
+          </div>
 
           <p className="text-xs text-[#8f877e] text-center mt-3">
             {isFreeSet

@@ -2,7 +2,7 @@
 // - Never caches pages, bookings, payments or API calls, so clients always
 //   see live availability. It only shows a friendly offline page.
 // - Receives push notifications (appointment reminders, rebook nudges).
-const CACHE = "freddy-nails-offline-v2";
+const CACHE = "freddy-nails-offline-v3";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {
