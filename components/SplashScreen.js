@@ -14,7 +14,7 @@ import { useEffect } from "react";
  * - If JavaScript ever fails, a CSS failsafe hides it after a few seconds.
  */
 
-const MIN_VISIBLE_MS = 1100;
+const MIN_VISIBLE_MS = 2400;
 
 const css = `
 #app-splash {
@@ -74,6 +74,17 @@ html[data-splash="off"] #app-splash {
   opacity: 0;
   animation: splash-fade 0.9s ease 0.4s forwards;
 }
+#app-splash .splash-slogan {
+  margin-top: -0.9rem;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  color: #f4eee6;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: splash-slide-up 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 1s forwards;
+}
 #app-splash .splash-bar {
   width: 96px;
   height: 2px;
@@ -81,7 +92,7 @@ html[data-splash="off"] #app-splash {
   overflow: hidden;
   background: rgba(255,255,255,0.08);
   opacity: 0;
-  animation: splash-fade 0.6s ease 0.7s forwards;
+  animation: splash-fade 0.6s ease 1.3s forwards;
 }
 #app-splash .splash-bar::after {
   content: "";
@@ -101,6 +112,9 @@ html[data-splash="off"] #app-splash {
 }
 @keyframes splash-fade {
   to { opacity: 1; }
+}
+@keyframes splash-slide-up {
+  to { opacity: 0.85; transform: translateY(0); }
 }
 @keyframes splash-slide {
   0% { transform: translateX(-120%); }
@@ -167,6 +181,8 @@ export default function SplashScreen() {
       </div>
 
       <span className="splash-name">Freddy Nails</span>
+
+      <span className="splash-slogan">Crafted to Perfection</span>
 
       <span className="splash-bar" />
     </div>
