@@ -1,23 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
 
 export default function Hero() {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      setReady(true);
-      return;
-    }
-    const id = requestAnimationFrame(() => setReady(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-
   return (
     <section
       id="home"
@@ -48,14 +33,8 @@ export default function Hero() {
               line-height: 0.98;
             }
             .hero-headline span { display: block; }
-            .hero-badge {
-              font-family: var(--font-inter), sans-serif;
-              letter-spacing: 0.14em;
-            }
-            .hero-sub {
-              font-family: var(--font-inter), sans-serif;
-            }
-            /* BALANCED MOBILE FADE - strong only behind text, clears fast */
+            .hero-badge { font-family: var(--font-inter), sans-serif; letter-spacing: 0.14em; }
+            .hero-sub { font-family: var(--font-inter), sans-serif; }
             .hero-fade-mobile {
               background: linear-gradient(90deg, rgba(12,11,10,0.88) 0%, rgba(12,11,10,0.68) 16%, rgba(12,11,10,0.38) 30%, rgba(12,11,10,0.14) 46%, transparent 60%);
             }
@@ -73,7 +52,6 @@ export default function Hero() {
         }}
       />
 
-      {/* Full-width image again - hand NOT cropped to 72% */}
       <div className="absolute inset-0 bg-[#0c0b0a]">
         <div className="absolute inset-0 overflow-hidden">
           <Image
@@ -81,14 +59,17 @@ export default function Hero() {
             alt="Freddy Nails gold leaf signature set"
             fill
             priority
-            sizes="100vw"
-            className={`object-cover object-[58%_center] md:object-[68%_center] ${ready ? "hero-photo-anim" : "scale-100"}`}
+            fetchPriority="high"
+            quality={85}
+            sizes="(max-width: 768px) 100vw, 1200px"
+            placeholder="blur"
+            blurDataURL="data:image/jpeg;base64,[STRIPPED]"
+            className="hero-photo-anim object-cover object-[58%_center] md:object-[68%_center]"
           />
         </div>
 
         <div className="hero-fade-mobile absolute inset-0 md:hidden" />
         <div className="hero-fade-desktop absolute inset-0 hidden md:block" />
-
         <div
           className="absolute inset-0"
           style={{ background: "linear-gradient(180deg, rgba(12,11,10,0.25) 0%, transparent 12%)" }}
@@ -101,30 +82,20 @@ export default function Hero() {
 
       <div className="relative z-10 mx-auto w-full max-w-[1180px] px-5 pb-16 pt-36 md:pb-28 md:pt-28">
         <div className="max-w-[620px]">
-          <div
-            className={`inline-flex items-center rounded-full border border-[#c9a86a]/70 bg-black/25 px-3.5 py-1.5 backdrop-blur-[2px] ${
-              ready ? "hero-rise-1" : "opacity-0"
-            }`}
-          >
+          <div className="hero-rise-1 inline-flex items-center rounded-full border border-[#c9a86a]/70 bg-black/25 px-3.5 py-1.5 backdrop-blur-[2px]">
             <span className="hero-badge text-[11px] font-medium uppercase text-[#c9a86a] md:text-xs">
               Quigney • East London
             </span>
           </div>
 
-          <h1
-            className={`hero-headline mt-5 text-[clamp(4.1rem,21vw,5.6rem)] uppercase text-[#fdf8f0] drop-shadow-[0_2px_18px_rgba(0,0,0,0.6)] md:text-[clamp(4rem,7vw,6.8rem)] ${
-              ready ? "hero-rise-2" : "opacity-0"
-            }`}
-          >
+          <h1 className="hero-headline hero-rise-2 mt-5 text-[clamp(4.1rem,21vw,5.6rem)] uppercase text-[#fdf8f0] drop-shadow-[0_2px_18px_rgba(0,0,0,0.6)] md:text-[clamp(4rem,7vw,6.8rem)]">
             <span>Hands /</span>
             <span>That /</span>
             <span>Talk.</span>
           </h1>
 
           <p
-            className={`hero-sub mt-6 max-w-[32ch] text-[1.05rem] leading-relaxed text-[#f4eee6] drop-shadow-[0_1px_12px_rgba(0,0,0,0.5)] md:text-[1.15rem] ${
-              ready ? "hero-rise-3" : "opacity-0"
-            }`}
+            className="hero-sub hero-rise-3 mt-6 max-w-[32ch] text-[1.05rem] leading-relaxed text-[#f4eee6] drop-shadow-[0_1px_12px_rgba(0,0,0,0.5)] md:text-[1.15rem]"
             style={{
               textShadow: "0 3px 16px rgba(0,0,0,0.95), 0 1px 4px rgba(0,0,0,1), 0 0 2px rgba(0,0,0,1)",
             }}
