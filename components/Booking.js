@@ -4,6 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import SlotPicker from "@/components/SlotPicker";
 import NailShapeIcon from "@/components/NailShapeIcon";
+import {
+  clashesWithOtherServices,
+  findPrimaryConflict,
+} from "@/lib/serviceRules";
 
 const DEPOSIT_PER_CLIENT = 90;
 
@@ -1027,7 +1031,11 @@ export default function Booking() {
           (option) =>
             !updated[
               clientIndex
-            ].includes(option.name)
+            ].includes(option.name) &&
+            !clashesWithOtherServices(
+              option.name,
+              updated[clientIndex]
+            )
         );
 
       if (!unused) return current;
@@ -1606,6 +1614,23 @@ export default function Booking() {
         form.clientServices[
           clientIndex
         ] || [];
+
+      const primaryConflict =
+        findPrimaryConflict(
+          services
+        );
+
+      if (primaryConflict) {
+        setError(
+          `Client ${
+            clientIndex + 1
+          } can only have one ${
+            primaryConflict.label
+          }. Please remove the extra one.`
+        );
+
+        return;
+      }
 
       const needsShape =
         services.some(
@@ -2532,7 +2557,17 @@ export default function Booking() {
                                               option.name
                                             }
                                             disabled={
-                                              option.disabled
+                                              option.disabled ||
+                                              (option.name !==
+                                                serviceName &&
+                                                clashesWithOtherServices(
+                                                  option.name,
+                                                  services.filter(
+                                                    (_, i) =>
+                                                      i !==
+                                                      serviceIndex
+                                                  )
+                                                ))
                                             }
                                           >
                                             {option.name.replace(/\s*\(R[^)]*\)/g, "")}

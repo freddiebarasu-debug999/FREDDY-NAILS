@@ -8,6 +8,7 @@ import {
   clashesWithBuffer,
 } from "@/lib/bookingRules";
 import { createGoogleCalendarEvent } from "@/lib/google-calendar";
+import { findPrimaryConflict } from "@/lib/serviceRules";
 import {
   sendOwnerNotification,
   sendCustomerConfirmation,
@@ -440,6 +441,15 @@ export async function POST(request) {
       if (uniqueServices.size !== services.length) {
         return Response.json(
           { error: `Client ${clientIndex + 1} cannot have the same service selected more than once.` },
+          { status: 400 }
+        );
+      }
+      const primaryConflict = findPrimaryConflict(services);
+      if (primaryConflict) {
+        return Response.json(
+          {
+            error: `Client ${clientIndex + 1} can only have one ${primaryConflict.label}. Please remove the extra one, or book it for another client.`,
+          },
           { status: 400 }
         );
       }
