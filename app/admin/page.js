@@ -146,6 +146,28 @@ function SignIn({ onDone }) {
 /* ---------- payment breakdown ---------- */
 
 function PaymentBreakdown({ booking, clients }) {
+  const [payments, setPayments] = useState([]);
+  const [ready, setReady] = useState(true);
+  const [method, setMethod] = useState("cash");
+  const [amount, setAmount] = useState("");
+  const [tip, setTip] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadPayments = useCallback(async () => {
+    try {
+      const data = await api(`/api/admin/payments?appointment_id=${encodeURIComponent(booking.id)}`);
+      setPayments(data.payments || []);
+      setReady(data.ready !== false);
+    } catch (e) {
+      setError(e.message);
+    }
+  }, [booking.id]);
+
+  useEffect(() => {
+    loadPayments();
+  }, [loadPayments]);
+
   // Uses the services currently picked on screen, so adding an extra
   // updates the total straight away (before you even press Save).
   const total = clients.length
@@ -153,7 +175,43 @@ function PaymentBreakdown({ booking, clients }) {
     : bookingTotal(booking);
   const deposit = Number(booking.deposit_amount || 0);
   const paid = isPaid(booking);
-  const balance = Math.max(total - (paid ? deposit : 0), 0);
+  const cancelled = isCancelled(booking);
+  const collected = payments.filter((p) => !p.is_tip).reduce((s, p) => s + Number(p.amount), 0);
+  const tips = payments.filter((p) => p.is_tip).reduce((s, p) => s + Number(p.amount), 0);
+  const balance = Math.max(total - (paid ? deposit : 0) - collected, 0);
+
+  async function add(isTip) {
+    const value = isTip ? tip : amount || String(balance);
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/admin/payments", {
+        method: "POST",
+        body: JSON.stringify({ action: "add", appointment_id: booking.id, amount: value, method, is_tip: isTip }),
+      });
+      if (isTip) setTip("");
+      else setAmount("");
+      await loadPayments();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(p) {
+    if (!window.confirm(`Remove this ${p.is_tip ? "tip" : "payment"} of ${money(p.amount)}?`)) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/admin/payments", { method: "POST", body: JSON.stringify({ action: "delete", id: p.id }) });
+      await loadPayments();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const row = "flex items-center justify-between text-sm";
   return (
@@ -171,13 +229,82 @@ function PaymentBreakdown({ booking, clients }) {
           </span>
           <span className="font-semibold">{money(deposit)}</span>
         </div>
+        {collected > 0 && (
+          <div className={row}>
+            <span className="text-[#c9c0b6]">Balance paid</span>
+            <span className="font-semibold text-[#6fcf8a]">{money(collected)}</span>
+          </div>
+        )}
         <div className={`${row} border-t border-white/10 pt-2`}>
-          <span className="font-semibold">Balance due on the day</span>
+          <span className="font-semibold">{balance === 0 && collected > 0 ? "Fully paid" : "Balance due"}</span>
           <span className="text-lg font-bold text-[#d6b36a]">{money(balance)}</span>
         </div>
+        {tips > 0 && (
+          <div className={row}>
+            <span className="text-[#c9c0b6]">Tips (not in totals)</span>
+            <span className="font-semibold">{money(tips)}</span>
+          </div>
+        )}
       </div>
+
+      {!cancelled && ready && (
+        <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
+          <div className="grid grid-cols-2 gap-3">
+            <select className={input} value={method} onChange={(e) => setMethod(e.target.value)}>
+              <option value="cash">Cash</option>
+              <option value="transfer">Transfer / EFT</option>
+              <option value="card">Card</option>
+            </select>
+            <input
+              className={input}
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              placeholder={balance > 0 ? `R${balance}` : "R amount"}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </div>
+          <button className={goldBtn} disabled={busy || (balance <= 0 && !amount)} onClick={() => add(false)}>
+            {busy ? "Saving…" : "Mark balance paid"}
+          </button>
+          <div className="flex gap-2">
+            <input
+              className={input}
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              placeholder="Tip (R)"
+              value={tip}
+              onChange={(e) => setTip(e.target.value)}
+            />
+            <button className={ghostBtn} disabled={busy || !tip} onClick={() => add(true)}>Add tip</button>
+          </div>
+        </div>
+      )}
+
+      {!ready && (
+        <p className="mt-3 rounded-lg bg-[#2a2314] p-3 text-xs text-[#e8c36a]">
+          Recording balance payments and tips needs the one-time Supabase SQL setup.
+        </p>
+      )}
+      {error && <p className="mt-3 rounded-lg bg-[#3a1d1d] p-3 text-sm text-[#e39a96]">{error}</p>}
+
+      {payments.length > 0 && (
+        <ul className="mt-4 space-y-1 border-t border-white/10 pt-3 text-xs text-[#c9c0b6]">
+          {payments.map((p) => (
+            <li key={p.id} className="flex items-center justify-between gap-2">
+              <span>{p.is_tip ? "Tip" : "Balance"} · {p.method} · {money(p.amount)}</span>
+              <button className="font-bold uppercase text-[#e39a96]" disabled={busy} onClick={() => remove(p)}>Remove</button>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <p className="mt-3 text-xs text-[#9f978f]">
-        Menu prices only. Promo codes and tips are not included, and the deposit is not changed by edits.
+        Menu prices only. Promo codes are not deducted, and the deposit is not changed by edits.
       </p>
     </div>
   );

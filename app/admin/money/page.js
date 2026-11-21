@@ -158,11 +158,21 @@ export default function MoneyPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <Stat label="Bookings" value={data.bookings} sub="Paid, not cancelled" />
                   <Stat label="Estimated takings" value={money(data.takings)} sub={data.toCome > 0 ? `${money(data.soFar)} so far · ${money(data.toCome)} still to come` : "After promo codes (estimate)"} />
-                  <Stat label="Deposits received" value={money(data.deposits)} />
-                  <Stat label="Balance due on the day" value={money(data.balanceDue)} sub="Takings minus deposits" />
+                  <Stat label="Money received" value={money(data.deposits + data.collected)} sub={`Deposits ${money(data.deposits)} + balances ${money(data.collected)}`} tone="good" />
+                  <Stat label="Still to collect" value={money(data.balanceDue)} sub="Past appointments with no balance recorded" tone={data.balanceDue > 0 ? "bad" : undefined} />
+                  <Stat label="Tips" value={money(data.tips)} sub="Not included in takings" />
                   <Stat label="Expenses" value={money(data.expenseTotal)} />
-                  <Stat label="Profit (estimate)" value={money(data.profit)} tone={data.profit >= 0 ? "good" : "bad"} sub="Takings minus expenses" />
                 </div>
+                <Stat label="Profit (estimate)" value={money(data.profit)} tone={data.profit >= 0 ? "good" : "bad"} sub="Estimated takings minus expenses" />
+
+                {data.paymentsReady === false && (
+                  <p className="rounded-lg bg-[#2a2314] p-3 text-xs text-[#e8c36a]">Balance payments and tips need the one-time Supabase SQL setup before they show here.</p>
+                )}
+                {(data.byMethod.cash > 0 || data.byMethod.transfer > 0 || data.byMethod.card > 0) && (
+                  <p className="text-xs text-[#c9c0b6]">
+                    Balances received: Cash {money(data.byMethod.cash)} · Transfer {money(data.byMethod.transfer)} · Card {money(data.byMethod.card)}
+                  </p>
+                )}
 
                 <div className={card}>
                   <p className="text-xs text-[#c9c0b6]">
@@ -174,7 +184,7 @@ export default function MoneyPage() {
                     </p>
                   )}
                   <p className="mt-2 text-xs text-[#9f978f]">
-                    Takings use your menu prices minus an estimate of promo discounts. Tips, extras added on the day and what clients actually paid are not tracked yet, so treat these as a guide.
+                    Takings use your menu prices minus an estimate of promo discounts. Record each client's balance on the booking (Mark balance paid) to keep Money received and Still to collect accurate.
                   </p>
                 </div>
 

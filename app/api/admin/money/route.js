@@ -70,6 +70,24 @@ async function loadClientRows(supabase, ids) {
   return map;
 }
 
+async function loadPayments(supabase, ids) {
+  const map = {};
+  let ready = true;
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    const { data, error } = await supabase
+      .from("booking_payments")
+      .select("appointment_id, amount, method, is_tip")
+      .in("appointment_id", chunk);
+    if (error) {
+      ready = false;
+      break;
+    }
+    for (const row of data || []) (map[row.appointment_id] ||= []).push(row);
+  }
+  return { map, ready };
+}
+
 export async function GET(request) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return json({ error: auth.error }, auth.status);
@@ -91,7 +109,9 @@ export async function GET(request) {
       .limit(1000);
     if (error) throw new Error(error.message);
 
-    const clientMap = await loadClientRows(supabase, (appts || []).map((a) => a.id));
+    const apptIds = (appts || []).map((a) => a.id);
+    const clientMap = await loadClientRows(supabase, apptIds);
+    const { map: paymentMap, ready: paymentsReady } = await loadPayments(supabase, apptIds);
 
     // Promo values, used to ESTIMATE discounts (they are not stored per booking).
     const promoValues = {
@@ -124,7 +144,10 @@ export async function GET(request) {
     let bookings = 0;
     let takings = 0;
     let deposits = 0;
-    let balanceDue = 0;
+    let balanceDue = 0; // outstanding on appointments up to today
+    let collected = 0; // balance payments you have recorded
+    let tips = 0;
+    const byMethod = { cash: 0, transfer: 0, card: 0 };
     let soFar = 0;
     let cancelledCount = 0;
     let cancelledValue = 0;
@@ -145,11 +168,21 @@ export async function GET(request) {
       const net = freeSet ? 0 : Math.max(menu - estDiscount(a, menu), 0);
       const dep = Math.min(Number(a.deposit_amount || 0), net || Number(a.deposit_amount || 0));
 
+      const pays = paymentMap[a.id] || [];
+      const balancePaid = pays.filter((p) => !p.is_tip).reduce((x, p) => x + Number(p.amount), 0);
+      for (const p of pays) {
+        if (p.is_tip) tips += Number(p.amount);
+        else if (byMethod[p.method] !== undefined) byMethod[p.method] += Number(p.amount);
+      }
+
       bookings += 1;
       takings += net;
       deposits += Number(a.deposit_amount || 0);
-      balanceDue += Math.max(net - dep, 0);
-      if (a.booking_date <= today) soFar += net;
+      collected += balancePaid;
+      if (a.booking_date <= today) {
+        soFar += net;
+        balanceDue += Math.max(net - dep - balancePaid, 0);
+      }
 
       for (const r of clientMap[a.id] || []) {
         for (const s of parseStoredServices(r.service_name)) {
@@ -187,7 +220,15 @@ export async function GET(request) {
       soFar: Math.round(soFar),
       toCome: Math.round(takings - soFar),
       deposits: Math.round(deposits),
+      collected: Math.round(collected),
       balanceDue: Math.round(balanceDue),
+      tips: Math.round(tips * 100) / 100,
+      byMethod: {
+        cash: Math.round(byMethod.cash),
+        transfer: Math.round(byMethod.transfer),
+        card: Math.round(byMethod.card),
+      },
+      paymentsReady,
       cancelledCount,
       cancelledValue: Math.round(cancelledValue),
       topService: topService ? { name: topService[0], count: topService[1] } : null,
