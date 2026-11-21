@@ -52,6 +52,54 @@ function fromMin(n) {
   return `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
 }
 
+function todaySA() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Johannesburg" });
+}
+
+function money(n) {
+  return `R${Number(n || 0).toLocaleString("en-ZA")}`;
+}
+
+// Menu price of everything on the booking (all clients).
+function bookingTotal(b) {
+  return (b.clients || []).reduce((sum, c) => sum + servicesPrice(c.services), 0);
+}
+
+function isCancelled(b) {
+  return ["cancelled", "canceled"].includes(String(b.booking_status).toLowerCase());
+}
+
+function isPaid(b) {
+  return String(b.payment_status || "").toLowerCase() === "paid";
+}
+
+// South African numbers: 082 123 4567 -> 27821234567
+function waLink(phone, text) {
+  let digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("0")) digits = "27" + digits.slice(1);
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+}
+
+function firstName(b) {
+  return String(b.customer_name || "").trim().split(" ")[0] || "there";
+}
+
+function seeYouText(b) {
+  const c = b.clients?.[0];
+  const when = c ? `${niceDate(c.date)} at ${c.start}` : "soon";
+  return `Hi ${firstName(b)}, see you ${when} at Freddy Nails! Let me know if anything changes.`;
+}
+
+function lateText(b) {
+  return `Hi ${firstName(b)}, I'm running about 10 minutes late, sorry! See you very soon.`;
+}
+
+function thanksText(b) {
+  return `Hi ${firstName(b)}, thank you so much for coming in today! I hope you love your nails. Send me a pic!`;
+}
+
 const card = "rounded-xl border border-[#d6b36a]/20 bg-[#181614] p-4";
 const input =
   "w-full rounded-lg border border-white/15 bg-[#11100f] px-3 py-2 text-sm text-[#f4eee6] outline-none focus:border-[#d6b36a]";
@@ -92,6 +140,46 @@ function SignIn({ onDone }) {
       {error && <p className="text-sm text-[#e39a96]">{error}</p>}
       <button className={goldBtn} disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
     </form>
+  );
+}
+
+/* ---------- payment breakdown ---------- */
+
+function PaymentBreakdown({ booking, clients }) {
+  // Uses the services currently picked on screen, so adding an extra
+  // updates the total straight away (before you even press Save).
+  const total = clients.length
+    ? clients.reduce((sum, c) => sum + servicesPrice(c.services), 0)
+    : bookingTotal(booking);
+  const deposit = Number(booking.deposit_amount || 0);
+  const paid = isPaid(booking);
+  const balance = Math.max(total - (paid ? deposit : 0), 0);
+
+  const row = "flex items-center justify-between text-sm";
+  return (
+    <div className={card}>
+      <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#d6b36a]">Payment</p>
+      <div className="space-y-2">
+        <div className={row}>
+          <span className="text-[#c9c0b6]">Total (menu prices)</span>
+          <span className="font-semibold">{money(total)}</span>
+        </div>
+        <div className={row}>
+          <span className="flex items-center gap-2 text-[#c9c0b6]">
+            <span className={`inline-block h-2.5 w-2.5 rounded-full ${paid ? "bg-[#6fcf8a]" : "bg-[#e8a53a]"}`} />
+            Deposit {paid ? "paid" : "pending"}
+          </span>
+          <span className="font-semibold">{money(deposit)}</span>
+        </div>
+        <div className={`${row} border-t border-white/10 pt-2`}>
+          <span className="font-semibold">Balance due on the day</span>
+          <span className="text-lg font-bold text-[#d6b36a]">{money(balance)}</span>
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-[#9f978f]">
+        Menu prices only. Promo codes and tips are not included, and the deposit is not changed by edits.
+      </p>
+    </div>
   );
 }
 
@@ -193,7 +281,7 @@ function Editor({ booking, onBack, onChanged }) {
           </span>
         </div>
         <p className="mt-2 text-sm text-[#c9c0b6]">
-          Deposit R{booking.deposit_amount || 0} (not changed by edits) · {booking.google_event_id ? "In Google Calendar" : "Not in Google Calendar"}
+          {booking.google_event_id ? "In Google Calendar" : "Not in Google Calendar"}
         </p>
         {booking.notes && <p className="mt-2 text-sm text-[#c9c0b6]">Notes: {booking.notes}</p>}
         {booking.flags.length > 0 && (
@@ -202,6 +290,19 @@ function Editor({ booking, onBack, onChanged }) {
           </ul>
         )}
       </div>
+
+      <PaymentBreakdown booking={booking} clients={clients} />
+
+      {booking.customer_phone && (
+        <div className={card}>
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#d6b36a]">WhatsApp {firstName(booking)}</p>
+          <div className="flex flex-wrap gap-2">
+            <a className={ghostBtn} href={waLink(booking.customer_phone, seeYouText(booking))} target="_blank" rel="noopener noreferrer">See you at…</a>
+            <a className={ghostBtn} href={waLink(booking.customer_phone, lateText(booking))} target="_blank" rel="noopener noreferrer">Running 10 min late</a>
+            <a className={ghostBtn} href={waLink(booking.customer_phone, thanksText(booking))} target="_blank" rel="noopener noreferrer">Thank you</a>
+          </div>
+        </div>
+      )}
 
       {clients.map((client, ci) => {
         const duration = servicesDuration(client.services);
@@ -282,6 +383,60 @@ function Editor({ booking, onBack, onChanged }) {
   );
 }
 
+/* ---------- booking card (list) ---------- */
+
+function BookingCard({ b, onOpen, ready, onToggleReady, showReady }) {
+  const paid = isPaid(b);
+  const phone = b.customer_phone;
+  return (
+    <div className={card}>
+      <button onClick={() => onOpen(b)} className="block w-full text-left">
+        <div className="flex items-start justify-between gap-2">
+          <p className="flex items-center gap-2 font-semibold">
+            <span
+              title={paid ? "Deposit paid" : "Deposit pending"}
+              className={`inline-block h-2.5 w-2.5 rounded-full ${paid ? "bg-[#6fcf8a]" : "bg-[#e8a53a]"}`}
+            />
+            {b.customer_name}
+          </p>
+          <p className="text-xs text-[#9f978f]">{b.ref}</p>
+        </div>
+        <p className="mt-1 text-sm text-[#c9c0b6]">
+          {niceDate(b.booking_date)} · {b.clients.length > 1 ? `${b.clients.length} clients` : `${b.clients[0]?.start || ""}–${b.clients[0]?.end || ""}`} · {money(bookingTotal(b))}
+        </p>
+        {b.clients.map((c) => (
+          <p key={c.client_number} className="mt-1 text-xs text-[#9f978f]">
+            {b.clients.length > 1 ? `Client ${c.client_number}: ` : ""}{c.services.join(" + ")}{b.clients.length > 1 ? ` · ${niceDate(c.date)} ${c.start}–${c.end}` : ""}
+          </p>
+        ))}
+        {b.notes && <p className="mt-2 text-xs italic text-[#c9c0b6]">“{b.notes}”</p>}
+        {b.flags.length > 0 && <p className="mt-2 text-xs font-semibold text-[#e8c36a]">⚠ {b.flags.join(" · ")}</p>}
+      </button>
+
+      {(phone || showReady) && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
+          {phone && (
+            <a
+              className="rounded-lg border border-[#6fcf8a]/50 px-3 py-1.5 text-xs font-bold text-[#6fcf8a]"
+              href={waLink(phone, seeYouText(b))}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              WhatsApp
+            </a>
+          )}
+          {showReady && (
+            <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-[#c9c0b6]">
+              <input type="checkbox" checked={!!ready} onChange={() => onToggleReady(b.id)} />
+              Ready
+            </label>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- main page ---------- */
 
 const SCOPES = [
@@ -300,6 +455,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState(null);
+  const [checked, setChecked] = useState({});
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -335,6 +491,19 @@ export default function AdminPage() {
     setSignedIn(false);
     setSelected(null);
   }
+
+  function toggleReady(id) {
+    setChecked((current) => ({ ...current, [id]: !current[id] }));
+  }
+
+  const today = todaySA();
+  const showToday = scope === "upcoming" && !q;
+  const todays = showToday
+    ? bookings.filter((b) => !isCancelled(b) && (b.clients.some((c) => c.date === today) || b.booking_date === today))
+    : [];
+  const todayIds = new Set(todays.map((b) => b.id));
+  const rest = showToday ? bookings.filter((b) => !todayIds.has(b.id)) : bookings;
+  const todayTotal = todays.reduce((sum, b) => sum + bookingTotal(b), 0);
 
   function handleChanged(updated, cancelled) {
     if (updated) setSelected(updated);
@@ -375,22 +544,35 @@ export default function AdminPage() {
             {loading && <p className="text-sm text-[#c9c0b6]">Loading bookings…</p>}
             {!loading && !error && bookings.length === 0 && <p className="text-sm text-[#c9c0b6]">Nothing here.</p>}
 
-            {bookings.map((b) => (
-              <button key={b.id} onClick={() => setSelected(b)} className={`${card} block w-full text-left`}>
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold">{b.customer_name}</p>
-                  <p className="text-xs text-[#9f978f]">{b.ref}</p>
-                </div>
-                <p className="mt-1 text-sm text-[#c9c0b6]">
-                  {niceDate(b.booking_date)} · {b.clients.length > 1 ? `${b.clients.length} clients` : `${b.clients[0]?.start || ""}–${b.clients[0]?.end || ""}`}
+            {showToday && !loading && !error && (
+              <div className="rounded-xl border border-[#d6b36a]/50 bg-[#1d1a14] p-3">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#d6b36a]">Today</p>
+                <p className="mt-1 font-serif text-xl">
+                  {todays.length === 0
+                    ? "No bookings today"
+                    : `${todays.length} booking${todays.length > 1 ? "s" : ""}, ${money(todayTotal)} expected`}
                 </p>
-                {b.clients.map((c) => (
-                  <p key={c.client_number} className="mt-1 text-xs text-[#9f978f]">
-                    {b.clients.length > 1 ? `Client ${c.client_number}: ` : ""}{c.services.join(" + ")}{b.clients.length > 1 ? ` · ${niceDate(c.date)} ${c.start}–${c.end}` : ""}
+                {todays.length > 0 && (
+                  <p className="mt-1 text-xs text-[#9f978f]">
+                    {Object.values(checked).filter(Boolean).length > 0
+                      ? `${todays.filter((b) => checked[b.id]).length} of ${todays.length} ready`
+                      : "Tick “Ready” as you set up for each client."}
                   </p>
-                ))}
-                {b.flags.length > 0 && <p className="mt-2 text-xs font-semibold text-[#e8c36a]">⚠ {b.flags.join(" · ")}</p>}
-              </button>
+                )}
+                <div className="mt-3 space-y-3">
+                  {todays.map((b) => (
+                    <BookingCard key={b.id} b={b} onOpen={setSelected} showReady ready={checked[b.id]} onToggleReady={toggleReady} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {showToday && rest.length > 0 && (
+              <p className="pt-1 text-xs font-bold uppercase tracking-[0.2em] text-[#9f978f]">Coming up</p>
+            )}
+
+            {rest.map((b) => (
+              <BookingCard key={b.id} b={b} onOpen={setSelected} />
             ))}
           </div>
         )}
