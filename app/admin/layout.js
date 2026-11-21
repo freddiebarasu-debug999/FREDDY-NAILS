@@ -8,6 +8,7 @@ export const metadata = {
 const links = [
   ["/admin", "Bookings"],
   ["/admin/clients", "Clients"],
+  ["/admin/money", "Money"],
   ["/admin/promos", "Promo codes"],
   ["/admin/calendar", "Calendar"],
 ];
