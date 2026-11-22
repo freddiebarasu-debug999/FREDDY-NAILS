@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { deleteGoogleCalendarEvent } from "@/lib/google-calendar";
+import { notifyWaitlistForCancelledBooking } from "@/lib/waitlist";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceRoleKey =
@@ -275,6 +276,22 @@ export async function POST(request) {
       console.error(
         "Appointment clients cancellation error:",
         clientsUpdateError
+      );
+    }
+
+    /*
+     * Tell people on the waitlist that this slot is free.
+     * This never blocks or fails the cancellation.
+     */
+    try {
+      await notifyWaitlistForCancelledBooking(
+        supabaseAdmin,
+        appointment.id
+      );
+    } catch (waitlistError) {
+      console.error(
+        "Waitlist notification error:",
+        waitlistError
       );
     }
 

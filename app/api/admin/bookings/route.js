@@ -18,6 +18,7 @@ import {
   deleteGoogleCalendarEvent,
 } from "@/lib/google-calendar";
 import { releaseFreeSetCodeByAppointment } from "@/lib/freeSetCodes";
+import { notifyWaitlistForCancelledBooking } from "@/lib/waitlist";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -416,11 +417,22 @@ async function actionCancel(supabase, body) {
     console.error("Admin cancel free-set release error:", releaseError);
   }
 
+  // Tell people on the waitlist that this slot is free (never blocks the cancel).
+  let waitlistNotified = 0;
+  try {
+    const result = await notifyWaitlistForCancelledBooking(supabase, id);
+    waitlistNotified = result?.notified || 0;
+  } catch (waitlistError) {
+    console.error("Admin cancel waitlist error:", waitlistError);
+  }
+
   return json({
     saved: true,
     cancelled: true,
     calendar: { ok: true, message: calendarMessage },
-    note: "The deposit stays recorded. Handle any refund yourself.",
+    note:
+      "The deposit stays recorded. Handle any refund yourself." +
+      (waitlistNotified ? ` ${waitlistNotified} waitlist client${waitlistNotified > 1 ? "s were" : " was"} emailed about the free slot.` : ""),
   });
 }
 
