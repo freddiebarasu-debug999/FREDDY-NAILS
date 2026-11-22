@@ -22,13 +22,7 @@ export default function sitemap() {
       url: `${SITE_URL}/try-on`,
       lastModified,
       changeFrequency: "monthly",
-      priority: 0.7,
-    },
-    {
-      url: `${SITE_URL}/colours`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.7,
+      priority: 0.85,
     },
     {
       url: `${SITE_URL}/faq`,

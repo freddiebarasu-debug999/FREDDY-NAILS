@@ -43,10 +43,10 @@ const MENU_LINKS = [
     blurb: "Compare nail shapes so you can choose the look that suits your hands.",
   },
   {
-    href: "/colours",
-    label: "Gel Colours",
-    icon: "🎨",
-    blurb: "Browse the gel colour palette and find the shade you love before you book.",
+    href: "/try-on",
+    label: "Try Your Design",
+    icon: "✋",
+    blurb: "Upload a nail photo and see it on the mannequin from every angle before you book.",
   },
   {
     href: "/about",
