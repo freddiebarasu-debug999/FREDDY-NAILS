@@ -8,6 +8,7 @@ import {
   BUFFER_MINUTES,
   MAX_CLIENTS_PER_DAY,
 } from "@/lib/bookingRules";
+import { isClosedDate } from "@/lib/closedDates";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -98,6 +99,16 @@ export async function GET(request) {
     if (
       requestedDate.getDay() === 0
     ) {
+      return Response.json({
+        date,
+        availableTimes: [],
+      });
+    }
+
+    /*
+     * Days the owner has marked as closed (days off).
+     */
+    if (await isClosedDate(supabase, date)) {
       return Response.json({
         date,
         availableTimes: [],

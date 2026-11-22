@@ -8,6 +8,7 @@ import {
   BUFFER_MINUTES,
   MAX_CLIENTS_PER_DAY,
 } from "@/lib/bookingRules";
+import { getClosedDatesInRange } from "@/lib/closedDates";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -109,6 +110,8 @@ export async function GET(request) {
       byDate[key].push([timeToMinutes(b.start_time), timeToMinutes(b.end_time)]);
     });
 
+    const closedDates = await getClosedDatesInRange(supabase, first, last);
+
     const today = saToday();
     const days = {};
 
@@ -116,6 +119,7 @@ export async function GET(request) {
       const date = month + "-" + pad(day);
       if (date < today) continue;
       if (new Date(date + "T12:00:00").getDay() === 0) continue; // Sunday
+      if (closedDates.has(date)) continue; // owner's day off
 
       const taken = byDate[date] || [];
       let free = 0;

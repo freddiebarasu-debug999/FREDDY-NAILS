@@ -9,6 +9,7 @@ import {
 } from "@/lib/bookingRules";
 import { createGoogleCalendarEvent } from "@/lib/google-calendar";
 import { findPrimaryConflict } from "@/lib/serviceRules";
+import { isClosedDate } from "@/lib/closedDates";
 import {
   sendOwnerNotification,
   sendCustomerConfirmation,
@@ -491,6 +492,12 @@ export async function POST(request) {
       if (selectedDate.getDay() === 0) {
         return Response.json(
           { error: `Client ${clientIndex + 1} cannot be booked on Sunday because Freddy Nails is closed.` },
+          { status: 400 }
+        );
+      }
+      if (await isClosedDate(supabase, clientDate)) {
+        return Response.json(
+          { error: `Client ${clientIndex + 1} cannot be booked on that date because Freddy Nails is closed. Please choose another day.` },
           { status: 400 }
         );
       }

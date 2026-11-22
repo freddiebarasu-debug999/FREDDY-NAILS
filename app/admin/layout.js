@@ -12,6 +12,7 @@ const links = [
   ["/admin/waitlist", "Waitlist"],
   ["/admin/money", "Money"],
   ["/admin/promos", "Promo codes"],
+  ["/admin/site", "Banner & days off"],
   ["/admin/calendar", "Calendar"],
 ];
 

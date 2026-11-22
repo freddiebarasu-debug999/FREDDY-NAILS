@@ -3,6 +3,7 @@ import "./globals.css";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import InstallPrompt from "@/components/InstallPrompt";
 import BookingSuccessPopup from "@/components/BookingSuccessPopup";
+import AnnouncementBanner from "@/components/AnnouncementBanner";
 import SplashScreen from "@/components/SplashScreen";
 
 const fraunces = Fraunces({
@@ -165,6 +166,7 @@ export default function RootLayout({ children }) {
             __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
           }}
         />
+        <AnnouncementBanner />
         {children}
         <ServiceWorkerRegister />
         <InstallPrompt />

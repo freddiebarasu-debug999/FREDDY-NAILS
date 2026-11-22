@@ -11,6 +11,7 @@ import { findPrimaryConflict } from "@/lib/serviceRules";
 import { formatServiceList, depositForClientServices, normalizeServiceName } from "@/lib/serviceNames";
 import { findService, servicesDuration } from "@/lib/serviceCatalogue";
 import { createGoogleCalendarEvent } from "@/lib/google-calendar";
+import { isClosedDate } from "@/lib/closedDates";
 import { sendCustomerConfirmation } from "@/lib/booking-emails";
 
 export const dynamic = "force-dynamic";
@@ -112,6 +113,7 @@ export async function POST(request) {
     const warnings = [];
     for (const c of computed) {
       if (new Date(c.date + "T00:00:00Z").getUTCDay() === 0) warnings.push(`Client ${c.number} is on a Sunday (closed).`);
+      if (await isClosedDate(supabase, c.date)) warnings.push(`Client ${c.number} is on a day you marked as closed (${c.date}).`);
       if (c.startMin < OPEN_MINUTES || c.endMin > CLOSE_MINUTES) {
         warnings.push(`Client ${c.number} is outside opening hours (${fromMin(OPEN_MINUTES)}–${fromMin(CLOSE_MINUTES)}).`);
       }
