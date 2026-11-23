@@ -713,13 +713,6 @@ export default function AdminPage() {
                     ? "No bookings today"
                     : `${todays.length} booking${todays.length > 1 ? "s" : ""}, ${money(todayTotal)} expected`}
                 </p>
-                {todays.length > 0 && (
-                  <p className="mt-1 text-xs text-[#9f978f]">
-                    {Object.values(checked).filter(Boolean).length > 0
-                      ? `${todays.filter((b) => checked[b.id]).length} of ${todays.length} ready`
-                      : "Tick “Ready” as you set up for each client."}
-                  </p>
-                )}
                 <div className="mt-3 space-y-3">
                   {todays.map((b) => (
                     <BookingCard key={b.id} b={b} onOpen={setSelected} onOutcome={markOutcome} />
