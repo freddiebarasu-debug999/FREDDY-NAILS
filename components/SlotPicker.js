@@ -283,7 +283,7 @@ export default function SlotPicker({
                     <p className="mb-2 text-[0.72rem] font-bold uppercase tracking-[0.16em] text-[#d6b36a]">
                       Morning
                     </p>
-                    <div className="grid grid-cols-3 gap-2">{morning.map(slotButton)}</div>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">{morning.map(slotButton)}</div>
                   </div>
                 )}
                 {afternoon.length > 0 && (
@@ -291,7 +291,7 @@ export default function SlotPicker({
                     <p className="mb-2 text-[0.72rem] font-bold uppercase tracking-[0.16em] text-[#d6b36a]">
                       Afternoon
                     </p>
-                    <div className="grid grid-cols-3 gap-2">{afternoon.map(slotButton)}</div>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">{afternoon.map(slotButton)}</div>
                   </div>
                 )}
               </div>
