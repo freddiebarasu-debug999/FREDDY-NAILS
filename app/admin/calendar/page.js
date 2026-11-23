@@ -37,6 +37,7 @@ async function api(path) {
 
 export default function CalendarAdminPage() {
   const [date, setDate] = useState(todayStr);
+  const [duration, setDuration] = useState("60");
   const [slots, setSlots] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +50,7 @@ export default function CalendarAdminPage() {
     setError("");
     try {
       const avail = await fetch(
-        `/api/availability?date=${encodeURIComponent(date)}&duration=60`,
+        `/api/availability?date=${encodeURIComponent(date)}&duration=${encodeURIComponent(duration)}`,
         { cache: "no-store" }
       ).then((r) => r.json());
 
@@ -71,7 +72,7 @@ export default function CalendarAdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [date]);
+  }, [date, duration]);
 
   useEffect(() => {
     loadDay();
@@ -129,6 +130,20 @@ export default function CalendarAdminPage() {
             className="rounded-lg border border-[#d6b36a]/30 bg-[#181614] px-3 py-2 text-sm text-[#f4eee6] outline-none focus:border-[#d6b36a]"
           />
         </label>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-[#c9c0b6]">
+            Appointment duration
+          </span>
+          <select
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            className="rounded-lg border border-[#d6b36a]/30 bg-[#181614] px-3 py-2 text-sm text-[#f4eee6] outline-none focus:border-[#d6b36a]"
+          >
+            {[10, 15, 20, 30, 45, 55, 60, 65, 75, 90, 95, 100, 105, 110, 115, 120, 130, 135, 150].map((minutes) => (
+              <option key={minutes} value={String(minutes)}>{minutes} minutes</option>
+            ))}
+          </select>
+        </label>
         <button
           type="button"
           onClick={() => setDate(todayStr())}
@@ -154,9 +169,12 @@ export default function CalendarAdminPage() {
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-serif text-xl">Day slots</h2>
-          <p className="text-xs text-[#9f978f]">
-            {loading ? "Loading…" : `${freeCount} free · ${bookedCount} booked / blocked`}
-          </p>
+          <div className="text-right">
+            <p className="text-xs text-[#9f978f]">
+              {loading ? "Loading…" : `${freeCount} free · ${bookedCount} booked / blocked`}
+            </p>
+            <p className="mt-1 text-[0.68rem] text-[#8f877e]">Availability for a {duration}-minute appointment</p>
+          </div>
         </div>
 
         {loading ? (
