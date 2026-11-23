@@ -272,7 +272,7 @@ export default function SlotPicker({
 
             {loading ? (
               <p className="mt-3 text-sm italic text-[#9f978f]">Checking availability…</p>
-            ) : (times || []).length === 0 ? (
+            ) : slotList.filter(function (s) { return s.available !== false; }).length === 0 ? (
               <p className="mt-3 text-sm italic text-[#9f978f]">
                 All booked on this day. Please choose another date.
               </p>
