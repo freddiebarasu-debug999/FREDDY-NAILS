@@ -586,6 +586,14 @@ function BookingCard({ b, onOpen, ready, onToggleReady, onOutcome, showReady }) 
               Ready
             </label>
           )}
+          {!isCancelled(b) && !(["completed", "not_completed"].includes(String(b.booking_status || "").toLowerCase())) && (
+            <div className="flex gap-2">
+              <button type="button" onClick={() => onOutcome(b.id, "completed")} className="rounded-lg border border-[#6fcf8a]/40 px-3 py-1.5 text-xs font-bold text-[#6fcf8a]">Completed</button>
+              <button type="button" onClick={() => onOutcome(b.id, "not_completed")} className="rounded-lg border border-[#e39a96]/40 px-3 py-1.5 text-xs font-bold text-[#e39a96]">Not completed</button>
+            </div>
+          )}
+          {b.booking_status === "completed" && <span className="text-xs font-bold text-[#6fcf8a]">✓ Completed</span>}
+          {b.booking_status === "not_completed" && <span className="text-xs font-bold text-[#e39a96]">Not completed</span>}
         </div>
       )}
     </div>
@@ -647,9 +655,20 @@ export default function AdminPage() {
     setSelected(null);
   }
 
-  function toggleReady(id) {
-    setChecked((current) => ({ ...current, [id]: !current[id] }));
+  async function updateBookingAction(id, action) {
+    try {
+      const result = await api("/api/admin/bookings", { method: "POST", body: JSON.stringify({ id, action }) });
+      if (result.booking) setBookings((current) => current.map((b) => b.id === id ? result.booking : b));
+      setChecked((current) => ({ ...current, [id]: action === "ready" }));
+    } catch (e) { setError(e.message || "Could not update booking status."); }
   }
+
+  function toggleReady(id) {
+    const currentlyReady = checked[id] || bookings.find((b) => b.id === id)?.booking_status === "ready";
+    updateBookingAction(id, currentlyReady ? "confirmed" : "ready");
+  }
+
+  function markOutcome(id, action) { updateBookingAction(id, action); }
 
   const today = todaySA();
   const showToday = scope === "upcoming" && !q;
