@@ -144,7 +144,7 @@ export default function SlotPicker({
             ? "cursor-not-allowed border-white/[0.06] bg-[#12110f] text-[#5c5650] line-through opacity-60"
             : selected
               ? "border-[#d6b36a] bg-[#d6b36a] text-[#11100f] active:scale-95"
-              : "border-white/[0.12] bg-[#181614] text-[#f4eee6] hover:border-[#d6b36a]/60 active:scale-95")
+              : "border-[#3fae5f]/40 bg-[#3fae5f]/10 text-[#8fdfa8] hover:border-[#3fae5f]/70 hover:bg-[#3fae5f]/20 active:scale-95")
         }
       >
         {prettyTime(t)}
