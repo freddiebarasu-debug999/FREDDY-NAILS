@@ -211,7 +211,7 @@ export async function GET(request) {
       )
       .in(
         "booking_status",
-        ["pending", "confirmed", "ready"]
+        ["pending", "confirmed"]
       )
       .order(
         "start_time",
