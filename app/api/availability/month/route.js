@@ -113,7 +113,8 @@ export async function GET(request) {
 
     const closedDates = await getClosedDatesInRange(supabase, first, last);
 
-    const today = saToday();
+    const localNow = saDateTimeParts();
+    const today = localNow.date;
     const days = {};
 
     for (let day = 1; day <= daysInMonth; day += 1) {
@@ -134,7 +135,8 @@ export async function GET(request) {
         ) {
           const end = start + duration;
           // Keep a 15-minute gap before and after every booking.
-          const pastToday = date === today && start <= localNow.minutes;\n          const clash = pastToday || taken.some(
+          const pastToday = date === today && start <= localNow.minutes;
+          const clash = pastToday || taken.some(
             (t) => start < t[1] + BUFFER_MINUTES && end + BUFFER_MINUTES > t[0]
           );
           if (!clash) free += 1;
