@@ -32,10 +32,7 @@ function pad(n) {
 }
 
 // South Africa is UTC+2 all year.
-function saToday() {
-  const d = new Date(Date.now() + 2 * 60 * 60 * 1000);
-  return d.toISOString().slice(0, 10);
-}
+function saDateTimeParts() {\n  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Johannesburg", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());\n  const value = Object.fromEntries(parts.map((p) => [p.type, p.value]));\n  return { date: `${value.year}-${value.month}-${value.day}`, minutes: Number(value.hour) * 60 + Number(value.minute) };\n}
 
 /*
   GET /api/availability/month?month=2026-10&duration=90
