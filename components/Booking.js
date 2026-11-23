@@ -334,6 +334,10 @@ function calculateServicesDuration(
 const inputClass =
   "w-full px-4 py-3 border border-white/[0.12] rounded-md bg-[#181614] text-base sm:text-[0.92rem] text-[#f4eee6] placeholder:text-[#8f877e] focus:outline-none focus:border-[#d6b36a]/60 focus:ring-1 focus:ring-[#d6b36a]/20 transition-all";
 
+/* Dark-gold selects (Number of clients, services, times) — overrides browser white dropdown chrome */
+const selectClass =
+  "w-full px-4 py-3 border border-[#d6b36a]/25 rounded-md bg-[#181614] text-base sm:text-[0.92rem] text-[#f4eee6] appearance-none focus:outline-none focus:border-[#d6b36a]/70 focus:ring-1 focus:ring-[#d6b36a]/25 transition-all cursor-pointer [color-scheme:dark]";
+
 const labelClass =
   "block text-xs font-bold tracking-[0.12em] uppercase mb-2 text-[#c9c0b6]";
 
@@ -2399,7 +2403,7 @@ export default function Booking() {
                 </span>
 
                 <select
-                  className={inputClass}
+                  className={selectClass}
                   value={form.clients}
                   onChange={(event) =>
                     changeClientCount(
@@ -2508,7 +2512,7 @@ export default function Booking() {
                               className="flex gap-2 items-center"
                             >
                               <select
-                                className={`${inputClass} flex-1 min-w-0`}
+                                className={`${selectClass} flex-1 min-w-0`}
                                 value={
                                   serviceName
                                 }

@@ -27,6 +27,11 @@ const MENU_LINKS = [
     blurb: "Compare nail shapes so you can choose the look that suits your hands.",
   },
   {
+    href: "/try-on",
+    label: "Virtual Try-On",
+    blurb: "Upload a nail photo and see your design on the mannequin from every angle.",
+  },
+  {
     href: "/about",
     label: "About",
     blurb: "Meet the studio — our story, location in Quigney, and what makes Freddy Nails different.",

@@ -207,3 +207,16 @@ body::after {
     animation: none;
   }
 }
+
+
+/* Dark themed native selects (booking form) */
+select {
+  color-scheme: dark;
+  background-color: #181614;
+  color: #f4eee6;
+}
+select option,
+select optgroup {
+  background-color: #181614;
+  color: #f4eee6;
+}

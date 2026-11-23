@@ -27,8 +27,16 @@ export default function AdminLayout({ children }) {
   return (
     <div className="flex min-h-screen bg-[#0c0b0a] text-[#f4eee6]">
       {/* Left sidebar panel — Microsoft Store style */}
-      <aside className="fixed inset-y-0 left-0 z-40 flex w-[220px] flex-col border-r border-white/10 bg-[#11100f]">
-        <div className="flex items-center gap-3 border-b border-white/10 px-4 py-5">
+      <aside
+        className="fixed inset-y-0 left-0 z-40 flex w-[220px] flex-col border-r border-white/10"
+        style={{
+          background: "linear-gradient(180deg, rgba(24,22,20,0.82) 0%, rgba(17,16,15,0.78) 100%)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          boxShadow: "4px 0 24px rgba(0,0,0,0.25)",
+        }}
+      >
+        <div className="flex items-center gap-3 border-b border-white/10 px-4 py-5 bg-white/[0.03]">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#d6b36a]/20 text-lg">
             ⚙️
           </div>

@@ -162,13 +162,37 @@ export default function TryYourDesign() {
                   alt={`Mannequin ${label}`}
                   className="h-auto w-full object-cover"
                 />
-                {/* Design overlay — soft blend so nails pick up colour/detail */}
+                {/* Design overlay — blended so colour and detail land on the nails */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={uploadedUrl}
                   alt=""
-                  className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-50 mix-blend-overlay"
-                  style={{ mixBlendMode: "overlay" }}
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                  style={{
+                    mixBlendMode: "soft-light",
+                    opacity: 0.78,
+                    objectPosition: "center 28%",
+                    WebkitMaskImage:
+                      "radial-gradient(ellipse 75% 55% at 50% 32%, black 20%, rgba(0,0,0,0.75) 55%, transparent 78%)",
+                    maskImage:
+                      "radial-gradient(ellipse 75% 55% at 50% 32%, black 20%, rgba(0,0,0,0.75) 55%, transparent 78%)",
+                  }}
+                />
+                {/* Second pass for richer colour on the nail beds */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={uploadedUrl}
+                  alt=""
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                  style={{
+                    mixBlendMode: "color",
+                    opacity: 0.45,
+                    objectPosition: "center 28%",
+                    WebkitMaskImage:
+                      "radial-gradient(ellipse 70% 50% at 50% 30%, black 15%, transparent 70%)",
+                    maskImage:
+                      "radial-gradient(ellipse 70% 50% at 50% 30%, black 15%, transparent 70%)",
+                  }}
                 />
                 {/* Label */}
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-3 pb-3 pt-8 text-center">
