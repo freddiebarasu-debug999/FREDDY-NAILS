@@ -331,6 +331,12 @@ function calculateServicesDuration(
   );
 }
 
+function getClientLabel(clientIndex) {
+  return clientIndex === 0
+    ? "Your appointment"
+    : `Guest ${clientIndex}`;
+}
+
 const inputClass =
   "w-full px-4 py-3 border border-white/[0.12] rounded-md bg-[#181614] text-base sm:text-[0.92rem] text-[#f4eee6] placeholder:text-[#8f877e] focus:outline-none focus:border-[#d6b36a]/60 focus:ring-1 focus:ring-[#d6b36a]/20 transition-all";
 
@@ -347,7 +353,7 @@ export default function Booking() {
     phone: "",
     email: "",
     clientServices: [
-      [SERVICE_OPTIONS[0].name],
+      [""],
     ],
     clientShapes: [""],
     clients: "1",
@@ -1025,6 +1031,10 @@ export default function Booking() {
         ...current.clientServices,
       ];
 
+      if (updated[clientIndex].some((service) => !service)) {
+        return current;
+      }
+
       if (
         updated[clientIndex]
           .length >= 4
@@ -1048,7 +1058,7 @@ export default function Booking() {
 
       updated[clientIndex] = [
         ...updated[clientIndex],
-        unused.name,
+        "",
       ];
 
       return {
@@ -1121,9 +1131,7 @@ export default function Booking() {
         services.length <
         nextCount
       ) {
-        services.push([
-          SERVICE_OPTIONS[0].name,
-        ]);
+        services.push([""]);
 
         shapes.push("");
         dates.push("");
@@ -1639,6 +1647,11 @@ export default function Booking() {
           clientIndex
         ] || [];
 
+      if (!services.length || services.some((service) => !service)) {
+        setError(`Please choose at least one service for ${getClientLabel(clientIndex)}.`);
+        return;
+      }
+
       const primaryConflict =
         findPrimaryConflict(
           services
@@ -1646,9 +1659,7 @@ export default function Booking() {
 
       if (primaryConflict) {
         setError(
-          `Client ${
-            clientIndex + 1
-          } can only have one ${
+          `${getClientLabel(clientIndex)} can only have one ${
             primaryConflict.label
           }. Please remove the extra one.`
         );
@@ -1668,9 +1679,7 @@ export default function Booking() {
         ]
       ) {
         setError(
-          `Please choose a nail shape for Client ${
-            clientIndex + 1
-          }.`
+          `Please choose a nail shape for ${getClientLabel(clientIndex)}.`
         );
 
         return;
@@ -1690,9 +1699,7 @@ export default function Booking() {
 
       if (!date) {
         setError(
-          `Please choose a preferred date for Client ${
-            clientIndex + 1
-          }.`
+          `Please choose a preferred date for ${getClientLabel(clientIndex)}.`
         );
 
         return;
@@ -1705,23 +1712,17 @@ export default function Booking() {
           isPastDate(date)
         ) {
           setError(
-            `Client ${
-              clientIndex + 1
-            } has selected a previous date. Please choose today or a future date.`
+            `${getClientLabel(clientIndex)} has selected a previous date. Please choose today or a future date.`
           );
         } else if (
           isSunday(date)
         ) {
           setError(
-            `Client ${
-              clientIndex + 1
-            } has selected a Sunday. Sundays are unavailable for bookings.`
+            `${getClientLabel(clientIndex)} has selected a Sunday. Sundays are unavailable for bookings.`
           );
         } else {
           setError(
-            `Please choose a valid booking date for Client ${
-              clientIndex + 1
-            }.`
+            `Please choose a valid booking date for ${getClientLabel(clientIndex)}.`
           );
         }
 
@@ -1734,9 +1735,7 @@ export default function Booking() {
         ]
       ) {
         setError(
-          `Please choose an available time for Client ${
-            clientIndex + 1
-          }.`
+          `Please choose an available time for ${getClientLabel(clientIndex)}.`
         );
 
         return;
@@ -1783,11 +1782,7 @@ export default function Booking() {
             CLIENT_GAP
         ) {
           setError(
-            `Client ${
-              clientIndex + 1
-            } needs to start at least 15 minutes after Client ${
-              clientIndex
-            } finishes when booked on the same date.`
+            `${getClientLabel(clientIndex)} needs to start at least 15 minutes after ${getClientLabel(clientIndex - 1)} finishes when booked on the same date.`
           );
 
           return;
@@ -2139,9 +2134,7 @@ export default function Booking() {
                       >
                         <div className="flex items-center justify-between gap-3">
                           <strong className="text-xs uppercase tracking-[0.14em] text-gold">
-                            Client{" "}
-                            {index +
-                              1}
+                            {getClientLabel(index)}
                           </strong>
 
                           {client.durationMinutes && (
@@ -2302,9 +2295,11 @@ export default function Booking() {
         <div className="mt-5 h-px w-16 bg-gold/60" />
 
         <p className="text-[#c9c0b6] leading-relaxed text-[0.94rem] mt-5 max-w-[650px]">
-          Choose the services, preferred
-          date and available time for each
-          client.
+          Book your own appointment or bring friends and family. Choose each person’s services and time below.
+        </p>
+
+        <p className="text-xs leading-relaxed text-[#9f978f] mt-3 max-w-[650px]">
+          You can include friends and family without creating accounts for them. They can sign up for their own Freddy Nails account separately.
         </p>
 
         {loggedIn &&
@@ -2419,7 +2414,7 @@ export default function Booking() {
                 <span
                   className={labelClass}
                 >
-                  Number of clients
+                  Who are you booking for?
                 </span>
 
                 <select
@@ -2445,11 +2440,9 @@ export default function Booking() {
                           index + 1
                         }
                       >
-                        {index + 1}{" "}
-                        {index ===
-                        0
-                          ? "client"
-                          : "clients"}
+                        {index === 0
+                          ? "Just me"
+                          : `Me + ${index} guest${index > 1 ? "s" : ""}`}
                       </option>
                     )
                   )}
@@ -2500,24 +2493,18 @@ export default function Booking() {
                       <div className="flex justify-between items-start gap-4 mb-5">
                         <div>
                           <span className="block text-xs font-bold uppercase tracking-[0.16em] text-gold mb-1.5">
-                            Client{" "}
-                            {clientIndex +
-                              1}
+                            {getClientLabel(clientIndex)}
                           </span>
 
                           <h3 className="font-serif text-xl font-medium text-[#f4eee6]">
-                            Choose services &
-                            appointment time
+                            Choose services and time
                           </h3>
                         </div>
 
                         <span className="shrink-0 text-xs font-bold tracking-wide text-[#c9c0b6] border-b border-gold/40 pb-1">
-                          {
-                            clientDurations[
-                              clientIndex
-                            ]
-                          }{" "}
-                          min
+                          {clientDurations[clientIndex]
+                            ? `${clientDurations[clientIndex]} min`
+                            : "Service needed"}
                         </span>
                       </div>
 
@@ -2532,6 +2519,7 @@ export default function Booking() {
                               className="flex gap-2 items-center"
                             >
                               <select
+                                aria-label={`Service ${serviceIndex + 1} for ${getClientLabel(clientIndex)}`}
                                 className={`${selectClass} flex-1 min-w-0`}
                                 value={
                                   serviceName
@@ -2557,6 +2545,7 @@ export default function Booking() {
                                   );
                                 }}
                               >
+                                <option value="">Choose a service...</option>
                                 {SERVICE_CATEGORIES.map(
                                   (
                                     group
@@ -2626,7 +2615,8 @@ export default function Booking() {
                           4 && (
                           <button
                             type="button"
-                            className="text-xs font-bold uppercase tracking-wide text-gold hover:text-gold-bright transition-colors"
+                            disabled={services.some((service) => !service)}
+                            className="inline-flex items-center justify-center gap-2 rounded-md border border-gold/45 bg-gold/[0.07] px-4 py-3 text-xs font-bold uppercase tracking-wide text-gold hover:bg-gold/[0.13] hover:border-gold/70 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                             onClick={() =>
                               addService(
                                 clientIndex
@@ -2725,21 +2715,27 @@ export default function Booking() {
                         </div>
                       </div>
 
-                      <SlotPicker
-                        date={form.clientDates[clientIndex] || ""}
-                        time={form.clientTimes[clientIndex] || ""}
-                        times={times}
-                        allSlots={allSlotsByClient[clientIndex] || []}
-                        loading={Boolean(loadingAvailability[clientIndex])}
-                        duration={clientDurations[clientIndex] || 0}
-                        minDate={todayString}
-                        onDate={(value) =>
-                          updateClientDate(clientIndex, value)
-                        }
-                        onTime={(value) =>
-                          updateClientTime(clientIndex, value)
-                        }
-                      />
+                      {services.some(Boolean) ? (
+                        <SlotPicker
+                          date={form.clientDates[clientIndex] || ""}
+                          time={form.clientTimes[clientIndex] || ""}
+                          times={times}
+                          allSlots={allSlotsByClient[clientIndex] || []}
+                          loading={Boolean(loadingAvailability[clientIndex])}
+                          duration={clientDurations[clientIndex] || 0}
+                          minDate={todayString}
+                          onDate={(value) =>
+                            updateClientDate(clientIndex, value)
+                          }
+                          onTime={(value) =>
+                            updateClientTime(clientIndex, value)
+                          }
+                        />
+                      ) : (
+                        <p className="mt-6 rounded-md border border-white/[0.08] bg-white/[0.025] px-4 py-3 text-sm text-[#9f978f]">
+                          Choose a service above to see available dates and times.
+                        </p>
+                      )}
 
                       {availabilityErrors[
                         clientIndex
@@ -2831,7 +2827,7 @@ export default function Booking() {
                     event.target.value,
                 })
               }
-              placeholder="Colour, length, shape or inspiration. Anything Freddy Nails should know?"
+              placeholder="Add inspiration or special requests here. Please select all services above instead of listing them in the notes."
               rows={4}
             />
           </label>
@@ -3001,7 +2997,7 @@ export default function Booking() {
                       >
                         {clientCount > 1 && (
                           <span className="block text-[#f4eee6] font-semibold">
-                            Client {index + 1}
+                            {getClientLabel(index)}
                           </span>
                         )}
 

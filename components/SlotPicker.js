@@ -134,7 +134,7 @@ export default function SlotPicker({
         disabled={!available}
         aria-pressed={selected}
         aria-disabled={!available}
-        title={available ? prettyTime(t) : prettyTime(t) + " — booked"}
+        title={available ? prettyTime(t) : prettyTime(t) + " — unavailable for selected services"}
         onClick={function () {
           if (available) onTime(t);
         }}
@@ -219,7 +219,7 @@ export default function SlotPicker({
               aria-pressed={selected}
               aria-label={
                 prettyDate(ds) +
-                (isSunday ? ", closed" : booked ? ", fully booked" : free ? ", available" : "")
+                (isSunday ? ", closed" : booked ? ", no suitable slots for selected services" : free ? ", available" : "")
               }
               onClick={function () {
                 onDate(ds);
@@ -251,13 +251,20 @@ export default function SlotPicker({
           <span className="h-[3px] w-4 rounded-full bg-[#3fae5f]" /> Available
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-[3px] w-4 rounded-full bg-[#d9534f]" /> Fully booked
+          <span className="h-[3px] w-4 rounded-full bg-[#d9534f]" /> No suitable slots for selected services
         </span>
         {monthLoading && <span className="italic">Checking the calendar…</span>}
         {!duration && (
           <span className="italic">Choose your service to see which days are free.</span>
         )}
       </div>
+
+      {/* Explain duration-based availability before showing any grey slots. */}
+      {duration > 0 && (
+        <p className="mt-4 rounded-lg border border-[#d6b36a]/20 bg-[#d6b36a]/[0.06] px-3 py-3 text-xs leading-relaxed text-[#c9c0b6]">
+          Times are checked against all your selected services ({duration} minutes total), including the 15-minute gap around existing appointments. Grey times are unavailable for this combination — it does not always mean the whole day is fully booked. Try a different date or a shorter service combination, or split services into separate appointments.
+        </p>
+      )}
 
       {/* Times */}
       <div className="mt-5 border-t border-white/[0.08] pt-4">
@@ -274,7 +281,7 @@ export default function SlotPicker({
               <p className="mt-3 text-sm italic text-[#9f978f]">Checking availability…</p>
             ) : slotList.filter(function (s) { return s.available !== false; }).length === 0 ? (
               <p className="mt-3 text-sm italic text-[#9f978f]">
-                All booked on this day. Please choose another date.
+                No start times fit your selected {duration}-minute appointment on this date. The day may still have shorter openings. Try a shorter service combination or choose another date.
               </p>
             ) : (
               <div className="mt-3 space-y-4">
