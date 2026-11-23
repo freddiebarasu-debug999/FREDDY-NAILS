@@ -133,7 +133,7 @@ export async function GET(request) {
         ) {
           const end = start + duration;
           // Keep a 15-minute gap before and after every booking.
-          const clash = taken.some(
+          const pastToday = date === today && start <= localNow.minutes;\n          const clash = pastToday || taken.some(
             (t) => start < t[1] + BUFFER_MINUTES && end + BUFFER_MINUTES > t[0]
           );
           if (!clash) free += 1;
