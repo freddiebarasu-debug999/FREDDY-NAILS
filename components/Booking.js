@@ -1031,6 +1031,10 @@ export default function Booking() {
         ...current.clientServices,
       ];
 
+      if (updated[clientIndex].some((service) => !service)) {
+        return current;
+      }
+
       if (
         updated[clientIndex]
           .length >= 4
@@ -2611,7 +2615,8 @@ export default function Booking() {
                           4 && (
                           <button
                             type="button"
-                            className="inline-flex items-center justify-center gap-2 rounded-md border border-gold/45 bg-gold/[0.07] px-4 py-3 text-xs font-bold uppercase tracking-wide text-gold hover:bg-gold/[0.13] hover:border-gold/70 transition-colors"
+                            disabled={services.some((service) => !service)}
+                            className="inline-flex items-center justify-center gap-2 rounded-md border border-gold/45 bg-gold/[0.07] px-4 py-3 text-xs font-bold uppercase tracking-wide text-gold hover:bg-gold/[0.13] hover:border-gold/70 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                             onClick={() =>
                               addService(
                                 clientIndex
