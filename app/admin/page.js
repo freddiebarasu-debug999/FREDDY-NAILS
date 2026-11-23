@@ -540,7 +540,7 @@ function Editor({ booking, onBack, onChanged }) {
 
 /* ---------- booking card (list) ---------- */
 
-function BookingCard({ b, onOpen, ready, onToggleReady, showReady }) {
+function BookingCard({ b, onOpen, ready, onToggleReady, onOutcome, showReady }) {
   const paid = isPaid(b);
   const phone = b.customer_phone;
   return (
@@ -716,7 +716,7 @@ export default function AdminPage() {
                 )}
                 <div className="mt-3 space-y-3">
                   {todays.map((b) => (
-                    <BookingCard key={b.id} b={b} onOpen={setSelected} showReady ready={checked[b.id]} onToggleReady={toggleReady} />
+                    <BookingCard key={b.id} b={b} onOpen={setSelected} showReady ready={checked[b.id]} onToggleReady={toggleReady} onOutcome={markOutcome} />
                   ))}
                 </div>
               </div>
@@ -727,7 +727,7 @@ export default function AdminPage() {
             )}
 
             {rest.map((b) => (
-              <BookingCard key={b.id} b={b} onOpen={setSelected} />
+              <BookingCard key={b.id} b={b} onOpen={setSelected} onOutcome={markOutcome} />
             ))}
           </div>
         )}
