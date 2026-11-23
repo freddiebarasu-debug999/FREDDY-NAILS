@@ -277,7 +277,7 @@ async function actionSave(supabase, body) {
       .from("appointment_clients")
       .select("appointment_id, start_time, end_time")
       .eq("booking_date", date)
-      .in("booking_status", ["pending", "confirmed"])
+      .in("booking_status", ["pending", "confirmed", "ready"])
       .neq("appointment_id", id);
     const booked = (others || []).map((o) => ({ start: toMin(o.start_time), end: toMin(o.end_time) }));
     for (const c of computed.filter((x) => x.date === date)) {
