@@ -32,9 +32,10 @@ function pad(n) {
 }
 
 // South Africa is UTC+2 all year.
-function saToday() {
-  const d = new Date(Date.now() + 2 * 60 * 60 * 1000);
-  return d.toISOString().slice(0, 10);
+function saDateTimeParts() {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Johannesburg", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return { date: `${value.year}-${value.month}-${value.day}`, minutes: Number(value.hour) * 60 + Number(value.minute) };
 }
 
 /*
@@ -112,7 +113,8 @@ export async function GET(request) {
 
     const closedDates = await getClosedDatesInRange(supabase, first, last);
 
-    const today = saToday();
+    const localNow = saDateTimeParts();
+    const today = localNow.date;
     const days = {};
 
     for (let day = 1; day <= daysInMonth; day += 1) {
@@ -133,7 +135,8 @@ export async function GET(request) {
         ) {
           const end = start + duration;
           // Keep a 15-minute gap before and after every booking.
-          const clash = taken.some(
+          const pastToday = date === today && start <= localNow.minutes;
+          const clash = pastToday || taken.some(
             (t) => start < t[1] + BUFFER_MINUTES && end + BUFFER_MINUTES > t[0]
           );
           if (!clash) free += 1;

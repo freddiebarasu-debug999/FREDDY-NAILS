@@ -30,6 +30,12 @@ function timeToMinutes(time) {
   return hours * 60 + minutes;
 }
 
+function saDateTimeParts() {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Johannesburg", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return { date: `${value.year}-${value.month}-${value.day}`, minutes: Number(value.hour) * 60 + Number(value.minute) };
+}
+
 function minutesToTime(minutes) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
@@ -229,6 +235,8 @@ export async function GET(request) {
 
     const availableTimes = [];
     const allSlots = [];
+    const localNow = saDateTimeParts();
+    const isToday = date === localNow.date;
 
     // A day with the maximum number of clients is full.
     const dayIsFull =
@@ -249,7 +257,9 @@ export async function GET(request) {
       const proposedEnd = start + duration;
       const timeStr = minutesToTime(start);
 
+      const isPastTime = isToday && proposedStart <= localNow.minutes;
       const overlaps =
+        isPastTime ||
         dayIsFull ||
         (bookedClients || []).some((booking) => {
           const bookedStart = timeToMinutes(booking.start_time);
@@ -261,7 +271,7 @@ export async function GET(request) {
           );
         });
 
-      allSlots.push({ time: timeStr, available: !overlaps });
+      allSlots.push({ time: timeStr, available: !overlaps, reason: isPastTime ? "past" : undefined });
       if (!overlaps) {
         availableTimes.push(timeStr);
       }

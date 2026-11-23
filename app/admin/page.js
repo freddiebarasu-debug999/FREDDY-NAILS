@@ -540,7 +540,7 @@ function Editor({ booking, onBack, onChanged }) {
 
 /* ---------- booking card (list) ---------- */
 
-function BookingCard({ b, onOpen, ready, onToggleReady, showReady }) {
+function BookingCard({ b, onOpen, onOutcome }) {
   const paid = isPaid(b);
   const phone = b.customer_phone;
   return (
@@ -568,7 +568,7 @@ function BookingCard({ b, onOpen, ready, onToggleReady, showReady }) {
         {b.flags.length > 0 && <p className="mt-2 text-xs font-semibold text-[#e8c36a]">⚠ {b.flags.join(" · ")}</p>}
       </button>
 
-      {(phone || showReady) && (
+      {phone && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
           {phone && (
             <a
@@ -580,12 +580,14 @@ function BookingCard({ b, onOpen, ready, onToggleReady, showReady }) {
               WhatsApp
             </a>
           )}
-          {showReady && (
-            <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-[#c9c0b6]">
-              <input type="checkbox" checked={!!ready} onChange={() => onToggleReady(b.id)} />
-              Ready
-            </label>
+          {!isCancelled(b) && !(["completed", "no_show"].includes(String(b.booking_status || "").toLowerCase())) && (
+            <div className="ml-auto flex gap-2">
+              <button type="button" onClick={() => onOutcome(b.id, "completed")} className="rounded-lg border border-[#6fcf8a]/40 px-3 py-1.5 text-xs font-bold text-[#6fcf8a]">Completed</button>
+              <button type="button" onClick={() => onOutcome(b.id, "not_completed")} className="rounded-lg border border-[#e39a96]/40 px-3 py-1.5 text-xs font-bold text-[#e39a96]">Not completed</button>
+            </div>
           )}
+          {b.booking_status === "completed" && <span className="ml-auto text-xs font-bold text-[#6fcf8a]">✓ Completed</span>}
+          {b.booking_status === "no_show" && <span className="ml-auto text-xs font-bold text-[#e39a96]">Not completed</span>}
         </div>
       )}
     </div>
@@ -610,7 +612,6 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState(null);
-  const [checked, setChecked] = useState({});
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -647,9 +648,14 @@ export default function AdminPage() {
     setSelected(null);
   }
 
-  function toggleReady(id) {
-    setChecked((current) => ({ ...current, [id]: !current[id] }));
+  async function updateBookingAction(id, action) {
+    try {
+      const result = await api("/api/admin/bookings", { method: "POST", body: JSON.stringify({ id, action }) });
+      if (result.booking) setBookings((current) => current.map((b) => b.id === id ? result.booking : b));
+    } catch (e) { setError(e.message || "Could not update booking status."); }
   }
+
+  function markOutcome(id, action) { updateBookingAction(id, action); }
 
   const today = todaySA();
   const showToday = scope === "upcoming" && !q;
@@ -707,16 +713,9 @@ export default function AdminPage() {
                     ? "No bookings today"
                     : `${todays.length} booking${todays.length > 1 ? "s" : ""}, ${money(todayTotal)} expected`}
                 </p>
-                {todays.length > 0 && (
-                  <p className="mt-1 text-xs text-[#9f978f]">
-                    {Object.values(checked).filter(Boolean).length > 0
-                      ? `${todays.filter((b) => checked[b.id]).length} of ${todays.length} ready`
-                      : "Tick “Ready” as you set up for each client."}
-                  </p>
-                )}
                 <div className="mt-3 space-y-3">
                   {todays.map((b) => (
-                    <BookingCard key={b.id} b={b} onOpen={setSelected} showReady ready={checked[b.id]} onToggleReady={toggleReady} />
+                    <BookingCard key={b.id} b={b} onOpen={setSelected} onOutcome={markOutcome} />
                   ))}
                 </div>
               </div>
@@ -727,7 +726,7 @@ export default function AdminPage() {
             )}
 
             {rest.map((b) => (
-              <BookingCard key={b.id} b={b} onOpen={setSelected} />
+              <BookingCard key={b.id} b={b} onOpen={setSelected} onOutcome={markOutcome} />
             ))}
           </div>
         )}

@@ -144,7 +144,7 @@ export default function SlotPicker({
             ? "cursor-not-allowed border-white/[0.06] bg-[#12110f] text-[#5c5650] line-through opacity-60"
             : selected
               ? "border-[#d6b36a] bg-[#d6b36a] text-[#11100f] active:scale-95"
-              : "border-white/[0.12] bg-[#181614] text-[#f4eee6] hover:border-[#d6b36a]/60 active:scale-95")
+              : "border-[#3fae5f]/40 bg-[#3fae5f]/10 text-[#8fdfa8] hover:border-[#3fae5f]/70 hover:bg-[#3fae5f]/20 active:scale-95")
         }
       >
         {prettyTime(t)}
@@ -272,7 +272,7 @@ export default function SlotPicker({
 
             {loading ? (
               <p className="mt-3 text-sm italic text-[#9f978f]">Checking availability…</p>
-            ) : (times || []).length === 0 ? (
+            ) : slotList.filter(function (s) { return s.available !== false; }).length === 0 ? (
               <p className="mt-3 text-sm italic text-[#9f978f]">
                 All booked on this day. Please choose another date.
               </p>
@@ -283,7 +283,7 @@ export default function SlotPicker({
                     <p className="mb-2 text-[0.72rem] font-bold uppercase tracking-[0.16em] text-[#d6b36a]">
                       Morning
                     </p>
-                    <div className="grid grid-cols-3 gap-2">{morning.map(slotButton)}</div>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">{morning.map(slotButton)}</div>
                   </div>
                 )}
                 {afternoon.length > 0 && (
@@ -291,7 +291,7 @@ export default function SlotPicker({
                     <p className="mb-2 text-[0.72rem] font-bold uppercase tracking-[0.16em] text-[#d6b36a]">
                       Afternoon
                     </p>
-                    <div className="grid grid-cols-3 gap-2">{afternoon.map(slotButton)}</div>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">{afternoon.map(slotButton)}</div>
                   </div>
                 )}
               </div>
