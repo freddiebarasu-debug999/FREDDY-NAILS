@@ -155,15 +155,97 @@ export default function MoneyPage() {
               <>
                 <p className="text-xs text-[#9f978f]">{data.label}: {niceDate(data.from)} – {niceDate(data.to)}</p>
 
+                {/* Hero profit + growth */}
+                <div className="rounded-2xl border border-[#d6b36a]/25 bg-gradient-to-br from-[#d6b36a]/10 to-transparent p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9f978f]">Profit (estimate)</p>
+                  <p className={`mt-1 font-serif text-4xl ${data.profit >= 0 ? "text-[#6fcf8a]" : "text-[#e39a96]"}`}>
+                    {money(data.profit)}
+                  </p>
+                  <p className="mt-1 text-xs text-[#9f978f]">Estimated takings minus expenses</p>
+                  {/* Progress bar: received vs takings */}
+                  {(() => {
+                    const received = Number(data.deposits || 0) + Number(data.collected || 0);
+                    const target = Math.max(Number(data.takings || 0), received, 1);
+                    const pct = Math.min(100, Math.round((received / target) * 100));
+                    const collectPct = Math.min(100, Math.round((Number(data.balanceDue || 0) / target) * 100));
+                    return (
+                      <div className="mt-5 space-y-3">
+                        <div>
+                          <div className="mb-1 flex justify-between text-[0.7rem]">
+                            <span className="text-[#c9c0b6]">Collected progress</span>
+                            <span className="font-bold text-[#d6b36a]">{pct}%</span>
+                          </div>
+                          <div className="h-3 overflow-hidden rounded-full bg-white/10">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-[#d6b36a] to-[#6fcf8a] transition-all duration-700"
+                              style={{ width: pct + "%" }}
+                            />
+                          </div>
+                          <p className="mt-1 text-[0.65rem] text-[#9f978f]">
+                            {money(received)} of {money(data.takings)} estimated takings
+                          </p>
+                        </div>
+                        {data.balanceDue > 0 && (
+                          <div>
+                            <div className="mb-1 flex justify-between text-[0.7rem]">
+                              <span className="text-[#c9c0b6]">Still to collect</span>
+                              <span className="font-bold text-[#e39a96]">{money(data.balanceDue)}</span>
+                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                              <div
+                                className="h-full rounded-full bg-[#e39a96]/70"
+                                style={{ width: Math.max(8, collectPct) + "%" }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Bar chart style metrics */}
+                <div className="rounded-2xl border border-white/10 bg-[#181614] p-5">
+                  <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-[#d6b36a]">Breakdown</p>
+                  {(() => {
+                    const items = [
+                      { label: "Takings", value: Number(data.takings || 0), color: "#d6b36a" },
+                      { label: "Received", value: Number(data.deposits || 0) + Number(data.collected || 0), color: "#6fcf8a" },
+                      { label: "Tips", value: Number(data.tips || 0), color: "#8fdfa8" },
+                      { label: "Expenses", value: Number(data.expenseTotal || 0), color: "#e39a96" },
+                      { label: "Balance due", value: Number(data.balanceDue || 0), color: "#c9a06a" },
+                    ];
+                    const maxV = Math.max(...items.map((i) => i.value), 1);
+                    return (
+                      <div className="space-y-3">
+                        {items.map((item) => (
+                          <div key={item.label}>
+                            <div className="mb-1 flex justify-between text-xs">
+                              <span className="text-[#c9c0b6]">{item.label}</span>
+                              <span className="font-semibold text-[#f4eee6]">{money(item.value)}</span>
+                            </div>
+                            <div className="h-2.5 overflow-hidden rounded-full bg-white/[0.06]">
+                              <div
+                                className="h-full rounded-full transition-all duration-700"
+                                style={{
+                                  width: Math.max(item.value > 0 ? 4 : 0, (item.value / maxV) * 100) + "%",
+                                  background: item.color,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <Stat label="Bookings" value={data.bookings} sub="Paid, not cancelled" />
                   <Stat label="Estimated takings" value={money(data.takings)} sub={data.toCome > 0 ? `${money(data.soFar)} so far · ${money(data.toCome)} still to come` : "After promo codes (estimate)"} />
                   <Stat label="Money received" value={money(data.deposits + data.collected)} sub={`Deposits ${money(data.deposits)} + balances ${money(data.collected)}`} tone="good" />
                   <Stat label="Still to collect" value={money(data.balanceDue)} sub="Past appointments with no balance recorded" tone={data.balanceDue > 0 ? "bad" : undefined} />
-                  <Stat label="Tips" value={money(data.tips)} sub="Not included in takings" />
-                  <Stat label="Expenses" value={money(data.expenseTotal)} />
                 </div>
-                <Stat label="Profit (estimate)" value={money(data.profit)} tone={data.profit >= 0 ? "good" : "bad"} sub="Estimated takings minus expenses" />
 
                 {data.paymentsReady === false && (
                   <p className="rounded-lg bg-[#2a2314] p-3 text-xs text-[#e8c36a]">Balance payments and tips need the one-time Supabase SQL setup before they show here.</p>

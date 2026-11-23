@@ -42,6 +42,7 @@ export default function SlotPicker({
   date,
   time,
   times,
+  allSlots,
   loading,
   duration,
   minDate,
@@ -107,28 +108,43 @@ export default function SlotPicker({
   for (let i = 0; i < offset; i += 1) cells.push(null);
   for (let d = 1; d <= daysInMonth; d += 1) cells.push(d);
 
-  const morning = (times || []).filter(function (t) {
-    return t < "12:00";
+  // Prefer allSlots (available + booked greyed out). Fall back to times-only list.
+  const slotList =
+    Array.isArray(allSlots) && allSlots.length > 0
+      ? allSlots
+      : (times || []).map(function (t) {
+          return { time: t, available: true };
+        });
+
+  const morning = slotList.filter(function (s) {
+    return s.time < "12:00";
   });
-  const afternoon = (times || []).filter(function (t) {
-    return t >= "12:00";
+  const afternoon = slotList.filter(function (s) {
+    return s.time >= "12:00";
   });
 
-  function slotButton(t) {
+  function slotButton(slot) {
+    const t = slot.time;
+    const available = slot.available !== false;
     const selected = time === t;
     return (
       <button
         key={t}
         type="button"
+        disabled={!available}
         aria-pressed={selected}
+        aria-disabled={!available}
+        title={available ? prettyTime(t) : prettyTime(t) + " — booked"}
         onClick={function () {
-          onTime(t);
+          if (available) onTime(t);
         }}
         className={
-          "rounded-md border px-2 py-2.5 text-xs font-semibold transition-all duration-150 active:scale-95 " +
-          (selected
-            ? "border-[#d6b36a] bg-[#d6b36a] text-[#11100f]"
-            : "border-white/[0.12] bg-[#181614] text-[#f4eee6] hover:border-[#d6b36a]/60")
+          "rounded-md border px-2 py-2.5 text-xs font-semibold transition-all duration-150 " +
+          (!available
+            ? "cursor-not-allowed border-white/[0.06] bg-[#12110f] text-[#5c5650] line-through opacity-60"
+            : selected
+              ? "border-[#d6b36a] bg-[#d6b36a] text-[#11100f] active:scale-95"
+              : "border-white/[0.12] bg-[#181614] text-[#f4eee6] hover:border-[#d6b36a]/60 active:scale-95")
         }
       >
         {prettyTime(t)}

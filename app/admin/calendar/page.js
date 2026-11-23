@@ -1,141 +1,259 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+
+function pad(n) {
+  return String(n).padStart(2, "0");
+}
+
+function prettyTime(t) {
+  const [h, m] = String(t).split(":").map(Number);
+  const suffix = h >= 12 ? "pm" : "am";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${pad(m || 0)} ${suffix}`;
+}
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+async function api(path) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const response = await fetch(path, {
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${session?.access_token || ""}`,
+    },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
 export default function CalendarAdminPage() {
-  const [status, setStatus] = useState("checking");
-  const [email, setEmail] = useState("");
+  const [date, setDate] = useState(todayStr);
+  const [slots, setSlots] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [gStatus, setGStatus] = useState("checking");
+  const [gEmail, setGEmail] = useState("");
+
+  const loadDay = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const avail = await fetch(
+        `/api/availability?date=${encodeURIComponent(date)}&duration=60`,
+        { cache: "no-store" }
+      ).then((r) => r.json());
+
+      setSlots(
+        avail.allSlots ||
+          (avail.availableTimes || []).map((t) => ({ time: t, available: true }))
+      );
+
+      try {
+        const data = await api(`/api/admin/bookings?date=${encodeURIComponent(date)}`);
+        const list = data.bookings || data.appointments || data || [];
+        setBookings(Array.isArray(list) ? list : []);
+      } catch {
+        setBookings([]);
+      }
+    } catch (e) {
+      setError(e.message || "Could not load day");
+      setSlots([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [date]);
+
+  useEffect(() => {
+    loadDay();
+  }, [loadDay]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("connected") === "1") {
-      setStatus("connected");
+      setGStatus("connected");
       window.history.replaceState({}, "", "/admin/calendar");
       return;
     }
     if (params.get("error")) {
-      setStatus("error");
+      setGStatus("error");
       window.history.replaceState({}, "", "/admin/calendar");
       return;
     }
-    checkConnection();
-  }, []);
-  async function checkConnection() {
-    try {
-      const response = await fetch(
-        "/api/google-calendar/status",
-        {
-          cache: "no-store",
+    fetch("/api/google-calendar/status", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.connected) {
+          setGStatus("connected");
+          setGEmail(data.email || "");
+        } else {
+          setGStatus("disconnected");
         }
-      );
-      const data = await response.json();
-      if (data.connected) {
-        setStatus("connected");
-        setEmail(data.email || "");
-      } else {
-        setStatus("disconnected");
-      }
-    } catch (error) {
-      console.error("Calendar status check failed:", error);
-      setStatus("error");
-    }
-  }
-  function connectCalendar() {
-    window.location.href = "/api/google-calendar/connect";
-  }
+      })
+      .catch(() => setGStatus("error"));
+  }, []);
+
+  const bookedCount = slots.filter((s) => !s.available).length;
+  const freeCount = slots.filter((s) => s.available).length;
+
   return (
-    <main className="min-h-screen bg-[#11100f] text-[#f4eee6]">
-      <div className="mx-auto max-w-3xl px-6 py-16 md:py-24">
-        <a
-          href="/"
-          className="inline-block mb-10 text-sm font-semibold text-[#d6b36a] hover:text-[#f4eee6] transition-colors"
+    <div className="space-y-6 text-[#f4eee6]">
+      <div>
+        <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em] text-[#d6b36a]">
+          Owner
+        </p>
+        <h1 className="mt-1 font-serif text-3xl">Calendar</h1>
+        <p className="mt-2 text-sm text-[#a79a87]">
+          See available slots and what is already booked for any day.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-[#c9c0b6]">
+            Date
+          </span>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="rounded-lg border border-[#d6b36a]/30 bg-[#181614] px-3 py-2 text-sm text-[#f4eee6] outline-none focus:border-[#d6b36a]"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => setDate(todayStr())}
+          className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold uppercase tracking-wide text-[#c9c0b6] hover:border-[#d6b36a]/50 hover:text-[#d6b36a]"
         >
-          ← Back to Freddy Nails
-        </a>
-        <div className="border-b border-[#d6b36a]/20 pb-8">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.25em] text-[#d6b36a]">
-            Freddy Nails
-          </p>
-          <h1 className="font-serif text-4xl md:text-5xl">
-            Google Calendar
-          </h1>
-          <p className="mt-4 max-w-2xl text-[#c9c0b6]">
-            Connect your Google Calendar so confirmed Freddy Nails
-            appointments can be managed automatically.
+          Today
+        </button>
+        <button
+          type="button"
+          onClick={loadDay}
+          className="rounded-lg bg-[#d6b36a] px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#11100f]"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {error && (
+        <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </p>
+      )}
+
+      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-serif text-xl">Day slots</h2>
+          <p className="text-xs text-[#9f978f]">
+            {loading ? "Loading…" : `${freeCount} free · ${bookedCount} booked / blocked`}
           </p>
         </div>
-        <section className="mt-10 rounded-xl border border-[#d6b36a]/20 bg-[#181614] p-6 md:p-8">
-          {status === "checking" && (
-            <p className="text-[#c9c0b6]">
-              Checking calendar connection…
-            </p>
-          )}
-          {status === "disconnected" && (
-            <>
-              <h2 className="font-serif text-2xl">
-                Calendar not connected
-              </h2>
-              <p className="mt-3 text-[#c9c0b6]">
-                Connect the Google Calendar used by Freddy Nails. Once
-                connected, the website will be able to create and manage
-                appointment events automatically.
-              </p>
-              <button
-                type="button"
-                onClick={connectCalendar}
-                className="mt-7 bg-[#d6b36a] px-6 py-3 text-sm font-bold uppercase tracking-wide text-[#11100f] transition-colors hover:bg-[#ad8a4e]"
+
+        {loading ? (
+          <p className="text-sm text-[#a79a87]">Loading slots…</p>
+        ) : slots.length === 0 ? (
+          <p className="text-sm text-[#a79a87]">No slots for this day (closed or unavailable).</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+            {slots.map((s) => (
+              <div
+                key={s.time}
+                className={
+                  "rounded-lg border px-2 py-3 text-center text-xs font-semibold " +
+                  (s.available
+                    ? "border-[#3fae5f]/40 bg-[#3fae5f]/10 text-[#8fdfa8]"
+                    : "border-white/[0.06] bg-[#12110f] text-[#5c5650] line-through opacity-70")
+                }
+                title={s.available ? "Available" : "Booked / blocked"}
               >
-                Connect Google Calendar
-              </button>
-            </>
-          )}
-          {status === "connected" && (
-            <>
-              <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#d6b36a] text-[#11100f]">
-                  ✓
+                {prettyTime(s.time)}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap gap-4 text-[0.7rem] text-[#9f978f]">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm bg-[#3fae5f]/80" /> Available
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm bg-[#3a3835]" /> Booked / blocked (greyed)
+          </span>
+        </div>
+      </section>
+
+      {bookings.length > 0 && (
+        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+          <h2 className="mb-3 font-serif text-xl">Bookings this day</h2>
+          <ul className="space-y-2">
+            {bookings.map((b) => (
+              <li
+                key={b.id || `${b.start_time}-${b.customer_name}`}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-[#181614] px-3 py-2.5 text-sm"
+              >
+                <span className="font-medium text-[#f4eee6]">
+                  {b.customer_name || "Client"}
                 </span>
-                <h2 className="font-serif text-2xl">
-                  Google Calendar connected
-                </h2>
-              </div>
-              <p className="mt-4 text-[#c9c0b6]">
-                Freddy Nails is connected to your Google Calendar.
-              </p>
-              {email && (
-                <p className="mt-3 text-sm text-[#d6b36a]">
-                  Connected calendar: {email}
-                </p>
-              )}
-              <div className="mt-7 border-t border-white/[0.08] pt-6">
-                <p className="text-sm leading-6 text-[#c9c0b6]">
-                  Once the booking integration is connected, confirmed
-                  appointments will automatically appear on your calendar.
-                  Cancellations and appointment changes can also be handled
-                  automatically.
-                </p>
-              </div>
-            </>
-          )}
-          {status === "error" && (
-            <>
-              <h2 className="font-serif text-2xl">
-                Something went wrong
-              </h2>
-              <p className="mt-3 text-[#c9c0b6]">
-                We couldn't verify the Google Calendar connection.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setStatus("checking");
-                  checkConnection();
-                }}
-                className="mt-7 border border-[#d6b36a]/40 px-6 py-3 text-sm font-bold uppercase tracking-wide text-[#d6b36a] transition-colors hover:border-[#d6b36a] hover:text-[#f4eee6]"
-              >
-                Try again
-              </button>
-            </>
-          )}
+                <span className="text-[#d6b36a]">
+                  {prettyTime(b.start_time)}
+                  {b.end_time ? ` – ${prettyTime(b.end_time)}` : ""}
+                </span>
+                <span className="text-xs text-[#a79a87]">
+                  {b.service_name || b.booking_status || ""}
+                </span>
+              </li>
+            ))}
+          </ul>
         </section>
-      </div>
-    </main>
+      )}
+
+      <section className="rounded-2xl border border-white/10 bg-[#141210] p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-serif text-lg">Google Calendar sync</h2>
+            <p className="mt-1 text-xs text-[#9f978f]">
+              Optional — auto-create events when bookings are confirmed.
+            </p>
+          </div>
+          {gStatus === "checking" && (
+            <span className="text-xs text-[#a79a87]">Checking…</span>
+          )}
+          {gStatus === "connected" && (
+            <span className="rounded-full bg-[#3fae5f]/15 px-3 py-1 text-xs font-semibold text-[#8fdfa8]">
+              Connected{gEmail ? ` · ${gEmail}` : ""}
+            </span>
+          )}
+          {gStatus === "disconnected" && (
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = "/api/google-calendar/connect";
+              }}
+              className="rounded-lg border border-[#d6b36a]/40 px-3 py-1.5 text-xs font-bold text-[#d6b36a] hover:bg-[#d6b36a]/10"
+            >
+              Connect Google Calendar
+            </button>
+          )}
+          {gStatus === "error" && (
+            <span className="text-xs text-[#e39a96]">Could not check status</span>
+          )}
+        </div>
+        <p className="mt-3 text-xs text-[#6e675f]">
+          <Link href="/" className="text-[#d6b36a] hover:underline">
+            ← Back to site
+          </Link>
+        </p>
+      </section>
+    </div>
   );
 }

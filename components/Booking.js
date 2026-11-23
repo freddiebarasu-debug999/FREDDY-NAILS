@@ -364,6 +364,8 @@ export default function Booking() {
 
   const [availableTimes, setAvailableTimes] =
     useState([[]]);
+  const [allSlotsByClient, setAllSlotsByClient] =
+    useState([[]]);
 
   const [
     loadingAvailability,
@@ -1321,6 +1323,15 @@ export default function Booking() {
           () => []
         );
 
+      const slotResults =
+        Array.from(
+          {
+            length:
+              clientCount,
+          },
+          () => []
+        );
+
       const loading =
         Array.from(
           {
@@ -1435,6 +1446,11 @@ export default function Booking() {
               ] =
                 data.availableTimes ||
                 [];
+              slotResults[
+                clientIndex
+              ] =
+                data.allSlots ||
+                [];
             } catch (
               requestError
             ) {
@@ -1455,6 +1471,10 @@ export default function Booking() {
       if (!cancelled) {
         setAvailableTimes(
           results
+        );
+
+        setAllSlotsByClient(
+          slotResults
         );
 
         setLoadingAvailability(
@@ -2709,6 +2729,7 @@ export default function Booking() {
                         date={form.clientDates[clientIndex] || ""}
                         time={form.clientTimes[clientIndex] || ""}
                         times={times}
+                        allSlots={allSlotsByClient[clientIndex] || []}
                         loading={Boolean(loadingAvailability[clientIndex])}
                         duration={clientDurations[clientIndex] || 0}
                         minDate={todayString}

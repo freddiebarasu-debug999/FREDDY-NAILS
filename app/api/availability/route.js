@@ -99,20 +99,14 @@ export async function GET(request) {
     if (
       requestedDate.getDay() === 0
     ) {
-      return Response.json({
-        date,
-        availableTimes: [],
-      });
+      return Response.json({ date, availableTimes: [], allSlots: [] });
     }
 
     /*
      * Days the owner has marked as closed (days off).
      */
     if (await isClosedDate(supabase, date)) {
-      return Response.json({
-        date,
-        availableTimes: [],
-      });
+      return Response.json({ date, availableTimes: [], allSlots: [] });
     }
 
     /*
@@ -234,6 +228,7 @@ export async function GET(request) {
     }
 
     const availableTimes = [];
+    const allSlots = [];
 
     // A day with the maximum number of clients is full.
     const dayIsFull =
@@ -243,52 +238,39 @@ export async function GET(request) {
     /*
      * Check every 30-minute start time. Closing time is the latest
      * permitted START time; treatment duration may extend beyond closing.
+     * allSlots includes booked/unavailable times so the UI can grey them out.
      */
     for (
       let start = OPEN_MINUTES;
-      !dayIsFull &&
       start <= CLOSE_MINUTES;
       start += SLOT_INTERVAL
     ) {
-      const proposedStart =
-        start;
-
-      const proposedEnd =
-        start + duration;
+      const proposedStart = start;
+      const proposedEnd = start + duration;
+      const timeStr = minutesToTime(start);
 
       const overlaps =
-        (bookedClients || []).some(
-          (booking) => {
-            const bookedStart =
-              timeToMinutes(
-                booking.start_time
-              );
+        dayIsFull ||
+        (bookedClients || []).some((booking) => {
+          const bookedStart = timeToMinutes(booking.start_time);
+          const bookedEnd = timeToMinutes(booking.end_time);
+          // Keep a 15-minute gap before and after every booking.
+          return (
+            proposedStart < bookedEnd + BUFFER_MINUTES &&
+            proposedEnd + BUFFER_MINUTES > bookedStart
+          );
+        });
 
-            const bookedEnd =
-              timeToMinutes(
-                booking.end_time
-              );
-
-            // Keep a 15-minute gap before and after every booking.
-            return (
-              proposedStart <
-                bookedEnd + BUFFER_MINUTES &&
-              proposedEnd + BUFFER_MINUTES >
-                bookedStart
-            );
-          }
-        );
-
+      allSlots.push({ time: timeStr, available: !overlaps });
       if (!overlaps) {
-        availableTimes.push(
-          minutesToTime(start)
-        );
+        availableTimes.push(timeStr);
       }
     }
 
     return Response.json({
       date,
       availableTimes,
+      allSlots,
     });
   } catch (error) {
     console.error(

@@ -54,8 +54,9 @@ export default function AdminLayout({ children }) {
               <li key={href}>
                 <Link
                   href={href}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#c9c0b6] transition-colors hover:bg-white/5 hover:text-[#d6b36a]"
+                  className="group relative flex items-center gap-3 overflow-hidden rounded-xl border border-transparent px-3 py-2.5 text-sm font-medium text-[#c9c0b6] transition-all duration-300 hover:border-white/10 hover:bg-white/[0.06] hover:text-[#d6b36a] hover:shadow-[0_0_20px_rgba(214,179,106,0.08)] hover:backdrop-blur-md"
                 >
+                  <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.07] to-transparent transition-transform duration-500 group-hover:translate-x-full" />
                   <span className="text-base opacity-80">{icon}</span>
                   <span>{label}</span>
                 </Link>
