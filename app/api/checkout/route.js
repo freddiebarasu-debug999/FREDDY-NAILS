@@ -61,6 +61,10 @@ const DEPOSIT_PER_CLIENT = 90;
 const MAX_CLIENTS = 4;
 const MAX_SERVICES_PER_CLIENT = 4;
 
+function clientLabel(index) {
+  return index === 0 ? "Your appointment" : `Guest ${index}`;
+}
+
 const SERVICE_OPTIONS = {
   "Acrylic — Plain Short–Medium (R200)": 90,
   "Acrylic — Plain Long (R250)": 105,
@@ -434,14 +438,14 @@ export async function POST(request) {
       const services = clientServices[clientIndex];
       if (!Array.isArray(services) || services.length < 1 || services.length > MAX_SERVICES_PER_CLIENT) {
         return Response.json(
-          { error: `Client ${clientIndex + 1} must have between 1 and 4 services.` },
+          { error: `${clientLabel(clientIndex)} must have between 1 and 4 services.` },
           { status: 400 }
         );
       }
       const uniqueServices = new Set(services.map((s) => normalizeServiceName(s)));
       if (uniqueServices.size !== services.length) {
         return Response.json(
-          { error: `Client ${clientIndex + 1} cannot have the same service selected more than once.` },
+          { error: `${clientLabel(clientIndex)} cannot have the same service selected more than once.` },
           { status: 400 }
         );
       }
@@ -449,7 +453,7 @@ export async function POST(request) {
       if (primaryConflict) {
         return Response.json(
           {
-            error: `Client ${clientIndex + 1} can only have one ${primaryConflict.label}. Please remove the extra one, or book it for another client.`,
+            error: `${clientLabel(clientIndex)} can only have one ${primaryConflict.label}. Please remove the extra one, or book it for another client.`,
           },
           { status: 400 }
         );
@@ -469,13 +473,13 @@ export async function POST(request) {
       const clientTime = clientStartTimes[clientIndex];
       if (!isValidDate(clientDate)) {
         return Response.json(
-          { error: `Please choose a valid date for Client ${clientIndex + 1}.` },
+          { error: `Please choose a valid date for ${clientLabel(clientIndex)}.` },
           { status: 400 }
         );
       }
       if (!isValidTime(clientTime)) {
         return Response.json(
-          { error: `Please choose a valid time for Client ${clientIndex + 1}.` },
+          { error: `Please choose a valid time for ${clientLabel(clientIndex)}.` },
           { status: 400 }
         );
       }
@@ -485,19 +489,19 @@ export async function POST(request) {
       const bookingDate = new Date(`${clientDate}T00:00:00`);
       if (bookingDate < today) {
         return Response.json(
-          { error: `Client ${clientIndex + 1} cannot be booked for a date in the past.` },
+          { error: `${clientLabel(clientIndex)} cannot be booked for a date in the past.` },
           { status: 400 }
         );
       }
       if (selectedDate.getDay() === 0) {
         return Response.json(
-          { error: `Client ${clientIndex + 1} cannot be booked on Sunday because Freddy Nails is closed.` },
+          { error: `${clientLabel(clientIndex)} cannot be booked on Sunday because Freddy Nails is closed.` },
           { status: 400 }
         );
       }
       if (await isClosedDate(supabase, clientDate)) {
         return Response.json(
-          { error: `Client ${clientIndex + 1} cannot be booked on that date because Freddy Nails is closed. Please choose another day.` },
+          { error: `${clientLabel(clientIndex)} cannot be booked on that date because Freddy Nails is closed. Please choose another day.` },
           { status: 400 }
         );
       }
@@ -511,7 +515,7 @@ export async function POST(request) {
         const startMinutes = timeToMinutes(startTime);
         const endMinutes = startMinutes + clientDurations[clientIndex];
         if (startMinutes < OPEN_MINUTES || startMinutes > CLOSE_MINUTES) {
-          throw new Error(`Client ${clientIndex + 1}'s appointment is outside business hours.`);
+          throw new Error(`${clientLabel(clientIndex)}'s appointment is outside business hours.`);
         }
         return minutesToTime(endMinutes);
       });
@@ -534,7 +538,7 @@ export async function POST(request) {
         if (currentStart < previousEnd + 15) {
           return Response.json(
             {
-              error: `Client ${clientIndex + 1} must start at least 15 minutes after Client ${clientIndex} finishes when they are booked on the same date.`,
+              error: `${clientLabel(clientIndex)} must start at least 15 minutes after Client ${clientIndex} finishes when they are booked on the same date.`,
             },
             { status: 400 }
           );
@@ -673,7 +677,7 @@ export async function POST(request) {
     const serviceSummary = clientServices
       .map(
         (services, index) =>
-          `Client ${index + 1}: ${formatServiceList(services)} — ${clientDates[index]} ${clientStartTimes[index]}–${clientEndTimes[index]}`
+          `${clientLabel(index)}: ${formatServiceList(services)} — ${clientDates[index]} ${clientStartTimes[index]}–${clientEndTimes[index]}`
       )
       .join(" | ");
 
