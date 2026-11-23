@@ -452,7 +452,7 @@ export async function POST(request) {
     if (body.action === "save") return await actionSave(auth.supabase, body);
     if (body.action === "resync") return await actionResync(auth.supabase, body);
     if (body.action === "cancel") return await actionCancel(auth.supabase, body);
-    if (["confirmed", "completed", "not_completed"].includes(body.action)) {
+    if (["completed", "not_completed"].includes(body.action)) {
       const targetStatus = body.action === "not_completed" ? "no_show" : body.action;
       const { data: current, error: lookupError } = await auth.supabase.from("appointments").select("id, booking_status").eq("id", body.id).maybeSingle();
       if (lookupError || !current) return json({ error: "Booking not found." }, 404);
