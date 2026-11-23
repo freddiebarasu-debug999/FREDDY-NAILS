@@ -139,7 +139,7 @@ export default function CalendarAdminPage() {
             onChange={(e) => setDuration(e.target.value)}
             className="rounded-lg border border-[#d6b36a]/30 bg-[#181614] px-3 py-2 text-sm text-[#f4eee6] outline-none focus:border-[#d6b36a]"
           >
-            {[10, 15, 20, 30, 45, 55, 60, 65, 75, 90, 95, 100, 105, 110, 115, 120, 130, 135, 150].map((minutes) => (
+            {Array.from({ length: 59 }, (_, index) => 10 + index * 5).map((minutes) => (
               <option key={minutes} value={String(minutes)}>{minutes} minutes</option>
             ))}
           </select>
