@@ -2432,7 +2432,6 @@ export default function Booking() {
                           index + 1
                         }
                       >
-                        {index + 1}{" "}
                         {index === 0
                           ? "Just me"
                           : `Me + ${index} guest${index > 1 ? "s" : ""}`}
@@ -2495,12 +2494,9 @@ export default function Booking() {
                         </div>
 
                         <span className="shrink-0 text-xs font-bold tracking-wide text-[#c9c0b6] border-b border-gold/40 pb-1">
-                          {
-                            clientDurations[
-                              clientIndex
-                            ]
-                          }{" "}
-                          min
+                          {clientDurations[clientIndex]
+                            ? `${clientDurations[clientIndex]} min`
+                            : "Service needed"}
                         </span>
                       </div>
 
@@ -2541,7 +2537,7 @@ export default function Booking() {
                                   );
                                 }}
                               >
-                                <option value="" disabled>Choose a service...</option>
+                                <option value="">Choose a service...</option>
                                 {SERVICE_CATEGORIES.map(
                                   (
                                     group
@@ -2710,21 +2706,27 @@ export default function Booking() {
                         </div>
                       </div>
 
-                      <SlotPicker
-                        date={form.clientDates[clientIndex] || ""}
-                        time={form.clientTimes[clientIndex] || ""}
-                        times={times}
-                        allSlots={allSlotsByClient[clientIndex] || []}
-                        loading={Boolean(loadingAvailability[clientIndex])}
-                        duration={clientDurations[clientIndex] || 0}
-                        minDate={todayString}
-                        onDate={(value) =>
-                          updateClientDate(clientIndex, value)
-                        }
-                        onTime={(value) =>
-                          updateClientTime(clientIndex, value)
-                        }
-                      />
+                      {services.some(Boolean) ? (
+                        <SlotPicker
+                          date={form.clientDates[clientIndex] || ""}
+                          time={form.clientTimes[clientIndex] || ""}
+                          times={times}
+                          allSlots={allSlotsByClient[clientIndex] || []}
+                          loading={Boolean(loadingAvailability[clientIndex])}
+                          duration={clientDurations[clientIndex] || 0}
+                          minDate={todayString}
+                          onDate={(value) =>
+                            updateClientDate(clientIndex, value)
+                          }
+                          onTime={(value) =>
+                            updateClientTime(clientIndex, value)
+                          }
+                        />
+                      ) : (
+                        <p className="mt-6 rounded-md border border-white/[0.08] bg-white/[0.025] px-4 py-3 text-sm text-[#9f978f]">
+                          Choose a service above to see available dates and times.
+                        </p>
+                      )}
 
                       {availabilityErrors[
                         clientIndex
