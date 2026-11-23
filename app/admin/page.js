@@ -582,7 +582,7 @@ function BookingCard({ b, onOpen, ready, onToggleReady, onOutcome, showReady }) 
           )}
           {showReady && (
             <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-[#c9c0b6]">
-              <input type="checkbox" checked={!!ready} onChange={() => onToggleReady(b.id)} />
+              <input type="checkbox" checked={b.booking_status === "ready" || !!ready} onChange={() => onToggleReady(b.id)} />
               Ready
             </label>
           )}
