@@ -2294,6 +2294,10 @@ export default function Booking() {
           Book your own appointment or bring friends and family. Choose each person’s services and time below.
         </p>
 
+        <p className="text-xs leading-relaxed text-[#9f978f] mt-3 max-w-[650px]">
+          You can include friends and family without creating accounts for them. They can sign up for their own Freddy Nails account separately.
+        </p>
+
         {loggedIn &&
           accountLoaded && (
             <div className="mt-5 border border-gold/20 bg-gold/[0.05] px-4 py-3 text-sm text-[#c9c0b6]">
