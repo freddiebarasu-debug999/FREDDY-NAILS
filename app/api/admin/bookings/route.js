@@ -131,7 +131,7 @@ export async function GET(request) {
     } else {
       query = query
         .gte("booking_date", today)
-        .in("booking_status", ["pending", "confirmed", "ready"])
+        .in("booking_status", ["pending", "confirmed"])
         .order("booking_date", { ascending: true })
         .limit(200);
     }
@@ -277,7 +277,7 @@ async function actionSave(supabase, body) {
       .from("appointment_clients")
       .select("appointment_id, start_time, end_time")
       .eq("booking_date", date)
-      .in("booking_status", ["pending", "confirmed", "ready"])
+      .in("booking_status", ["pending", "confirmed"])
       .neq("appointment_id", id);
     const booked = (others || []).map((o) => ({ start: toMin(o.start_time), end: toMin(o.end_time) }));
     for (const c of computed.filter((x) => x.date === date)) {
@@ -452,14 +452,14 @@ export async function POST(request) {
     if (body.action === "save") return await actionSave(auth.supabase, body);
     if (body.action === "resync") return await actionResync(auth.supabase, body);
     if (body.action === "cancel") return await actionCancel(auth.supabase, body);
-    if (["ready", "confirmed", "completed", "not_completed"].includes(body.action)) {
-      const targetStatus = body.action;
+    if (["confirmed", "completed", "not_completed"].includes(body.action)) {
+      const targetStatus = body.action === "not_completed" ? "no_show" : body.action;
       const { data: current, error: lookupError } = await auth.supabase.from("appointments").select("id, booking_status").eq("id", body.id).maybeSingle();
       if (lookupError || !current) return json({ error: "Booking not found." }, 404);
       if (["cancelled", "canceled"].includes(String(current.booking_status || "").toLowerCase())) return json({ error: "Cancelled bookings cannot be updated." }, 400);
       const { error: statusError } = await auth.supabase.from("appointments").update({ booking_status: targetStatus }).eq("id", body.id);
       if (statusError) return json({ error: statusError.message }, 500);
-      if (["completed", "not_completed"].includes(targetStatus)) {
+      if (["completed", "no_show"].includes(targetStatus)) {
         const { error: clientStatusError } = await auth.supabase.from("appointment_clients").update({ booking_status: targetStatus }).eq("appointment_id", body.id);
         if (clientStatusError) return json({ error: clientStatusError.message }, 500);
       }
