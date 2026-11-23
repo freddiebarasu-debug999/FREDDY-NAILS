@@ -538,7 +538,7 @@ export async function POST(request) {
         if (currentStart < previousEnd + 15) {
           return Response.json(
             {
-              error: `${clientLabel(clientIndex)} must start at least 15 minutes after Client ${clientIndex} finishes when they are booked on the same date.`,
+              error: `${clientLabel(clientIndex)} must start at least 15 minutes after ${clientLabel(clientIndex - 1)} finishes when they are booked on the same date.`,
             },
             { status: 400 }
           );
