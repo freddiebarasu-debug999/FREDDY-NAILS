@@ -30,7 +30,13 @@ function timeToMinutes(time) {
   return hours * 60 + minutes;
 }
 
-function saDateTimeParts() {\n  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Johannesburg", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());\n  const value = Object.fromEntries(parts.map((p) => [p.type, p.value]));\n  return { date: `${value.year}-${value.month}-${value.day}`, minutes: Number(value.hour) * 60 + Number(value.minute) };\n}\n\nfunction minutesToTime(minutes) {
+function saDateTimeParts() {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Johannesburg", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return { date: `${value.year}-${value.month}-${value.day}`, minutes: Number(value.hour) * 60 + Number(value.minute) };
+}
+
+function minutesToTime(minutes) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
 
