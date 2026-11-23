@@ -211,7 +211,7 @@ export async function GET(request) {
       )
       .in(
         "booking_status",
-        ["pending", "confirmed"]
+        ["pending", "confirmed", "ready"]
       )
       .order(
         "start_time",
@@ -235,6 +235,8 @@ export async function GET(request) {
 
     const availableTimes = [];
     const allSlots = [];
+    const localNow = saDateTimeParts();
+    const isToday = date === localNow.date;
 
     // A day with the maximum number of clients is full.
     const dayIsFull =
@@ -255,7 +257,9 @@ export async function GET(request) {
       const proposedEnd = start + duration;
       const timeStr = minutesToTime(start);
 
+      const isPastTime = isToday && proposedStart <= localNow.minutes;
       const overlaps =
+        isPastTime ||
         dayIsFull ||
         (bookedClients || []).some((booking) => {
           const bookedStart = timeToMinutes(booking.start_time);
