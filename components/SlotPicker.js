@@ -108,10 +108,19 @@ export default function SlotPicker({
   for (let i = 0; i < offset; i += 1) cells.push(null);
   for (let d = 1; d <= daysInMonth; d += 1) cells.push(d);
 
-  // Prefer allSlots (available + booked greyed out). Fall back to times-only list.
+  // The daily API supplies booked/unavailable slots, while the parent booking
+  // component may further restrict times for earlier clients on the same day.
+  // Treat the final times list as authoritative so those restrictions are
+  // reflected in the visible buttons as well as in submission validation.
+  const permittedTimes = new Set(times || []);
   const slotList =
     Array.isArray(allSlots) && allSlots.length > 0
-      ? allSlots
+      ? allSlots.map(function (slot) {
+          return {
+            ...slot,
+            available: slot.available !== false && permittedTimes.has(slot.time),
+          };
+        })
       : (times || []).map(function (t) {
           return { time: t, available: true };
         });
