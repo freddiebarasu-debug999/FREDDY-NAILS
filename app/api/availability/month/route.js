@@ -10,6 +10,10 @@ import {
 } from "@/lib/bookingRules";
 import { getClosedDatesInRange } from "@/lib/closedDates";
 import { getBusyByDate } from "@/lib/busyTimes";
+import {
+  getBlockedByDate,
+  overlapsBlockedRange,
+} from "@/lib/blockedTimes";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -107,6 +111,7 @@ export async function GET(request) {
     }
 
     const closedDates = await getClosedDatesInRange(supabase, first, last);
+    const blockedByDate = await getBlockedByDate(supabase, first, last);
 
     const localNow = saDateTimeParts();
     const today = localNow.date;
@@ -119,6 +124,7 @@ export async function GET(request) {
       if (closedDates.has(date)) continue; // owner's day off
 
       const taken = byDate[date] || [];
+      const blockedRanges = blockedByDate.get(date) || [];
       let free = 0;
 
       // A full day (maximum clients) has no free times.
@@ -131,9 +137,13 @@ export async function GET(request) {
           const end = start + duration;
           // Keep a 15-minute gap before and after every booking.
           const pastToday = date === today && start <= localNow.minutes;
-          const clash = pastToday || taken.some(
-            (t) => start < t[1] + BUFFER_MINUTES && end + BUFFER_MINUTES > t[0]
-          );
+          const isBlocked = overlapsBlockedRange(start, end, blockedRanges);
+          const clash =
+            pastToday ||
+            isBlocked ||
+            taken.some(
+              (t) => start < t[1] + BUFFER_MINUTES && end + BUFFER_MINUTES > t[0]
+            );
           if (!clash) free += 1;
         }
       }

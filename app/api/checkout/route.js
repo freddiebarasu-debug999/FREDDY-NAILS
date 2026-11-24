@@ -12,6 +12,10 @@ import { findPrimaryConflict } from "@/lib/serviceRules";
 import { isClosedDate } from "@/lib/closedDates";
 import { getBusyForDate } from "@/lib/busyTimes";
 import {
+  getBlockedRangesForDate,
+  overlapsBlockedRange,
+} from "@/lib/blockedTimes";
+import {
   sendOwnerNotification,
   sendCustomerConfirmation,
 } from "@/lib/booking-emails";
@@ -510,16 +514,33 @@ export async function POST(request) {
 
     const clientDurations = clientServices.map(calculateClientDuration);
 
+    // Pre-load blocked ranges per unique date so we only hit the DB once per day.
+    const blockedCache = {};
+    async function blockedFor(date) {
+      if (!(date in blockedCache)) {
+        blockedCache[date] = await getBlockedRangesForDate(supabase, date);
+      }
+      return blockedCache[date];
+    }
+
     let clientEndTimes;
     try {
-      clientEndTimes = clientStartTimes.map((startTime, clientIndex) => {
+      clientEndTimes = [];
+      for (let clientIndex = 0; clientIndex < clientStartTimes.length; clientIndex++) {
+        const startTime = clientStartTimes[clientIndex];
         const startMinutes = timeToMinutes(startTime);
         const endMinutes = startMinutes + clientDurations[clientIndex];
         if (startMinutes < OPEN_MINUTES || startMinutes > CLOSE_MINUTES) {
           throw new Error(`${clientLabel(clientIndex)}'s appointment is outside business hours.`);
         }
-        return minutesToTime(endMinutes);
-      });
+        const ranges = await blockedFor(clientDates[clientIndex]);
+        if (overlapsBlockedRange(startMinutes, endMinutes, ranges)) {
+          throw new Error(
+            `${clientLabel(clientIndex)}'s time is blocked (owner unavailable). Please choose another slot.`
+          );
+        }
+        clientEndTimes.push(minutesToTime(endMinutes));
+      }
     } catch (timeError) {
       return Response.json(
         {

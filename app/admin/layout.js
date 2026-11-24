@@ -19,7 +19,8 @@ const links = [
   { href: "/admin/waitlist", label: "Waitlist", icon: "⏳" },
   { href: "/admin/money", label: "Money", icon: "💰" },
   { href: "/admin/promos", label: "Promo codes", icon: "🏷️" },
-  { href: "/admin/site", label: "Banner & days off", icon: "📢" },
+  { href: "/admin/site", label: "Banner & availability", icon: "📢" },
+
   { href: "/admin/calendar", label: "Calendar", icon: "📅" },
 ];
 

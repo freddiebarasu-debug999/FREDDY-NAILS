@@ -10,6 +10,10 @@ import {
 } from "@/lib/bookingRules";
 import { isClosedDate } from "@/lib/closedDates";
 import { getBusyForDate } from "@/lib/busyTimes";
+import {
+  getBlockedRangesForDate,
+  overlapsBlockedRange,
+} from "@/lib/blockedTimes";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -221,6 +225,9 @@ export async function GET(request) {
       );
     }
 
+    // Owner-blocked time ranges (partial day blocks).
+    const blockedRanges = await getBlockedRangesForDate(supabase, date);
+
     const availableTimes = [];
     const allSlots = [];
     const localNow = saDateTimeParts();
@@ -246,8 +253,14 @@ export async function GET(request) {
       const timeStr = minutesToTime(start);
 
       const isPastTime = isToday && proposedStart <= localNow.minutes;
+      const isBlocked = overlapsBlockedRange(
+        proposedStart,
+        proposedEnd,
+        blockedRanges
+      );
       const overlaps =
         isPastTime ||
+        isBlocked ||
         dayIsFull ||
         (bookedClients || []).some((booking) => {
           const bookedStart = booking.start;
@@ -259,7 +272,10 @@ export async function GET(request) {
           );
         });
 
-      allSlots.push({ time: timeStr, available: !overlaps, reason: isPastTime ? "past" : undefined });
+      let reason;
+      if (isPastTime) reason = "past";
+      else if (isBlocked) reason = "blocked";
+      allSlots.push({ time: timeStr, available: !overlaps, reason });
       if (!overlaps) {
         availableTimes.push(timeStr);
       }
