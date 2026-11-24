@@ -119,6 +119,54 @@ export async function GET(request) {
       return json({ booking: present(appt, map[id] || []) });
     }
 
+    // One day's bookings (used by the Calendar screen's "Day slots").
+    const dayParam = searchParams.get("date");
+    if (dayParam) {
+      if (!validDate(dayParam)) return json({ error: "Invalid date." }, 400);
+
+      const { data: onDay, error: dayError } = await supabase
+        .from("appointments")
+        .select(APPT_FIELDS)
+        .eq("booking_date", dayParam)
+        .neq("booking_status", "cancelled")
+        .order("start_time", { ascending: true })
+        .limit(100);
+      if (dayError) throw new Error(dayError.message);
+
+      // Also bookings that only have a client (friend) on this day.
+      const { data: dayClients } = await supabase
+        .from("appointment_clients")
+        .select("appointment_id")
+        .eq("booking_date", dayParam)
+        .neq("booking_status", "cancelled");
+      const known = new Set((onDay || []).map((a) => a.id));
+      const extraIds = [...new Set((dayClients || []).map((c) => c.appointment_id))].filter((x) => !known.has(x));
+      let extra = [];
+      if (extraIds.length) {
+        const { data: more } = await supabase
+          .from("appointments")
+          .select(APPT_FIELDS)
+          .in("id", extraIds)
+          .neq("booking_status", "cancelled");
+        extra = more || [];
+      }
+
+      const all = [...(onDay || []), ...extra];
+      const dayMap = await loadClients(supabase, all.map((a) => a.id));
+      const dayRows = all
+        .map((a) => {
+          const row = present(a, dayMap[a.id] || []);
+          const mine = row.clients.filter((c) => String(c.date).slice(0, 10) === dayParam);
+          // Is there a client record holding this day's time slot?
+          row.slotRecordMissing = !mine.some((c) =>
+            ["pending", "confirmed", "completed"].includes(String(c.status || "").toLowerCase())
+          );
+          return row;
+        })
+        .sort((x, y) => String(x.start_time).localeCompare(String(y.start_time)));
+      return json({ bookings: dayRows, date: dayParam });
+    }
+
     const scope = searchParams.get("scope") || "upcoming";
     const q = String(searchParams.get("q") || "").trim().toLowerCase();
     const today = saToday();

@@ -227,8 +227,14 @@ export default function CalendarAdminPage() {
                   {b.end_time ? ` – ${prettyTime(b.end_time)}` : ""}
                 </span>
                 <span className="text-xs text-[#a79a87]">
-                  {b.service_name || b.booking_status || ""}
+                  {(b.clients && b.clients[0] && b.clients.map((c) => (c.services || []).join(" + ")).filter(Boolean).join(" | ")) || b.service_name || ""}
+                  {b.booking_status ? ` · ${b.booking_status}` : ""}
                 </span>
+                {b.slotRecordMissing && (
+                  <span className="w-full text-xs text-[#e8c36a]">
+                    ⚠ This booking had no time-slot record. The site now blocks its time anyway.
+                  </span>
+                )}
               </li>
             ))}
           </ul>

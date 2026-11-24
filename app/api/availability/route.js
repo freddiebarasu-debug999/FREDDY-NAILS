@@ -9,6 +9,7 @@ import {
   MAX_CLIENTS_PER_DAY,
 } from "@/lib/bookingRules";
 import { isClosedDate } from "@/lib/closedDates";
+import { getBusyForDate } from "@/lib/busyTimes";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -197,26 +198,13 @@ export async function GET(request) {
      * Get all active individual client appointments
      * for this date.
      */
-    const {
-      data: bookedClients,
-      error: bookedClientsError,
-    } = await supabase
-      .from("appointment_clients")
-      .select(
-        "start_time, end_time, booking_status"
-      )
-      .eq(
-        "booking_date",
-        date
-      )
-      .in(
-        "booking_status",
-        ["pending", "confirmed"]
-      )
-      .order(
-        "start_time",
-        { ascending: true }
-      );
+    let bookedClients = [];
+    let bookedClientsError = null;
+    try {
+      bookedClients = await getBusyForDate(supabase, date);
+    } catch (lookupError) {
+      bookedClientsError = lookupError;
+    }
 
     if (bookedClientsError) {
       console.error(
@@ -262,8 +250,8 @@ export async function GET(request) {
         isPastTime ||
         dayIsFull ||
         (bookedClients || []).some((booking) => {
-          const bookedStart = timeToMinutes(booking.start_time);
-          const bookedEnd = timeToMinutes(booking.end_time);
+          const bookedStart = booking.start;
+          const bookedEnd = booking.end;
           // Keep a 15-minute gap before and after every booking.
           return (
             proposedStart < bookedEnd + BUFFER_MINUTES &&

@@ -12,6 +12,7 @@ import { formatServiceList, depositForClientServices, normalizeServiceName } fro
 import { findService, servicesDuration } from "@/lib/serviceCatalogue";
 import { createGoogleCalendarEvent } from "@/lib/google-calendar";
 import { isClosedDate } from "@/lib/closedDates";
+import { getBusyForDate } from "@/lib/busyTimes";
 import { sendCustomerConfirmation } from "@/lib/booking-emails";
 
 export const dynamic = "force-dynamic";
@@ -128,12 +129,8 @@ export async function POST(request) {
       }
     }
     for (const date of [...new Set(computed.map((c) => c.date))]) {
-      const { data: others } = await supabase
-        .from("appointment_clients")
-        .select("appointment_id, start_time, end_time")
-        .eq("booking_date", date)
-        .in("booking_status", ["pending", "confirmed"]);
-      const booked = (others || []).map((o) => ({ start: toMin(o.start_time), end: toMin(o.end_time) }));
+      const others = await getBusyForDate(supabase, date);
+      const booked = others.map((o) => ({ start: o.start, end: o.end }));
       const mine = computed.filter((x) => x.date === date);
       for (const c of mine) {
         if (clashesWithBuffer(c.startMin, c.endMin, booked)) {

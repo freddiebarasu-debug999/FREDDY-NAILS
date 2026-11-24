@@ -9,6 +9,7 @@ import {
   MAX_CLIENTS_PER_DAY,
 } from "@/lib/bookingRules";
 import { getClosedDatesInRange } from "@/lib/closedDates";
+import { getBusyByDate } from "@/lib/busyTimes";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -92,24 +93,18 @@ export async function GET(request) {
         .eq("booking_status", "pending");
     }
 
-    const { data: booked, error } = await supabase
-      .from("appointment_clients")
-      .select("booking_date, start_time, end_time")
-      .gte("booking_date", first)
-      .lte("booking_date", last)
-      .in("booking_status", ["pending", "confirmed"]);
-
-    if (error) {
+    let busy;
+    try {
+      busy = await getBusyByDate(supabase, first, last);
+    } catch (error) {
       console.error("Month availability error:", error);
       return Response.json({ error: "Unable to load availability." }, { status: 500 });
     }
 
     const byDate = {};
-    (booked || []).forEach((b) => {
-      const key = String(b.booking_date).slice(0, 10);
-      if (!byDate[key]) byDate[key] = [];
-      byDate[key].push([timeToMinutes(b.start_time), timeToMinutes(b.end_time)]);
-    });
+    for (const [key, list] of Object.entries(busy)) {
+      byDate[key] = list.map((b) => [b.start, b.end]);
+    }
 
     const closedDates = await getClosedDatesInRange(supabase, first, last);
 

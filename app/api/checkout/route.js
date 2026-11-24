@@ -10,6 +10,7 @@ import {
 import { createGoogleCalendarEvent } from "@/lib/google-calendar";
 import { findPrimaryConflict } from "@/lib/serviceRules";
 import { isClosedDate } from "@/lib/closedDates";
+import { getBusyForDate } from "@/lib/busyTimes";
 import {
   sendOwnerNotification,
   sendCustomerConfirmation,
@@ -549,14 +550,10 @@ export async function POST(request) {
     await cancelExpiredPendingBookings();
 
     for (const checkDate of [...new Set(clientDates)]) {
-      const { data: existingForDate } = await supabase
-        .from("appointment_clients")
-        .select("start_time, end_time")
-        .eq("booking_date", checkDate)
-        .in("booking_status", ["pending", "confirmed"]);
-      const booked = (existingForDate || []).map((row) => ({
-        start: timeToMinutes(row.start_time),
-        end: timeToMinutes(row.end_time),
+      const existingForDate = await getBusyForDate(supabase, checkDate);
+      const booked = existingForDate.map((row) => ({
+        start: row.start,
+        end: row.end,
       }));
       const newForDate = clientDates.filter((d) => d === checkDate).length;
       if (booked.length + newForDate > MAX_CLIENTS_PER_DAY) {
