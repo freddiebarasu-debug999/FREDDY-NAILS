@@ -9,6 +9,12 @@ import {
 } from "@/lib/bookingRules";
 import { createGoogleCalendarEvent } from "@/lib/google-calendar";
 import { findPrimaryConflict } from "@/lib/serviceRules";
+import {
+  isNailSetOnlyCode,
+  isAccountOnlyCode,
+  isNailSetService,
+  NAIL_SETS_ONLY_MESSAGE,
+} from "@/lib/promoRules";
 import { isClosedDate } from "@/lib/closedDates";
 import { getBusyForDate } from "@/lib/busyTimes";
 import {
@@ -663,9 +669,49 @@ export async function POST(request) {
             );
           }
         }
-        const discount = calculateDiscountedAmount(serviceTotalAmount, promo);
-        discountedServiceTotal = discount.finalAmount;
-        serviceDiscountAmount = discount.discountAmount;
+        // Account-holder-only offers (e.g. BLACKFRIDAY40) need a login.
+        if (isAccountOnlyCode(normalizedPromoCode) && !profileId) {
+          return Response.json(
+            {
+              error: `${normalizedPromoCode} is exclusive to Freddy Nails account holders. Please log in to your account to use it.`,
+              promoCode: normalizedPromoCode,
+            },
+            { status: 400 }
+          );
+        }
+
+        if (isNailSetOnlyCode(normalizedPromoCode)) {
+          // Discount only the nail sets (Acrylic / Gel). Soak offs and
+          // all other services stay at full price.
+          const nailSetTotal = clientServices.reduce(
+            (total, services) =>
+              total +
+              services
+                .filter((serviceName) => isNailSetService(serviceName))
+                .reduce((sum, serviceName) => sum + extractServicePrice(serviceName), 0),
+            0
+          );
+          if (nailSetTotal <= 0) {
+            return Response.json(
+              {
+                error: `${normalizedPromoCode} applies to nail sets only (Acrylic & Gel). Please add a nail set, or remove the code.`,
+                promoCode: normalizedPromoCode,
+              },
+              { status: 400 }
+            );
+          }
+          const nailDiscount = calculateDiscountedAmount(nailSetTotal, promo);
+          serviceDiscountAmount = nailDiscount.discountAmount;
+          discountedServiceTotal = Math.max(0, serviceTotalAmount - serviceDiscountAmount);
+          notes = (
+            (notes ? String(notes).trim() + " " : "") +
+            `PROMO ${normalizedPromoCode}: R${serviceDiscountAmount} off nail sets only (nail sets R${nailSetTotal}).`
+          ).trim();
+        } else {
+          const discount = calculateDiscountedAmount(serviceTotalAmount, promo);
+          discountedServiceTotal = discount.finalAmount;
+          serviceDiscountAmount = discount.discountAmount;
+        }
         appliedPromoCode = normalizedPromoCode;
       }
     }

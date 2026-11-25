@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  isNailSetOnlyCode,
+  isAccountOnlyCode,
+  isPortalHiddenCode,
+} from "@/lib/promoRules";
 
 export const dynamic = "force-dynamic";
 
@@ -477,6 +482,12 @@ export async function GET(
         continue;
       }
 
+      // Public codes (e.g. BLACKFRIDAY30) work at booking but are not
+      // shown as a card in the client portal.
+      if (isPortalHiddenCode(promo.code)) {
+        continue;
+      }
+
       if (
         !isCurrentlyActive(
           promo
@@ -592,6 +603,20 @@ export async function GET(
           Boolean(
             promo.one_use_per_client
           ),
+
+        nailSetsOnly:
+          isNailSetOnlyCode(
+            promo.code
+          ),
+
+        accountOnly:
+          isAccountOnlyCode(
+            promo.code
+          ),
+
+        expiresAt:
+          promo.expires_at ||
+          null,
       });
     }
 

@@ -6,6 +6,11 @@ import {
   checkFreeSetCode,
 } from "@/lib/freeSetCodes";
 import { findReferrerByCode, normalizeReferralCode } from "@/lib/referralCodes";
+import {
+  isNailSetOnlyCode,
+  isAccountOnlyCode,
+  NAIL_SETS_ONLY_MESSAGE,
+} from "@/lib/promoRules";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -472,6 +477,19 @@ export async function GET(request) {
 
     const customerEmail = email || authenticatedUser?.email || "";
 
+    // Account-holder-only offers (e.g. BLACKFRIDAY40) need a login.
+    if (isAccountOnlyCode(normalizedCode) && !authenticatedUser) {
+      return Response.json(
+        {
+          valid: false,
+          requiresLogin: true,
+          error: `${normalizedCode} is exclusive to Freddy Nails account holders. Please log in to your account to use it.`,
+          promoCode: normalizedCode,
+        },
+        { status: 401 }
+      );
+    }
+
     /*
     |--------------------------------------------------------------------------
     | First-time promo check
@@ -522,6 +540,9 @@ export async function GET(request) {
       );
     }
 
+    const nailSetsOnly = isNailSetOnlyCode(normalizedCode);
+    const accountOnly = isAccountOnlyCode(normalizedCode);
+
     const description =
       promo.description || "Offer applied successfully.";
 
@@ -543,6 +564,9 @@ export async function GET(request) {
       discountValue,
       description,
       newClientsOnly,
+      nailSetsOnly,
+      accountOnly,
+      nailSetsOnlyMessage: nailSetsOnly ? NAIL_SETS_ONLY_MESSAGE : null,
 
       promo: {
         code: normalizedCode,

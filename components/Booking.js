@@ -8,6 +8,15 @@ import {
   clashesWithOtherServices,
   findPrimaryConflict,
 } from "@/lib/serviceRules";
+import {
+  isNailSetOnlyCode,
+  isNailSetService,
+} from "@/lib/promoRules";
+
+// The client portal remembers the offer a client tapped "Use offer" on
+// for 24 hours, so it survives login and is applied here.
+const CHOSEN_PROMO_KEY = "freddynails_chosen_promo";
+const CHOSEN_PROMO_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 const DEPOSIT_PER_CLIENT = 90;
 
@@ -462,32 +471,59 @@ export default function Booking() {
       [form.clientServices]
     );
 
-  const discountedServiceTotal =
-    appliedPromo
-      ? appliedPromo.discountType ===
-        "percent"
-        ? Math.max(
-            0,
-            Math.round(
-              totalServiceAmount *
-                (1 -
-                  appliedPromo.discountValue /
-                    100)
-            )
-          )
-        : Math.max(
-            0,
-            totalServiceAmount -
-              appliedPromo.discountValue
-          )
-      : totalServiceAmount;
+  // Offers such as BLACKFRIDAY40 / BLACKFRIDAY30 only discount nail sets
+  // (Acrylic & Gel). Soak offs and other services stay full price.
+  const nailSetsOnlyPromo = Boolean(
+    appliedPromo &&
+      (appliedPromo.nailSetsOnly ||
+        isNailSetOnlyCode(appliedPromo.code))
+  );
 
-  const serviceDiscountAmount =
-    Math.max(
-      0,
-      totalServiceAmount -
-        discountedServiceTotal
-    );
+  const nailSetTotal = useMemo(
+    () =>
+      form.clientServices.reduce(
+        (total, services) =>
+          total +
+          calculateServicesTotal(
+            services.filter((serviceName) =>
+              isNailSetService(serviceName)
+            )
+          ),
+        0
+      ),
+    [form.clientServices]
+  );
+
+  const discountBase = nailSetsOnlyPromo
+    ? nailSetTotal
+    : totalServiceAmount;
+
+  const serviceDiscountAmount = !appliedPromo
+    ? 0
+    : appliedPromo.discountType === "percent"
+    ? Math.max(
+        0,
+        discountBase -
+          Math.round(
+            discountBase *
+              (1 -
+                appliedPromo.discountValue /
+                  100)
+          )
+      )
+    : Math.max(
+        0,
+        Math.min(
+          discountBase,
+          appliedPromo.discountValue
+        )
+      );
+
+  const discountedServiceTotal = Math.max(
+    0,
+    totalServiceAmount -
+      serviceDiscountAmount
+  );
 
   // A personal free-set code waives the deposit completely.
   const isFreeSet = Boolean(appliedPromo?.freeSet);
@@ -716,6 +752,33 @@ export default function Booking() {
     setPromoError("");
     setPromoOpen(false);
   }
+
+  // Offer chosen in the client portal ("Use offer"): remember it here so
+  // it is applied automatically once the account details have loaded.
+  const chosenPromoRef = useRef("");
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(CHOSEN_PROMO_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      const code = String(saved?.code || "")
+        .trim()
+        .toUpperCase();
+      const fresh =
+        Number(saved?.savedAt) > 0 &&
+        Date.now() - Number(saved.savedAt) <
+          CHOSEN_PROMO_MAX_AGE_MS;
+      if (code && fresh) {
+        chosenPromoRef.current = code;
+        setPromoCode(code);
+      } else {
+        window.localStorage.removeItem(CHOSEN_PROMO_KEY);
+      }
+    } catch (e) {
+      // localStorage unavailable: ignore
+    }
+  }, []);
 
   // One-tap rebook: the account page can pass in the service from the
   // client's last visit. Use it once, then clear it.
@@ -966,12 +1029,27 @@ export default function Booking() {
       params.get("offer") ||
       params.get("promoCode");
 
+    const wantedCode =
+      (promoParam &&
+        promoParam.trim().toUpperCase()) ||
+      chosenPromoRef.current;
+
     if (
-      !promoParam ||
-      promoParam.trim().toUpperCase() !==
+      !wantedCode ||
+      wantedCode !==
         promoCode.trim().toUpperCase()
     ) {
       return;
+    }
+
+    // A chosen portal offer is tried once; clear it so it is not
+    // re-applied on a later visit.
+    try {
+      window.localStorage.removeItem(
+        CHOSEN_PROMO_KEY
+      );
+    } catch (e) {
+      // ignore
     }
 
     applyPromoCodeValue(
@@ -2883,6 +2961,20 @@ export default function Booking() {
                   Your offer has been
                   applied to eligible services.
                 </p>
+
+                {nailSetsOnlyPromo && (
+                  <p
+                    className={`text-xs mt-2 ${
+                      nailSetTotal > 0
+                        ? "text-gold/80"
+                        : "text-amber-300"
+                    }`}
+                  >
+                    {nailSetTotal > 0
+                      ? `Nail sets only (Acrylic & Gel): you save R${serviceDiscountAmount} on your nail set. Soak offs and other services are full price.`
+                      : "This offer applies to nail sets only (Acrylic & Gel), not soak offs or other services. Add a nail set to use it."}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="flex gap-2">

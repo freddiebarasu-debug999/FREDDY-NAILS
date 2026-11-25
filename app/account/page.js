@@ -179,6 +179,23 @@ function formatDiscount(offer) {
   return "Special";
 }
 
+// "Ends 30 Nov" — expires_at is the first moment the offer is over, so
+// show the last day it can be used (South African time).
+function formatOfferEnd(expiresAt) {
+  if (!expiresAt) return "";
+  const end = new Date(new Date(expiresAt).getTime() - 60 * 1000);
+  if (!Number.isFinite(end.getTime())) return "";
+  try {
+    return end.toLocaleDateString("en-ZA", {
+      day: "numeric",
+      month: "short",
+      timeZone: "Africa/Johannesburg",
+    });
+  } catch {
+    return "";
+  }
+}
+
 function isBirthdayMonth(dateOfBirth) {
   if (!dateOfBirth) return false;
   const parts = String(dateOfBirth).slice(0, 10).split("-");
@@ -946,12 +963,22 @@ export default function AccountPage() {
                       {offer.referralOffer && (
                         <span className="offer-tag">Referral</span>
                       )}
+                      {offer.accountOnly && (
+                        <span className="offer-tag">Account holders</span>
+                      )}
                     </div>
 
                     <p className="offer-desc">
                       {offer.description ||
                         `Use code ${offer.code} on your next booking.`}
                     </p>
+
+                    {offer.nailSetsOnly && (
+                      <p className="offer-note">
+                        Applies to nail sets only (Acrylic &amp; Gel) — not
+                        soak offs or other services.
+                      </p>
+                    )}
 
                     <div className="offer-code-row">
                       <code className="offer-code">{offer.code}</code>
@@ -963,6 +990,12 @@ export default function AccountPage() {
                         {isCopied ? "Applied ✓" : "Use offer"}
                       </button>
                     </div>
+
+                    {offer.expiresAt && formatOfferEnd(offer.expiresAt) && (
+                      <p className="offer-min">
+                        Ends {formatOfferEnd(offer.expiresAt)}
+                      </p>
+                    )}
 
                     {offer.minimumSpend != null &&
                       Number(offer.minimumSpend) > 0 && (
@@ -1936,6 +1969,17 @@ export default function AccountPage() {
         .offer-use-btn:hover {
           background: rgba(214, 179, 106, 0.22);
           border-color: #d6b36a;
+        }
+
+        .offer-note {
+          margin: 0;
+          font-size: 12px;
+          line-height: 1.45;
+          color: #d6b36a;
+          background: rgba(214, 179, 106, 0.08);
+          border: 1px solid rgba(214, 179, 106, 0.2);
+          border-radius: 10px;
+          padding: 8px 10px;
         }
 
         .offer-min {
