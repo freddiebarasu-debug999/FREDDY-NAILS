@@ -69,6 +69,9 @@ const supabase = createClient(
 );
 
 const DEPOSIT_PER_CLIENT = 90;
+// How long a slot is held while the client pays. Change this one number
+// to make the hold longer or shorter.
+const HOLD_MINUTES = 30;
 const MAX_CLIENTS = 4;
 const MAX_SERVICES_PER_CLIENT = 4;
 
@@ -390,6 +393,45 @@ async function cancelExpiredPendingBookings() {
   if (error) console.error("Expired booking cleanup error:", error);
 }
 
+// When a client starts paying, we hold their slot. If they leave to check
+// their bank and come back to book again, their OWN unpaid hold would block
+// the same slot ("time is no longer available"). So before checking the
+// slot we release this client's own unpaid, still-pending holds.
+// Paid or confirmed bookings are never touched.
+async function releaseOwnUnpaidHolds({ profileId, email }) {
+  try {
+    const ids = new Set();
+    const select = "id, payment_status, booking_status, expires_at";
+
+    if (profileId) {
+      const { data } = await supabase
+        .from("appointments")
+        .select(select)
+        .eq("profile_id", profileId)
+        .eq("booking_status", "pending")
+        .eq("payment_status", "pending");
+      (data || []).forEach((row) => row.expires_at && ids.add(row.id));
+    }
+
+    const cleanEmail = String(email || "").trim();
+    if (cleanEmail) {
+      const { data } = await supabase
+        .from("appointments")
+        .select(select)
+        .ilike("customer_email", escapeLikeValue(cleanEmail))
+        .eq("booking_status", "pending")
+        .eq("payment_status", "pending");
+      (data || []).forEach((row) => row.expires_at && ids.add(row.id));
+    }
+
+    for (const id of ids) {
+      await cancelAppointment(id);
+    }
+  } catch (releaseError) {
+    console.error("Release own unpaid holds error:", releaseError);
+  }
+}
+
 async function cancelAppointment(appointmentId) {
   await supabase.from("appointment_clients").delete().eq("appointment_id", appointmentId);
   await supabase
@@ -575,6 +617,7 @@ export async function POST(request) {
     }
 
     await cancelExpiredPendingBookings();
+    await releaseOwnUnpaidHolds({ profileId, email });
 
     for (const checkDate of [...new Set(clientDates)]) {
       const existingForDate = await getBusyForDate(supabase, checkDate);
@@ -748,7 +791,7 @@ export async function POST(request) {
     const parentStartTime = clientStartTimes[0];
     const parentEndTime = clientEndTimes[0];
     const parentDuration = clientDurations[0];
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + HOLD_MINUTES * 60 * 1000).toISOString();
 
     const appointmentInsert = {
       customer_name: name,
