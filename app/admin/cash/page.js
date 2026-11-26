@@ -234,12 +234,23 @@ export default function CashBookingPage() {
                       {c.services.map((s) => findService(s)?.label || s).join(" + ")} · {minutes} min · R{price}
                     </p>
                   )}
-                  <div className="grid grid-cols-2 gap-3">
-                    <input className={input} type="date" value={c.date} onChange={(e) => updateClient(index, { date: e.target.value })} />
-                    <select className={input} value={c.start} onChange={(e) => updateClient(index, { start: e.target.value })}>
-                      <option value="">Start time</option>
-                      {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-bold uppercase tracking-[0.15em] text-[#9f978f]">Date</span>
+                      <div className="relative">
+                        <input className={`${input} min-h-[48px] w-full`} type="date" value={c.date} onChange={(e) => updateClient(index, { date: e.target.value })} />
+                        {!c.date && (
+                          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-[#9f978f]">Tap to choose a date</span>
+                        )}
+                      </div>
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-bold uppercase tracking-[0.15em] text-[#9f978f]">Start time</span>
+                      <select className={`${input} min-h-[48px] w-full`} value={c.start} onChange={(e) => updateClient(index, { start: e.target.value })}>
+                        <option value="">Choose a time</option>
+                        {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </label>
                   </div>
                   {c.start && minutes > 0 && <p className="text-xs text-[#9f978f]">Ends about {endTime(c.start, minutes)}</p>}
                 </div>
