@@ -757,6 +757,47 @@ export default function Booking() {
   // it is applied automatically once the account details have loaded.
   const chosenPromoRef = useRef("");
 
+  // The logged-in client's available offers (e.g. Black Friday 40%),
+  // shown above the promo box so they can apply them in one tap.
+  const [accountOffers, setAccountOffers] = useState([]);
+
+  useEffect(() => {
+    if (!accountLoaded) return;
+    let cancelled = false;
+
+    async function loadAccountOffers() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        const response = await fetch("/api/account/offers", {
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+        const data = await response.json();
+        if (
+          !cancelled &&
+          response.ok &&
+          data?.success &&
+          Array.isArray(data.offers)
+        ) {
+          setAccountOffers(data.offers);
+        }
+      } catch (e) {
+        // Offers are optional: ignore errors.
+      }
+    }
+
+    loadAccountOffers();
+    return () => {
+      cancelled = true;
+    };
+  }, [accountLoaded]);
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(CHOSEN_PROMO_KEY);
@@ -2390,6 +2431,68 @@ export default function Booking() {
               filled in automatically.
             </div>
           )}
+
+        {loggedIn && accountLoaded && accountOffers.length > 0 && (
+          <div className="mt-4 space-y-3">
+            {accountOffers.map((offer) => {
+              const isApplied =
+                appliedPromo &&
+                String(appliedPromo.code).toUpperCase() ===
+                  String(offer.code).toUpperCase();
+              return (
+                <div
+                  key={offer.id || offer.code}
+                  className="border border-gold/50 bg-gold/10 px-4 py-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="block text-[0.65rem] font-bold tracking-[0.2em] uppercase text-gold/80">
+                        Offer for you
+                      </span>
+                      <strong className="font-serif text-2xl text-gold">
+                        {String(offer.discountType || "").toLowerCase() ===
+                        "fixed"
+                          ? `R${offer.discountValue} OFF`
+                          : `${offer.discountValue}% OFF`}
+                      </strong>
+                    </div>
+                    {isApplied ? (
+                      <span className="shrink-0 text-xs font-bold uppercase tracking-wide text-gold">
+                        Applied ✓
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => applyPromoCodeValue(offer.code)}
+                        disabled={promoChecking || Boolean(appliedPromo)}
+                        className="shrink-0 border border-gold text-gold px-4 py-2 text-xs font-bold uppercase tracking-wide hover:bg-gold hover:text-[#11100f] transition-colors disabled:opacity-50"
+                      >
+                        {promoChecking ? "Applying…" : "Apply"}
+                      </button>
+                    )}
+                  </div>
+                  {offer.description ? (
+                    <p className="text-xs text-[#c9c0b6] mt-2">
+                      {offer.description}
+                    </p>
+                  ) : null}
+                  {offer.nailSetsOnly && (
+                    <p className="text-xs text-gold/80 mt-2">
+                      Applies to nail sets only (Acrylic &amp; Gel) — not soak
+                      offs or other services.
+                    </p>
+                  )}
+                  {isApplied && (
+                    <p className="text-xs text-gold/80 mt-2">
+                      Code {offer.code} is applied to your booking. Choose
+                      your nail set below.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="max-w-[820px] mx-auto min-w-0">
