@@ -2,19 +2,9 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from "@supabase/supabase-js";
 import { calculateAvailabilitySlots } from "@/lib/availabilitySlots";
-import {
-  OPEN_MINUTES,
-  CLOSE_MINUTES,
-  SLOT_INTERVAL,
-  BUFFER_MINUTES,
-  MAX_CLIENTS_PER_DAY,
-} from "@/lib/bookingRules";
 import { isClosedDate } from "@/lib/closedDates";
 import { getBusyForDate } from "@/lib/busyTimes";
-import {
-  getBlockedRangesForDate,
-  overlapsBlockedRange,
-} from "@/lib/blockedTimes";
+import { getBlockedRangesForDate } from "@/lib/blockedTimes";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -28,27 +18,10 @@ const supabase = createClient(
 );
 
 
-function timeToMinutes(time) {
-  const [hours, minutes] = time
-    .split(":")
-    .map(Number);
-
-  return hours * 60 + minutes;
-}
-
 function saDateTimeParts() {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Johannesburg", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
   const value = Object.fromEntries(parts.map((p) => [p.type, p.value]));
   return { date: `${value.year}-${value.month}-${value.day}`, minutes: Number(value.hour) * 60 + Number(value.minute) };
-}
-
-function minutesToTime(minutes) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-
-  return `${String(hours).padStart(2, "0")}:${String(
-    mins
-  ).padStart(2, "0")}`;
 }
 
 export async function GET(request) {
