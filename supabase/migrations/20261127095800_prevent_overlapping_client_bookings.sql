@@ -19,9 +19,9 @@ join public.appointment_clients b
  and a.appointment_id < b.appointment_id
  and a.booking_status in ('pending', 'confirmed', 'completed')
  and b.booking_status in ('pending', 'confirmed', 'completed')
- and (a.booking_date + a.start_time, a.booking_date + a.end_time)
+ and (a.booking_date + a.start_time - interval '5 minutes', a.booking_date + a.end_time + interval '5 minutes')
      overlaps
-     (b.booking_date + b.start_time, b.booking_date + b.end_time);
+     (b.booking_date + b.start_time - interval '5 minutes', b.booking_date + b.end_time + interval '5 minutes');
  
 -- Exclude overlapping time ranges across all active individual client bookings.
 -- Adjacent appointments are permitted; the existing 5-minute buffer remains
@@ -29,6 +29,6 @@ join public.appointment_clients b
 alter table public.appointment_clients
   add constraint appointment_clients_no_active_overlap
   exclude using gist (
-    tsrange(booking_date + start_time, booking_date + end_time, '[)') with &&
+    tsrange(booking_date + start_time - interval '5 minutes', booking_date + end_time + interval '5 minutes', '[)') with &&
   )
   where (booking_status in ('pending', 'confirmed', 'completed'));
