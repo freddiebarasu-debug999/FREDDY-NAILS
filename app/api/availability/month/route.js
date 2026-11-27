@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { createClient } from "@supabase/supabase-js";
+import { calculateAvailabilitySlots } from "@/lib/availabilitySlots";
 import {
   OPEN_MINUTES,
   CLOSE_MINUTES,
@@ -105,11 +106,6 @@ export async function GET(request) {
       return Response.json({ error: "Unable to load availability." }, { status: 500 });
     }
 
-    const byDate = {};
-    for (const [key, list] of Object.entries(busy)) {
-      byDate[key] = list.map((b) => [b.start, b.end]);
-    }
-
     const closedDates = await getClosedDatesInRange(supabase, first, last);
     const blockedByDate = await getBlockedByDate(supabase, first, last);
 
@@ -120,39 +116,18 @@ export async function GET(request) {
     for (let day = 1; day <= daysInMonth; day += 1) {
       const date = month + "-" + pad(day);
       if (date < today) continue;
-      if (new Date(date + "T12:00:00").getDay() === 0) continue; // Sunday
-      if (closedDates.has(date)) continue; // owner's day off
+      if (new Date(date + "T12:00:00").getDay() === 0) continue;
+      if (closedDates.has(date)) continue;
 
-      const taken = byDate[date] || [];
-      const blockedRanges = blockedByDate.get(date) || [];
-      let free = 0;
-
-      // Google-only calendar blocks do not count as clients for the day-full rule.
-      // (busyTimes stores them as { start, end, fromGoogle } when from the calendar.)
-      const clientCount = (busy[date] || []).filter((b) => !b.fromGoogle).length;
-
-      // A full day (maximum clients) has no free times.
-      if (clientCount < MAX_CLIENTS_PER_DAY) {
-        for (
-          let start = OPEN_MINUTES;
-          start <= CLOSE_MINUTES;
-          start += SLOT_INTERVAL
-        ) {
-          const end = start + duration;
-          // Keep a gap before and after every booking.
-          const pastToday = date === today && start <= localNow.minutes;
-          const isBlocked = overlapsBlockedRange(start, end, blockedRanges);
-          const clash =
-            pastToday ||
-            isBlocked ||
-            taken.some(
-              (t) => start < t[1] + BUFFER_MINUTES && end + BUFFER_MINUTES > t[0]
-            );
-          if (!clash) free += 1;
-        }
-      }
-
-      days[date] = free;
+      const result = calculateAvailabilitySlots({
+        date,
+        duration,
+        bookings: busy[date] || [],
+        blockedRanges: blockedByDate.get(date) || [],
+        today,
+        nowMinutes: localNow.minutes,
+      });
+      days[date] = result.availableTimes.length;
     }
 
     return Response.json(
