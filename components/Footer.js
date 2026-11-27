@@ -4,6 +4,7 @@ const LINKS = [
   { href: "/#gallery", label: "Gallery" },
   { href: "/#reviews", label: "Reviews" },
   { href: "/services", label: "Services" },
+  { href: "/how-to-book", label: "How to Book" },
   { href: "/offers", label: "Specials & Promos" },
   { href: "/try-on", label: "Virtual Try-On" },
   { href: "/faq", label: "FAQs" },

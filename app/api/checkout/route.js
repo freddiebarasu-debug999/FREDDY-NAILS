@@ -6,6 +6,8 @@ import {
   CLOSE_MINUTES,
   MAX_CLIENTS_PER_DAY,
   clashesWithBuffer,
+  explainClash,
+  BUFFER_MINUTES,
 } from "@/lib/bookingRules";
 import { createGoogleCalendarEvent } from "@/lib/google-calendar";
 import { findPrimaryConflict } from "@/lib/serviceRules";
@@ -605,10 +607,10 @@ export async function POST(request) {
       if (clientDates[clientIndex] === clientDates[clientIndex - 1]) {
         const previousEnd = timeToMinutes(clientEndTimes[clientIndex - 1]);
         const currentStart = timeToMinutes(clientStartTimes[clientIndex]);
-        if (currentStart < previousEnd + 15) {
+        if (currentStart < previousEnd + BUFFER_MINUTES) {
           return Response.json(
             {
-              error: `${clientLabel(clientIndex)} must start at least 15 minutes after ${clientLabel(clientIndex - 1)} finishes when they are booked on the same date.`,
+              error: `${clientLabel(clientIndex)} must start at least ${BUFFER_MINUTES} minutes after ${clientLabel(clientIndex - 1)} finishes when they are booked on the same date.`,
             },
             { status: 400 }
           );
@@ -637,8 +639,14 @@ export async function POST(request) {
         const startMin = timeToMinutes(clientStartTimes[i]);
         const endMin = timeToMinutes(clientEndTimes[i]);
         if (clashesWithBuffer(startMin, endMin, booked)) {
+          const who = i === 0 ? "Your" : `Guest ${i}'s`;
+          const reason = explainClash(startMin, endMin, booked);
+          const message =
+            reason === "overrun"
+              ? `${who} selected service${i === 0 ? "(s) would" : "s would"} run into the next appointment. Please choose an earlier time or a shorter service combination.`
+              : `${who} chosen time has just been booked by someone else. Please choose another time.`;
           return Response.json(
-            { error: `Client ${i + 1}'s time is no longer available. Please choose another time.` },
+            { error: message, availabilityChanged: true },
             { status: 409 }
           );
         }

@@ -8,6 +8,7 @@ import {
   clashesWithOtherServices,
   findPrimaryConflict,
 } from "@/lib/serviceRules";
+import { BUFFER_MINUTES } from "@/lib/bookingRules";
 import {
   isNailSetOnlyCode,
   isNailSetService,
@@ -49,7 +50,7 @@ function depositForServices(services, waive) {
   return DEPOSIT_PER_CLIENT;
 }
 
-const CLIENT_GAP = 15;
+const CLIENT_GAP = BUFFER_MINUTES;
 const MAX_CLIENTS = 4;
 const WHATSAPP_NUMBER = "27710888897";
 
@@ -1437,8 +1438,45 @@ export default function Booking() {
     setError("");
   }
 
+  // Keep the time slots fresh. Other clients book while someone is
+  // thinking (or has the app in the background), so we re-check every
+  // 20 seconds, and straight away when the person comes back to the page.
+  const formRef = useRef(form);
+  formRef.current = form;
+  const [availabilityTick, setAvailabilityTick] = useState(0);
+  const silentRefreshRef = useRef(false);
+
+  function refreshAvailabilityNow() {
+    silentRefreshRef.current = true;
+    setAvailabilityTick((tick) => tick + 1);
+  }
+
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") {
+        refreshAvailabilityNow();
+      }
+    }
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        refreshAvailabilityNow();
+      }
+    }, 20000);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    window.addEventListener("pageshow", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      window.removeEventListener("pageshow", onVisible);
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
+    const silent = silentRefreshRef.current;
+    silentRefreshRef.current = false;
 
     async function loadAvailability() {
       const results =
@@ -1506,7 +1544,7 @@ export default function Booking() {
         ] = true;
       }
 
-      if (!cancelled) {
+      if (!cancelled && !silent) {
         setLoadingAvailability(
           loading
         );
@@ -1611,6 +1649,32 @@ export default function Booking() {
         setAvailabilityErrors(
           errors
         );
+
+        // If a time the person already picked has just been taken,
+        // clear it and tell them, instead of letting them hit an error
+        // at payment.
+        const staleIndexes = [];
+        slotResults.forEach((slots, index) => {
+          const picked = formRef.current.clientTimes[index];
+          if (!picked || !Array.isArray(slots) || slots.length === 0) return;
+          const slot = slots.find((s) => s.time === picked);
+          if (slot && slot.available === false) staleIndexes.push(index);
+        });
+        const clearedAny = staleIndexes.length > 0;
+        if (clearedAny) {
+          setForm((current) => {
+            const nextTimes = [...current.clientTimes];
+            staleIndexes.forEach((index) => {
+              nextTimes[index] = "";
+            });
+            return { ...current, clientTimes: nextTimes };
+          });
+        }
+        if (clearedAny) {
+          setError(
+            "The time you picked was just taken. Please choose another available time."
+          );
+        }
       }
     }
 
@@ -1623,6 +1687,7 @@ export default function Booking() {
     clientCount,
     form.clientDates,
     clientDurations,
+    availabilityTick,
   ]);
 
   function getClientAvailableTimes(
@@ -1901,7 +1966,7 @@ export default function Booking() {
             CLIENT_GAP
         ) {
           setError(
-            `${getClientLabel(clientIndex)} needs to start at least 15 minutes after ${getClientLabel(clientIndex - 1)} finishes when booked on the same date.`
+            `${getClientLabel(clientIndex)} needs to start at least ${BUFFER_MINUTES} minutes after ${getClientLabel(clientIndex - 1)} finishes when booked on the same date.`
           );
 
           return;
@@ -1990,6 +2055,9 @@ export default function Booking() {
         await response.json();
 
       if (!response.ok) {
+        if (data.availabilityChanged) {
+          refreshAvailabilityNow();
+        }
         throw new Error(
           data.error ||
             "Unable to start checkout."
@@ -2973,7 +3041,7 @@ export default function Booking() {
                             Same-day clients
                             are automatically
                             scheduled with a
-                            15-minute gap
+                            {BUFFER_MINUTES}-minute gap
                             between
                             appointments.
                           </p>

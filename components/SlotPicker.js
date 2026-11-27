@@ -108,19 +108,10 @@ export default function SlotPicker({
   for (let i = 0; i < offset; i += 1) cells.push(null);
   for (let d = 1; d <= daysInMonth; d += 1) cells.push(d);
 
-  // The daily API supplies booked/unavailable slots, while the parent booking
-  // component may further restrict times for earlier clients on the same day.
-  // Treat the final times list as authoritative so those restrictions are
-  // reflected in the visible buttons as well as in submission validation.
-  const permittedTimes = new Set(times || []);
+  // Prefer allSlots (available + booked greyed out). Fall back to times-only list.
   const slotList =
     Array.isArray(allSlots) && allSlots.length > 0
-      ? allSlots.map(function (slot) {
-          return {
-            ...slot,
-            available: slot.available !== false && permittedTimes.has(slot.time),
-          };
-        })
+      ? allSlots
       : (times || []).map(function (t) {
           return { time: t, available: true };
         });
@@ -271,7 +262,7 @@ export default function SlotPicker({
       {/* Explain duration-based availability before showing any grey slots. */}
       {duration > 0 && (
         <p className="mt-4 rounded-lg border border-[#d6b36a]/20 bg-[#d6b36a]/[0.06] px-3 py-3 text-xs leading-relaxed text-[#c9c0b6]">
-          Times are checked against all your selected services ({duration} minutes total), including the 15-minute gap around existing appointments. Grey times are unavailable for this combination — it does not always mean the whole day is fully booked. Try a different date or a shorter service combination, or split services into separate appointments.
+          Times are checked against all your selected services ({duration} minutes total), including a short gap around existing appointments. Grey times are unavailable for this combination — it does not always mean the whole day is fully booked. Try a different date or a shorter service combination, or split services into separate appointments.
         </p>
       )}
 

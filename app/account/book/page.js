@@ -12,6 +12,12 @@ export default function AccountBookPage() {
         >
           ← Back to My Account
         </a>
+        <a
+          href="/how-to-book"
+          className="block mt-3 text-sm text-[#d6b36a] underline underline-offset-4"
+        >
+          New here? See how to book
+        </a>
       </div>
 
       <Booking />
