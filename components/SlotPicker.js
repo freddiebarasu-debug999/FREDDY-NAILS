@@ -38,6 +38,15 @@ function prettyDate(dateStr) {
   });
 }
 
+function reasonLabel(reason) {
+  if (reason === "booked") return "Booked";
+  if (reason === "gap") return "5-min gap after previous appointment";
+  if (reason === "blocked") return "Blocked";
+  if (reason === "past") return "Past time";
+  if (reason === "full") return "Day full";
+  return "Unavailable";
+}
+
 export default function SlotPicker({
   date,
   time,
@@ -51,13 +60,12 @@ export default function SlotPicker({
 }) {
   const startMonth = (date || minDate).slice(0, 7);
   const [view, setView] = useState(startMonth);
-  const [days, setDays] = useState(null); // { "2026-10-14": 12, ... }
+  const [days, setDays] = useState(null);
   const [monthLoading, setMonthLoading] = useState(false);
 
   const minMonth = minDate.slice(0, 7);
   const maxMonth = addMonths(minMonth, MAX_MONTHS_AHEAD);
 
-  // Load which days are free or fully booked for the month on screen.
   useEffect(() => {
     if (!duration) {
       setDays(null);
@@ -65,7 +73,6 @@ export default function SlotPicker({
     }
     let cancelled = false;
     setMonthLoading(true);
-
     fetch(
       "/api/availability/month?month=" +
         encodeURIComponent(view) +
@@ -88,13 +95,11 @@ export default function SlotPicker({
       .finally(function () {
         if (!cancelled) setMonthLoading(false);
       });
-
     return function () {
       cancelled = true;
     };
   }, [view, duration]);
 
-  // If a date is picked from elsewhere, show its month.
   useEffect(() => {
     if (date) setView(date.slice(0, 7));
   }, [date]);
@@ -102,18 +107,18 @@ export default function SlotPicker({
   const year = Number(view.slice(0, 4));
   const monthIndex = Number(view.slice(5, 7)) - 1;
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-  const offset = (new Date(year, monthIndex, 1).getDay() + 6) % 7; // Monday first
+  const offset = (new Date(year, monthIndex, 1).getDay() + 6) % 7;
 
   const cells = [];
   for (let i = 0; i < offset; i += 1) cells.push(null);
   for (let d = 1; d <= daysInMonth; d += 1) cells.push(d);
 
-  // Prefer allSlots (available + booked greyed out). Fall back to times-only list.
+  // Prefer allSlots (available + unavailable) over the times-only fallback.
   const slotList =
     Array.isArray(allSlots) && allSlots.length > 0
       ? allSlots
       : (times || []).map(function (t) {
-          return { time: t, available: true };
+          return { time: t, available: true, reason: "available" };
         });
 
   const morning = slotList.filter(function (s) {
@@ -123,10 +128,15 @@ export default function SlotPicker({
     return s.time >= "12:00";
   });
 
+  const availableCount = slotList.filter(function (s) {
+    return s.available !== false;
+  }).length;
+
   function slotButton(slot) {
     const t = slot.time;
     const available = slot.available !== false;
     const selected = time === t;
+    const label = available ? prettyTime(t) : prettyTime(t) + " — " + reasonLabel(slot.reason);
     return (
       <button
         key={t}
@@ -134,7 +144,7 @@ export default function SlotPicker({
         disabled={!available}
         aria-pressed={selected}
         aria-disabled={!available}
-        title={available ? prettyTime(t) : prettyTime(t) + " — unavailable for selected services"}
+        title={label}
         onClick={function () {
           if (available) onTime(t);
         }}
@@ -154,7 +164,6 @@ export default function SlotPicker({
 
   return (
     <div className="mt-7 rounded-xl border border-white/[0.08] bg-[#141210] p-4 sm:p-5">
-      {/* Month header */}
       <div className="flex items-center justify-between">
         <p className="font-serif text-lg text-[#f4eee6]">
           {MONTH_NAMES[monthIndex]} {year}
@@ -185,14 +194,12 @@ export default function SlotPicker({
         </div>
       </div>
 
-      {/* Weekday labels */}
       <div className="mt-3 grid grid-cols-7 text-center text-[0.68rem] font-bold uppercase text-[#8f877e]">
         {WEEKDAYS.map(function (w, i) {
           return <span key={i}>{w}</span>;
         })}
       </div>
 
-      {/* Days */}
       <div className="mt-1 grid grid-cols-7 gap-y-1">
         {cells.map(function (day, i) {
           if (day === null) return <span key={"b" + i} />;
@@ -245,7 +252,6 @@ export default function SlotPicker({
         })}
       </div>
 
-      {/* Legend */}
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.68rem] text-[#9f978f]">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-[3px] w-4 rounded-full bg-[#3fae5f]" /> Available
@@ -253,20 +259,21 @@ export default function SlotPicker({
         <span className="inline-flex items-center gap-1.5">
           <span className="h-[3px] w-4 rounded-full bg-[#d9534f]" /> No suitable slots for selected services
         </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="line-through text-[#5c5650]">10:00 am</span> Booked / unavailable
+        </span>
         {monthLoading && <span className="italic">Checking the calendar…</span>}
         {!duration && (
           <span className="italic">Choose your service to see which days are free.</span>
         )}
       </div>
 
-      {/* Explain duration-based availability before showing any grey slots. */}
       {duration > 0 && (
         <p className="mt-4 rounded-lg border border-[#d6b36a]/20 bg-[#d6b36a]/[0.06] px-3 py-3 text-xs leading-relaxed text-[#c9c0b6]">
-          Times are checked against all your selected services ({duration} minutes total), including a short gap around existing appointments. Grey times are unavailable for this combination — it does not always mean the whole day is fully booked. Try a different date or a shorter service combination, or split services into separate appointments.
+          Times are checked against all your selected services ({duration} minutes total), plus a 5-minute gap after each existing appointment before the next client can book. Back-to-back bookings are allowed with that 5-minute gap. Grey struck-through times are unavailable for this combination — it does not always mean the whole day is fully booked. Try a different date or a shorter service combination, or split services into separate appointments.
         </p>
       )}
 
-      {/* Times */}
       <div className="mt-5 border-t border-white/[0.08] pt-4">
         {!date ? (
           <p className="text-sm text-[#9f978f]">Choose a day to see the available times.</p>
@@ -279,12 +286,17 @@ export default function SlotPicker({
 
             {loading ? (
               <p className="mt-3 text-sm italic text-[#9f978f]">Checking availability…</p>
-            ) : slotList.filter(function (s) { return s.available !== false; }).length === 0 ? (
+            ) : slotList.length === 0 ? (
               <p className="mt-3 text-sm italic text-[#9f978f]">
                 No start times fit your selected {duration}-minute appointment on this date. The day may still have shorter openings. Try a shorter service combination or choose another date.
               </p>
             ) : (
               <div className="mt-3 space-y-4">
+                {availableCount === 0 && (
+                  <p className="text-sm italic text-[#9f978f]">
+                    All times for this combination are booked or unavailable — they are shown struck through below. Try a shorter combination or another date.
+                  </p>
+                )}
                 {morning.length > 0 && (
                   <div>
                     <p className="mb-2 text-[0.72rem] font-bold uppercase tracking-[0.16em] text-[#d6b36a]">
