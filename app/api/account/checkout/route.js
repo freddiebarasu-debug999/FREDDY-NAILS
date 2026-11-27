@@ -1,6 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { createClient } from "@supabase/supabase-js";
+import { getBusyForDate } from "@/lib/busyTimes";
+import { clashesWithBuffer } from "@/lib/bookingRules";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -206,6 +208,42 @@ export async function POST(request) {
           {
             error:
               "This booking hold has expired. Please make a new booking.",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Revalidate every client time immediately before creating a payment.
+    // Exclude this booking's own database holds, but include all other bookings
+    // and Google Calendar busy periods.
+    const { data: clientRows, error: clientRowsError } = await supabase
+      .from("appointment_clients")
+      .select("booking_date, start_time, end_time")
+      .eq("appointment_id", appointment.id);
+
+    if (clientRowsError || !clientRows?.length) {
+      console.error("Unable to verify appointment client times:", clientRowsError);
+      return Response.json(
+        { error: "Unable to verify your appointment times. Please try again." },
+        { status: 503 }
+      );
+    }
+
+    for (const clientRow of clientRows) {
+      const busy = await getBusyForDate(supabase, clientRow.booking_date);
+      const otherBookings = busy.filter(
+        (slot) => slot.appointmentId !== appointment.id
+      );
+      if (clashesWithBuffer(
+        Number(String(clientRow.start_time).slice(0, 2)) * 60 + Number(String(clientRow.start_time).slice(3, 5)),
+        Number(String(clientRow.end_time).slice(0, 2)) * 60 + Number(String(clientRow.end_time).slice(3, 5)),
+        otherBookings
+      )) {
+        return Response.json(
+          {
+            error: "This appointment time is no longer available. Please return to booking and choose another time.",
+            availabilityChanged: true,
           },
           { status: 409 }
         );

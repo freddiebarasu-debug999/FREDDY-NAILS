@@ -872,6 +872,12 @@ export async function POST(request) {
     if (clientInsertError) {
       console.error("Client appointment insert error:", clientInsertError);
       await cancelAppointment(appointmentId);
+      if (clientInsertError.code === "23P01") {
+        return Response.json(
+          { error: "That time was just booked by someone else. Please choose another available time.", availabilityChanged: true },
+          { status: 409 }
+        );
+      }
       return Response.json({ error: "Unable to reserve all client appointment times." }, { status: 500 });
     }
 

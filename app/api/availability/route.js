@@ -1,19 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { createClient } from "@supabase/supabase-js";
-import {
-  OPEN_MINUTES,
-  CLOSE_MINUTES,
-  SLOT_INTERVAL,
-  BUFFER_MINUTES,
-  MAX_CLIENTS_PER_DAY,
-} from "@/lib/bookingRules";
+import { calculateAvailabilitySlots } from "@/lib/availabilitySlots";
 import { isClosedDate } from "@/lib/closedDates";
 import { getBusyForDate } from "@/lib/busyTimes";
-import {
-  getBlockedRangesForDate,
-  overlapsBlockedRange,
-} from "@/lib/blockedTimes";
+import { getBlockedRangesForDate } from "@/lib/blockedTimes";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -27,27 +18,10 @@ const supabase = createClient(
 );
 
 
-function timeToMinutes(time) {
-  const [hours, minutes] = time
-    .split(":")
-    .map(Number);
-
-  return hours * 60 + minutes;
-}
-
 function saDateTimeParts() {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Johannesburg", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
   const value = Object.fromEntries(parts.map((p) => [p.type, p.value]));
   return { date: `${value.year}-${value.month}-${value.day}`, minutes: Number(value.hour) * 60 + Number(value.minute) };
-}
-
-function minutesToTime(minutes) {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-
-  return `${String(hours).padStart(2, "0")}:${String(
-    mins
-  ).padStart(2, "0")}`;
 }
 
 export async function GET(request) {
@@ -228,60 +202,15 @@ export async function GET(request) {
     // Owner-blocked time ranges (partial day blocks).
     const blockedRanges = await getBlockedRangesForDate(supabase, date);
 
-    const availableTimes = [];
-    const allSlots = [];
     const localNow = saDateTimeParts();
-    const isToday = date === localNow.date;
-
-    // A day with the maximum number of clients is full.
-    // Google-only calendar blocks do not count as clients.
-    const clientCount = (bookedClients || []).filter(
-      (b) => !b.fromGoogle
-    ).length;
-    const dayIsFull = clientCount >= MAX_CLIENTS_PER_DAY;
-
-    /*
-     * Check every 30-minute start time. Closing time is the latest
-     * permitted START time; treatment duration may extend beyond closing.
-     * allSlots includes booked/unavailable times so the UI can grey them out.
-     */
-    for (
-      let start = OPEN_MINUTES;
-      start <= CLOSE_MINUTES;
-      start += SLOT_INTERVAL
-    ) {
-      const proposedStart = start;
-      const proposedEnd = start + duration;
-      const timeStr = minutesToTime(start);
-
-      const isPastTime = isToday && proposedStart <= localNow.minutes;
-      const isBlocked = overlapsBlockedRange(
-        proposedStart,
-        proposedEnd,
-        blockedRanges
-      );
-      const overlaps =
-        isPastTime ||
-        isBlocked ||
-        dayIsFull ||
-        (bookedClients || []).some((booking) => {
-          const bookedStart = booking.start;
-          const bookedEnd = booking.end;
-          // Keep a 15-minute gap before and after every booking.
-          return (
-            proposedStart < bookedEnd + BUFFER_MINUTES &&
-            proposedEnd + BUFFER_MINUTES > bookedStart
-          );
-        });
-
-      let reason;
-      if (isPastTime) reason = "past";
-      else if (isBlocked) reason = "blocked";
-      allSlots.push({ time: timeStr, available: !overlaps, reason });
-      if (!overlaps) {
-        availableTimes.push(timeStr);
-      }
-    }
+    const { slots: allSlots, availableTimes } = calculateAvailabilitySlots({
+      date,
+      duration,
+      bookings: bookedClients || [],
+      blockedRanges,
+      today: localNow.date,
+      nowMinutes: localNow.minutes,
+    });
 
     return Response.json({
       date,
