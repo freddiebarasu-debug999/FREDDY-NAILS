@@ -627,10 +627,8 @@ export async function POST(request) {
         start: row.start,
         end: row.end,
       }));
-      // Google-only calendar blocks do not count toward the client limit.
-      const existingClientCount = existingForDate.filter((r) => !r.fromGoogle).length;
       const newForDate = clientDates.filter((d) => d === checkDate).length;
-      if (existingClientCount + newForDate > MAX_CLIENTS_PER_DAY) {
+      if (booked.length + newForDate > MAX_CLIENTS_PER_DAY) {
         return Response.json(
           { error: "Freddy Nails is fully booked on that day. Please choose another date." },
           { status: 409 }
@@ -872,12 +870,6 @@ export async function POST(request) {
     if (clientInsertError) {
       console.error("Client appointment insert error:", clientInsertError);
       await cancelAppointment(appointmentId);
-      if (clientInsertError.code === "23P01") {
-        return Response.json(
-          { error: "That time was just booked by someone else. Please choose another available time.", availabilityChanged: true },
-          { status: 409 }
-        );
-      }
       return Response.json({ error: "Unable to reserve all client appointment times." }, { status: 500 });
     }
 

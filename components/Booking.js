@@ -1452,7 +1452,14 @@ export default function Booking() {
   const [availabilityTick, setAvailabilityTick] = useState(0);
   const silentRefreshRef = useRef(false);
 
+  const lastAvailabilityRefreshRef = useRef(0);
+
   function refreshAvailabilityNow() {
+    // Returning to the page fires several events at once (visibility,
+    // focus, pageshow). Only refresh once every few seconds.
+    const nowMs = Date.now();
+    if (nowMs - lastAvailabilityRefreshRef.current < 4000) return;
+    lastAvailabilityRefreshRef.current = nowMs;
     silentRefreshRef.current = true;
     setAvailabilityTick((tick) => tick + 1);
   }
@@ -1589,27 +1596,44 @@ export default function Booking() {
             }
 
             try {
-              const response =
-                await fetch(
-                  `/api/availability?date=${encodeURIComponent(
-                    date
-                  )}&duration=${duration}`,
-                  {
-                    cache:
-                      "no-store",
+              // A phone that has just come back from the background (or
+              // a brief signal drop) can fail the first request, so try
+              // up to 3 times before giving up.
+              let response;
+              let data;
+              let lastFailure;
+              for (let attempt = 0; attempt < 3; attempt += 1) {
+                try {
+                  response = await fetch(
+                    `/api/availability?date=${encodeURIComponent(
+                      date
+                    )}&duration=${duration}`,
+                    {
+                      cache:
+                        "no-store",
+                    }
+                  );
+                  data =
+                    await response.json();
+                  if (response.ok) {
+                    lastFailure = null;
+                    break;
                   }
+                  lastFailure = new Error(
+                    data?.error ||
+                      "Unable to load availability."
+                  );
+                } catch (attemptError) {
+                  lastFailure = attemptError;
+                }
+                if (cancelled) return;
+                await new Promise((resolve) =>
+                  setTimeout(resolve, 1200 * (attempt + 1))
                 );
+              }
 
-              const data =
-                await response.json();
-
-              if (
-                !response.ok
-              ) {
-                throw new Error(
-                  data.error ||
-                    "Unable to load availability."
-                );
+              if (lastFailure) {
+                throw lastFailure;
               }
 
               results[
@@ -1638,6 +1662,12 @@ export default function Booking() {
           }
         )
       );
+
+      // A background refresh that failed must never wipe the times the
+      // client is already looking at. Keep what is on screen.
+      if (silent && errors.some(Boolean)) {
+        return;
+      }
 
       if (!cancelled) {
         setAvailableTimes(
