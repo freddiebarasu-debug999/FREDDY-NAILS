@@ -51,7 +51,7 @@ function depositForServices(services, waive) {
   return DEPOSIT_PER_CLIENT;
 }
 
-const CLIENT_GAP = BUFFER_MINUTES;
+const CLIENT_GAP = 5;
 const MAX_CLIENTS = 4;
 const WHATSAPP_NUMBER = "27710888897";
 
