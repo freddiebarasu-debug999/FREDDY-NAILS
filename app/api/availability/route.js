@@ -234,9 +234,11 @@ export async function GET(request) {
     const isToday = date === localNow.date;
 
     // A day with the maximum number of clients is full.
-    const dayIsFull =
-      (bookedClients || []).length >=
-      MAX_CLIENTS_PER_DAY;
+    // Google-only calendar blocks do not count as clients.
+    const clientCount = (bookedClients || []).filter(
+      (b) => !b.fromGoogle
+    ).length;
+    const dayIsFull = clientCount >= MAX_CLIENTS_PER_DAY;
 
     /*
      * Check every 30-minute start time. Closing time is the latest

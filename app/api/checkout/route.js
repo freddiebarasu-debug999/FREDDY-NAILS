@@ -627,8 +627,10 @@ export async function POST(request) {
         start: row.start,
         end: row.end,
       }));
+      // Google-only calendar blocks do not count toward the client limit.
+      const existingClientCount = existingForDate.filter((r) => !r.fromGoogle).length;
       const newForDate = clientDates.filter((d) => d === checkDate).length;
-      if (booked.length + newForDate > MAX_CLIENTS_PER_DAY) {
+      if (existingClientCount + newForDate > MAX_CLIENTS_PER_DAY) {
         return Response.json(
           { error: "Freddy Nails is fully booked on that day. Please choose another date." },
           { status: 409 }

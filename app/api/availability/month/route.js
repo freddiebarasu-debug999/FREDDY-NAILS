@@ -127,15 +127,19 @@ export async function GET(request) {
       const blockedRanges = blockedByDate.get(date) || [];
       let free = 0;
 
+      // Google-only calendar blocks do not count as clients for the day-full rule.
+      // (busyTimes stores them as { start, end, fromGoogle } when from the calendar.)
+      const clientCount = (busy[date] || []).filter((b) => !b.fromGoogle).length;
+
       // A full day (maximum clients) has no free times.
-      if (taken.length < MAX_CLIENTS_PER_DAY) {
+      if (clientCount < MAX_CLIENTS_PER_DAY) {
         for (
           let start = OPEN_MINUTES;
           start <= CLOSE_MINUTES;
           start += SLOT_INTERVAL
         ) {
           const end = start + duration;
-          // Keep a 15-minute gap before and after every booking.
+          // Keep a gap before and after every booking.
           const pastToday = date === today && start <= localNow.minutes;
           const isBlocked = overlapsBlockedRange(start, end, blockedRanges);
           const clash =

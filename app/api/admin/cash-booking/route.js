@@ -137,7 +137,9 @@ export async function POST(request) {
           warnings.push(`Client ${c.number} (${c.start}–${c.end} on ${date}) clashes with another booking.`);
         }
       }
-      if (booked.length + mine.length > MAX_CLIENTS_PER_DAY) {
+      // Google-only calendar blocks do not count toward the client limit.
+      const existingClientCount = others.filter((o) => !o.fromGoogle).length;
+      if (existingClientCount + mine.length > MAX_CLIENTS_PER_DAY) {
         warnings.push(`${date} would have more than ${MAX_CLIENTS_PER_DAY} clients.`);
       }
     }
