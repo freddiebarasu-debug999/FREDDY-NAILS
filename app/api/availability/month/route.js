@@ -2,19 +2,9 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from "@supabase/supabase-js";
 import { calculateAvailabilitySlots } from "@/lib/availabilitySlots";
-import {
-  OPEN_MINUTES,
-  CLOSE_MINUTES,
-  SLOT_INTERVAL,
-  BUFFER_MINUTES,
-  MAX_CLIENTS_PER_DAY,
-} from "@/lib/bookingRules";
 import { getClosedDatesInRange } from "@/lib/closedDates";
 import { getBusyByDate } from "@/lib/busyTimes";
-import {
-  getBlockedByDate,
-  overlapsBlockedRange,
-} from "@/lib/blockedTimes";
+import { getBlockedByDate } from "@/lib/blockedTimes";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
