@@ -1,244 +1,1025 @@
-export const dynamic = "force-dynamic";
-
 import { createClient } from "@supabase/supabase-js";
-import { calculateAvailabilitySlots } from "@/lib/availabilitySlots";
-import { isClosedDate } from "@/lib/closedDates";
-import { getBusyForDate } from "@/lib/busyTimes";
-import { getBlockedRangesForDate } from "@/lib/blockedTimes";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
+function getSupabaseAdmin() {
+  const url = process.env.SUPABASE_URL;
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceRoleKey) {
+    throw new Error(
+      "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY."
+    );
   }
-);
 
-function saDateTimeParts() {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Africa/Johannesburg",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date());
-  const value = Object.fromEntries(parts.map((p) => [p.type, p.value]));
-  return {
-    date: `${value.year}-${value.month}-${value.day}`,
-    minutes: Number(value.hour) * 60 + Number(value.minute),
-  };
-}
-
-// ---------- Google Calendar (direct check) ----------
-// Service Account so the website can check YOUR calendar server-side.
-// Env vars (Vercel > Settings > Environment Variables):
-//   GOOGLE_CALENDAR_ID
-//   GOOGLE_SERVICE_ACCOUNT_EMAIL
-//   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
-// Share your calendar with the service-account email ("See all event details").
-
-function base64UrlEncode(input) {
-  return Buffer.from(input).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return createClient(
+    url,
+    serviceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
 }
 
 async function getGoogleAccessToken() {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  let privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-  if (!email || !privateKey) return null;
-  privateKey = privateKey.replace(/\\n/g, "\n");
-  const crypto = await import("node:crypto");
-  const now = Math.floor(Date.now() / 1000);
-  const header = base64UrlEncode(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-  const claim = base64UrlEncode(JSON.stringify({
-    iss: email,
-    scope: "https://www.googleapis.com/auth/calendar.readonly",
-    aud: "https://oauth2.googleapis.com/token",
-    exp: now + 3600,
-    iat: now,
-  }));
-  const unsigned = `${header}.${claim}`;
-  const signer = crypto.createSign("RSA-SHA256");
-  signer.update(unsigned);
-  signer.end();
-  const signature = signer.sign(privateKey);
-  const jwt = `${unsigned}.${base64UrlEncode(signature)}`;
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    console.error("Google Calendar token error:", res.status, text);
+  const supabaseAdmin =
+    getSupabaseAdmin();
+
+  const {
+    data: connection,
+    error,
+  } = await supabaseAdmin
+    .from(
+      "google_calendar_connections"
+    )
+    .select(
+      "calendar_id, refresh_token"
+    )
+    .eq("provider", "google")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `Unable to load Google Calendar connection: ${error.message}`
+    );
+  }
+
+  if (!connection?.refresh_token) {
+    throw new Error(
+      "Google Calendar is not connected."
+    );
+  }
+
+  const clientId =
+    process.env.GOOGLE_CLIENT_ID;
+
+  const clientSecret =
+    process.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      "Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET."
+    );
+  }
+
+  const tokenResponse =
+    await fetch(
+      "https://oauth2.googleapis.com/token",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token:
+            connection.refresh_token,
+          grant_type:
+            "refresh_token",
+        }).toString(),
+      }
+    );
+
+  const tokenData =
+    await tokenResponse.json();
+
+  if (
+    !tokenResponse.ok ||
+    !tokenData.access_token
+  ) {
+    console.error(
+      "Google access token refresh failed:",
+      tokenData
+    );
+
+    throw new Error(
+      tokenData?.error_description ||
+        tokenData?.error ||
+        "Unable to refresh Google Calendar access."
+    );
+  }
+
+  return {
+    accessToken:
+      tokenData.access_token,
+    calendarId:
+      connection.calendar_id ||
+      "primary",
+  };
+}
+
+/*
+ * Google Calendar event IDs may only contain:
+ *
+ * 0123456789abcdefghijklmnopqrstuv
+ *
+ * Convert the appointment ID into a safe hexadecimal ID.
+ */
+function createSafeGoogleEventId(
+  value
+) {
+  const input = String(value);
+
+  let output = "";
+
+  for (
+    let i = 0;
+    i < input.length;
+    i++
+  ) {
+    output += input
+      .charCodeAt(i)
+      .toString(16)
+      .padStart(2, "0");
+  }
+
+  return `f${output}`;
+}
+
+function buildEventId(
+  appointmentId
+) {
+  return createSafeGoogleEventId(
+    `freddynails-${appointmentId}`
+  );
+}
+
+/*
+ * Normalises Supabase/Postgres time values.
+ *
+ * Handles:
+ * 09:30
+ * 09:30:00
+ * 09:30:00+02:00
+ *
+ * and converts them into:
+ * 09:30:00
+ */
+function normalizeTime(value) {
+  if (!value) {
     return null;
   }
-  const data = await res.json();
-  return data.access_token || null;
+
+  const text = String(value)
+    .trim();
+
+  const match = text.match(
+    /^(\d{2}):(\d{2})(?::(\d{2}))?/
+  );
+
+  if (!match) {
+    throw new Error(
+      `Invalid appointment time: ${text}`
+    );
+  }
+
+  const hours =
+    Number(match[1]);
+
+  const minutes =
+    Number(match[2]);
+
+  const seconds =
+    Number(match[3] || 0);
+
+  if (
+    hours > 23 ||
+    minutes > 59 ||
+    seconds > 59
+  ) {
+    throw new Error(
+      `Invalid appointment time: ${text}`
+    );
+  }
+
+  return [
+    String(hours).padStart(2, "0"),
+    String(minutes).padStart(2, "0"),
+    String(seconds).padStart(2, "0"),
+  ].join(":");
 }
 
-// Returns bookings in the exact shape availabilitySlots expects:
-// { start, end, fromGoogle: true } where start/end are SAST minutes since midnight.
-// The 5-min gap after each event is applied inside availabilitySlots.
-async function getGoogleBusyForDate(date) {
-  const calendarId = process.env.GOOGLE_CALENDAR_ID;
-  if (!calendarId) return [];
-  const token = await getGoogleAccessToken();
-  if (!token) return [];
+function normalizeDate(value) {
+  if (!value) {
+    return null;
+  }
 
-  const timeMin = new Date(`${date}T00:00:00+02:00`).toISOString();
-  const timeMax = new Date(`${date}T23:59:59+02:00`).toISOString();
-  const url =
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events` +
-    `?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&maxResults=250`;
+  const text = String(value)
+    .trim();
 
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    console.error("Google Calendar events error:", res.status, text);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(
+      text
+    )
+  ) {
+    throw new Error(
+      `Invalid appointment date: ${text}`
+    );
+  }
+
+  return text;
+}
+
+/*
+ * ---------------------------------------------------------------
+ * ONE CALENDAR EVENT PER CLIENT
+ *
+ * A booking with 2+ clients creates one Google Calendar event for
+ * each client, using that client's own date, time and services
+ * (from the appointment_clients table).
+ *
+ * Every event gets a fixed ID built from the booking ID and the
+ * client number, so the events can always be found again for
+ * cancelling, and creating them twice is harmless.
+ *
+ * A single-client booking still makes one event with the original
+ * ID, exactly as before.
+ * ---------------------------------------------------------------
+ */
+
+const MAX_CLIENT_EVENTS = 4;
+
+function buildClientEventId(
+  appointmentId,
+  clientNumber
+) {
+  return createSafeGoogleEventId(
+    `freddynails-${appointmentId}-client-${clientNumber}`
+  );
+}
+
+async function loadClientRows(
+  appointmentId
+) {
+  const supabaseAdmin =
+    getSupabaseAdmin();
+
+  const { data, error } =
+    await supabaseAdmin
+      .from("appointment_clients")
+      .select(
+        "client_number, service_name, booking_date, start_time, end_time, booking_status"
+      )
+      .eq(
+        "appointment_id",
+        appointmentId
+      )
+      .order("client_number", {
+        ascending: true,
+      });
+
+  if (error) {
+    console.error(
+      "Unable to load appointment clients for calendar:",
+      error
+    );
+
     return [];
   }
-  const data = await res.json();
-  const toSaMinutes = (iso) => {
-    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Johannesburg", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(iso));
-    const v = Object.fromEntries(parts.map((p) => [p.type, p.value]));
-    return Number(v.hour) * 60 + Number(v.minute);
-  };
 
-  return (data.items || [])
-    .filter((event) => {
-      if (event.status === "cancelled") return false;
-      if (event.transparency === "transparent") return false;
-      return true;
-    })
-    .map((event) => {
-      if (event.start?.date && !event.start?.dateTime) {
-        return { start: 0, end: 24 * 60, fromGoogle: true, summary: event.summary || "Busy" };
-      }
-      const startRaw = event.start?.dateTime;
-      const endRaw = event.end?.dateTime;
-      if (!startRaw || !endRaw) return null;
-      let start = toSaMinutes(startRaw);
-      let end = toSaMinutes(endRaw);
-      if (end === 0 && new Date(endRaw) > new Date(startRaw)) end = 24 * 60;
-      return { start, end, fromGoogle: true, summary: event.summary || "Busy" };
-    })
-    .filter(Boolean);
+  return data || [];
 }
 
-export async function GET(request) {
+function buildCalendarEvent(
+  appointment,
+  {
+    id,
+    clientRow = null,
+    clientNumber = 1,
+    clientTotal = 1,
+  }
+) {
+  const bookingDate =
+    normalizeDate(
+      clientRow?.booking_date ||
+        appointment.booking_date
+    );
+
+  const startTime =
+    normalizeTime(
+      clientRow?.start_time ||
+        appointment.start_time
+    );
+
+  const endTime =
+    normalizeTime(
+      clientRow?.end_time ||
+        appointment.end_time
+    );
+
+  if (
+    !bookingDate ||
+    !startTime ||
+    !endTime
+  ) {
+    throw new Error(
+      "Appointment is missing booking date or start/end time."
+    );
+  }
+
+  const isMulti =
+    clientTotal > 1;
+
+  const serviceText =
+    clientRow?.service_name ||
+    appointment.service_name ||
+    "—";
+
+  const customerName =
+    appointment.customer_name;
+
+  return {
+    id,
+
+    summary: isMulti
+      ? `Freddy Nails — ${customerName} (Client ${clientNumber} of ${clientTotal})`
+      : `Freddy Nails — ${customerName}`,
+
+    description: [
+      "FREDDY NAILS",
+      "",
+      `Client: ${customerName}`,
+      isMulti
+        ? `Client ${clientNumber} of ${clientTotal} in this booking`
+        : null,
+      `Phone: ${appointment.customer_phone || "—"}`,
+      `Email: ${appointment.customer_email || "—"}`,
+      `Service: ${serviceText}`,
+      `Clients in booking: ${clientTotal}`,
+      isMulti
+        ? `Deposit (whole booking): R${appointment.deposit_amount || 0}`
+        : `Deposit: R${appointment.deposit_amount || 0}`,
+      "Payment status: Paid",
+      `Booking status: ${
+        appointment.booking_status ||
+        "Confirmed"
+      }`,
+      `Booking ID: ${appointment.id}`,
+      appointment.notes
+        ? `Notes: ${appointment.notes}`
+        : null,
+      "",
+      "Booked through freddynails.co.za",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+
+    start: {
+      dateTime: `${bookingDate}T${startTime}`,
+      timeZone:
+        "Africa/Johannesburg",
+    },
+
+    end: {
+      dateTime: `${bookingDate}T${endTime}`,
+      timeZone:
+        "Africa/Johannesburg",
+    },
+
+    reminders: {
+      useDefault: true,
+    },
+  };
+}
+
+async function readJsonSafely(
+  response
+) {
+  const text =
+    await response.text();
+
   try {
-    const url = new URL(request.url);
-    const date = url.searchParams.get("date");
-    const durationParam = url.searchParams.get("duration");
-    const duration = Number(durationParam);
+    return text
+      ? JSON.parse(text)
+      : null;
+  } catch {
+    return { raw: text };
+  }
+}
 
-    if (!date) {
-      return Response.json({ error: "Booking date is required." }, { status: 400 });
-    }
-    if (!Number.isFinite(duration) || duration <= 0) {
-      return Response.json({ error: "Valid appointment duration is required." }, { status: 400 });
+// Creates one event. A 409 means it already exists, which is fine.
+async function insertGoogleEvent(
+  accessToken,
+  calendarId,
+  event
+) {
+  const response =
+    await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+        calendarId
+      )}/events`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify(event),
+      }
+    );
+
+  const data =
+    await readJsonSafely(
+      response
+    );
+
+  if (response.status === 409) {
+    // The event ID is already used (the event exists, or it was deleted
+    // earlier - Google keeps deleted IDs reserved). Update it in place and
+    // make sure it is active, so it always matches the booking.
+    const updateResponse =
+      await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+          calendarId
+        )}/events/${encodeURIComponent(
+          event.id
+        )}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            ...event,
+            status: "confirmed",
+          }),
+        }
+      );
+
+    if (!updateResponse.ok) {
+      const updateData =
+        await readJsonSafely(
+          updateResponse
+        );
+
+      console.error(
+        "Google Calendar event update failed:",
+        {
+          status:
+            updateResponse.status,
+          response: updateData,
+          eventId: event.id,
+        }
+      );
+
+      throw new Error(
+        updateData?.error?.message ||
+          `Google Calendar returned HTTP ${updateResponse.status}.`
+      );
     }
 
-    const requestedDate = new Date(`${date}T12:00:00`);
-    if (Number.isNaN(requestedDate.getTime())) {
-      return Response.json({ error: "Invalid booking date." }, { status: 400 });
+    return {
+      eventId: event.id,
+      alreadyExists: true,
+    };
+  }
+
+  if (!response.ok) {
+    console.error(
+      "Google Calendar event creation failed:",
+      {
+        status: response.status,
+        response: data,
+        eventId: event.id,
+      }
+    );
+
+    throw new Error(
+      data?.error?.message ||
+        data?.error?.errors?.[0]
+          ?.message ||
+        `Google Calendar returned HTTP ${response.status}.`
+    );
+  }
+
+  if (!data?.id) {
+    throw new Error(
+      "Google Calendar created the event but returned no event ID."
+    );
+  }
+
+  return {
+    eventId: data.id,
+    alreadyExists: false,
+  };
+}
+
+async function deleteGoogleEventById(
+  accessToken,
+  calendarId,
+  eventId
+) {
+  const response =
+    await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+        calendarId
+      )}/events/${encodeURIComponent(
+        eventId
+      )}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+  // 404 / 410 = already gone, which is what we want.
+  if (
+    response.ok ||
+    response.status === 404 ||
+    response.status === 410
+  ) {
+    return;
+  }
+
+  const data =
+    await readJsonSafely(
+      response
+    );
+
+  console.error(
+    "Google Calendar event deletion failed:",
+    { eventId, response: data }
+  );
+
+  throw new Error(
+    data?.error?.message ||
+      "Unable to delete Google Calendar event."
+  );
+}
+
+export async function createGoogleCalendarEvent(
+  appointment
+) {
+  const supabaseAdmin =
+    getSupabaseAdmin();
+
+  if (
+    appointment.google_event_id
+  ) {
+    console.log(
+      "Google Calendar event already exists:",
+      appointment.google_event_id
+    );
+
+    return {
+      success: true,
+      eventId:
+        appointment.google_event_id,
+      alreadyExists: true,
+    };
+  }
+
+  const clientRows =
+    await loadClientRows(
+      appointment.id
+    );
+
+  const isMulti =
+    clientRows.length > 1;
+
+  const {
+    accessToken,
+    calendarId,
+  } =
+    await getGoogleAccessToken();
+
+  const results = [];
+  const failures = [];
+
+  if (!isMulti) {
+    // One client: one event, same ID as before.
+    const event =
+      buildCalendarEvent(
+        appointment,
+        {
+          id: buildEventId(
+            appointment.id
+          ),
+          clientRow:
+            clientRows[0] || null,
+          clientNumber: 1,
+          clientTotal: 1,
+        }
+      );
+
+    results.push(
+      await insertGoogleEvent(
+        accessToken,
+        calendarId,
+        event
+      )
+    );
+  } else {
+    // Two or more clients: remove the old combined event if an
+    // earlier version of the site made one, then create one event
+    // per client.
+    try {
+      await deleteGoogleEventById(
+        accessToken,
+        calendarId,
+        buildEventId(appointment.id)
+      );
+    } catch (legacyError) {
+      console.error(
+        "Could not remove old combined event:",
+        legacyError
+      );
     }
 
-    // Sunday is closed.
-    if (requestedDate.getDay() === 0) {
-      return Response.json({ date, availableTimes: [], allSlots: [] });
-    }
+    const total = Math.min(
+      clientRows.length,
+      MAX_CLIENT_EVENTS
+    );
 
-    // Days the owner has marked as closed.
-    if (await isClosedDate(supabase, date)) {
-      return Response.json({ date, availableTimes: [], allSlots: [] });
-    }
+    for (
+      let i = 0;
+      i < total;
+      i++
+    ) {
+      const row = clientRows[i];
 
-    // Release expired pending parent bookings.
-    const now = new Date().toISOString();
-    const { data: expiredAppointments, error: expiredLookupError } = await supabase
+      const clientNumber =
+        Number(
+          row.client_number
+        ) || i + 1;
+
+      try {
+        const event =
+          buildCalendarEvent(
+            appointment,
+            {
+              id: buildClientEventId(
+                appointment.id,
+                clientNumber
+              ),
+              clientRow: row,
+              clientNumber,
+              clientTotal: total,
+            }
+          );
+
+        results.push(
+          await insertGoogleEvent(
+            accessToken,
+            calendarId,
+            event
+          )
+        );
+      } catch (clientError) {
+        failures.push(
+          `Client ${clientNumber}: ${
+            clientError?.message ||
+            clientError
+          }`
+        );
+      }
+    }
+  }
+
+  if (failures.length) {
+    // Events that did work stay in the calendar. Running this
+    // again only creates the missing ones.
+    throw new Error(
+      `Some calendar events could not be created. ${failures.join(
+        " | "
+      )}`
+    );
+  }
+
+  const firstEventId =
+    results[0].eventId;
+
+  const {
+    error: saveError,
+  } =
+    await supabaseAdmin
       .from("appointments")
-      .select("id")
-      .eq("booking_status", "pending")
-      .not("expires_at", "is", null)
-      .lt("expires_at", now);
+      .update({
+        google_event_id:
+          firstEventId,
+      })
+      .eq("id", appointment.id);
 
-    if (expiredLookupError) {
-      console.error("Expired booking lookup error:", expiredLookupError);
+  if (saveError) {
+    throw new Error(
+      `Calendar event was created, but its ID could not be saved: ${saveError.message}`
+    );
+  }
+
+  console.log(
+    "Google Calendar events ready:",
+    results.map((r) => r.eventId)
+  );
+
+  return {
+    success: true,
+    eventId: firstEventId,
+    eventIds: results.map(
+      (r) => r.eventId
+    ),
+    alreadyExists: results.every(
+      (r) => r.alreadyExists
+    ),
+  };
+}
+
+export async function deleteGoogleCalendarEvent(
+  appointment
+) {
+  const supabaseAdmin =
+    getSupabaseAdmin();
+
+  if (
+    !appointment?.google_event_id
+  ) {
+    return {
+      success: true,
+      deleted: false,
+    };
+  }
+
+  const clientRows =
+    await loadClientRows(
+      appointment.id
+    );
+
+  // Every event that could belong to this booking.
+  const eventIds =
+    new Set([
+      appointment.google_event_id,
+      buildEventId(appointment.id),
+    ]);
+
+  const clientTotal = Math.min(
+    Math.max(
+      clientRows.length,
+      Number(
+        appointment.client_count
+      ) || 1
+    ),
+    MAX_CLIENT_EVENTS
+  );
+
+  if (clientTotal > 1) {
+    for (
+      let n = 1;
+      n <= clientTotal;
+      n++
+    ) {
+      eventIds.add(
+        buildClientEventId(
+          appointment.id,
+          n
+        )
+      );
     }
+  }
 
-    const expiredIds = (expiredAppointments || []).map((appointment) => appointment.id);
+  const {
+    accessToken,
+    calendarId,
+  } =
+    await getGoogleAccessToken();
 
-    if (expiredIds.length > 0) {
-      const { error: expireParentError } = await supabase
-        .from("appointments")
-        .update({ booking_status: "cancelled" })
-        .in("id", expiredIds);
-      if (expireParentError) console.error("Expired parent booking update error:", expireParentError);
+  const failures = [];
 
-      const { error: expireClientError } = await supabase
-        .from("appointment_clients")
-        .update({ booking_status: "cancelled" })
-        .in("appointment_id", expiredIds)
-        .eq("booking_status", "pending");
-      if (expireClientError) console.error("Expired client booking update error:", expireClientError);
-    }
-
-    // Get all active individual client appointments.
-    let bookedClients = [];
-    let bookedClientsError = null;
+  for (const eventId of eventIds) {
     try {
-      bookedClients = await getBusyForDate(supabase, date);
-    } catch (lookupError) {
-      bookedClientsError = lookupError;
+      await deleteGoogleEventById(
+        accessToken,
+        calendarId,
+        eventId
+      );
+    } catch (deleteError) {
+      failures.push(
+        deleteError?.message ||
+          String(deleteError)
+      );
+    }
+  }
+
+  if (failures.length) {
+    throw new Error(
+      failures.join(" | ")
+    );
+  }
+
+  const { error } =
+    await supabaseAdmin
+      .from("appointments")
+      .update({
+        google_event_id: null,
+      })
+      .eq("id", appointment.id);
+
+  if (error) {
+    throw new Error(
+      `Google Calendar events were deleted, but the appointment could not be updated: ${error.message}`
+    );
+  }
+
+  console.log(
+    "Google Calendar events deleted:",
+    [...eventIds]
+  );
+
+  return {
+    success: true,
+    deleted: true,
+  };
+}
+
+/*
+  Finds the calendar event(s) already made for a booking by searching for
+  the booking ID that every event description contains.
+
+  Returns the first event id, or null. For a booking with several clients it
+  returns null unless EVERY client already has an event, so the missing ones
+  get created.
+*/
+export async function findGoogleCalendarEventId(text) {
+  const { accessToken, calendarId } = await getGoogleAccessToken();
+
+  const clientRows = await loadClientRows(text);
+  const expected = Math.min(
+    Math.max(clientRows.length, 1),
+    MAX_CLIENT_EVENTS
+  );
+
+  const response = await fetch(
+    "https://www.googleapis.com/calendar/v3/calendars/" +
+      encodeURIComponent(calendarId) +
+      "/events?singleEvents=true&maxResults=10&q=" +
+      encodeURIComponent(text),
+    { headers: { Authorization: "Bearer " + accessToken } }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      "Google Calendar search failed: " + response.status + " " + (await response.text())
+    );
+  }
+
+  const data = await response.json();
+  const found = (data.items || []).filter((e) => e.status !== "cancelled");
+
+  if (found.length < expected) return null;
+  return found[0] ? found[0].id : null;
+}
+
+/*
+ * Returns busy ranges from the connected Google Calendar for every day in
+ * [fromDate, toDate] (inclusive, YYYY-MM-DD).
+ *
+ * Shape matches busyTimes: { "YYYY-MM-DD": [{ start, end }] }
+ * with start/end in minutes from midnight (Africa/Johannesburg).
+ *
+ * Uses the FreeBusy API so one call covers a whole month.
+ * If Google Calendar is not connected (or the call fails), returns {} so
+ * availability still works from the database alone.
+ */
+export async function getGoogleCalendarBusyByDate(fromDate, toDate) {
+  try {
+    const { accessToken, calendarId } = await getGoogleAccessToken();
+
+    // Cover the full local days in South Africa (UTC+2 all year).
+    // toDate is inclusive — FreeBusy timeMax is exclusive, so go to next midnight.
+    const timeMin = `${fromDate}T00:00:00+02:00`;
+    const end = new Date(`${toDate}T12:00:00+02:00`);
+    end.setDate(end.getDate() + 1);
+    const y = end.getFullYear();
+    const m = String(end.getMonth() + 1).padStart(2, "0");
+    const d = String(end.getDate()).padStart(2, "0");
+    const timeMax = `${y}-${m}-${d}T00:00:00+02:00`;
+
+    const response = await fetch(
+      "https://www.googleapis.com/calendar/v3/freeBusy",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          timeMin,
+          timeMax,
+          timeZone: "Africa/Johannesburg",
+          items: [{ id: calendarId }],
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(
+        "Google Calendar freeBusy failed:",
+        response.status,
+        text
+      );
+      throw new Error(
+        `Google Calendar FreeBusy request failed (HTTP ${response.status}).`
+      );
     }
 
-    if (bookedClientsError) {
-      console.error("Availability lookup error:", bookedClientsError);
-      return Response.json({ error: "Unable to load availability." }, { status: 500 });
+    const data = await response.json();
+    const calendarResult = data?.calendars?.[calendarId];
+    if (!calendarResult || calendarResult.errors?.length || !Array.isArray(calendarResult.busy)) {
+      throw new Error(
+        calendarResult?.errors?.[0]?.reason ||
+        calendarResult?.errors?.[0]?.message ||
+        "Google Calendar returned no valid busy-time data for the connected calendar."
+      );
+    }
+    const busyList = calendarResult.busy;
+
+    const byDate = {};
+
+    for (const period of busyList) {
+      if (!period?.start || !period?.end) {
+        throw new Error("Google Calendar returned a busy period without start or end.");
+      }
+
+      // Convert each busy period into local SA date + minutes.
+      // Google returns RFC3339 (often Z or with offset).
+      const startMs = Date.parse(period.start);
+      const endMs = Date.parse(period.end);
+      if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs) {
+        throw new Error("Google Calendar returned an invalid busy period.");
+      }
+
+      // Walk day by day in local SA time so multi-day blocks are split.
+      let cursor = startMs;
+      while (cursor < endMs) {
+        const parts = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Africa/Johannesburg",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hourCycle: "h23",
+        }).formatToParts(new Date(cursor));
+
+        const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+        const dateKey = `${map.year}-${map.month}-${map.day}`;
+        const dayStartMinutes =
+          Number(map.hour) * 60 + Number(map.minute);
+
+        // End of this local day (or the busy end, whichever is sooner).
+        const nextMidnightLocal = new Date(
+          `${dateKey}T00:00:00+02:00`
+        );
+        nextMidnightLocal.setDate(nextMidnightLocal.getDate() + 1);
+        const dayEndMs = Math.min(endMs, nextMidnightLocal.getTime());
+
+        const endParts = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Africa/Johannesburg",
+          hour: "2-digit",
+          minute: "2-digit",
+          hourCycle: "h23",
+        }).formatToParts(new Date(dayEndMs));
+        const endMap = Object.fromEntries(
+          endParts.map((p) => [p.type, p.value])
+        );
+        let dayEndMinutes =
+          Number(endMap.hour) * 60 + Number(endMap.minute);
+        // If we landed exactly on midnight, treat as end of previous day = 24:00.
+        if (dayEndMinutes === 0 && dayEndMs > cursor) {
+          dayEndMinutes = 24 * 60;
+        }
+
+        if (dayEndMinutes > dayStartMinutes) {
+          (byDate[dateKey] ||= []).push({
+            start: dayStartMinutes,
+            end: dayEndMinutes,
+            fromGoogle: true,
+          });
+        }
+
+        cursor = dayEndMs;
+        // Safety against infinite loop on bad data.
+        if (cursor <= startMs) break;
+      }
     }
 
-    // Owner-blocked time ranges.
-    const blockedRanges = await getBlockedRangesForDate(supabase, date);
-
-    // --- Google Calendar: anything on your calendar blocks that time online ---
-    // If Google fails, log it and fall back to Supabase-only instead of crashing.
-    let googleBusy = [];
-    let googleCalendarChecked = false;
-    try {
-      googleBusy = await getGoogleBusyForDate(date);
-      googleCalendarChecked = true;
-    } catch (googleError) {
-      console.error("Google Calendar availability error:", googleError);
-      googleCalendarChecked = false;
-    }
-
-    const combinedBookings = [...(bookedClients || []), ...googleBusy];
-
-    const localNow = saDateTimeParts();
-    const { slots: allSlots, availableTimes } = calculateAvailabilitySlots({
-      date,
-      duration,
-      bookings: combinedBookings,
-      blockedRanges,
-      today: localNow.date,
-      nowMinutes: localNow.minutes,
-    });
-
-    return Response.json({
-      date,
-      availableTimes,
-      allSlots,
-      googleCalendarChecked,
-    });
+    return byDate;
   } catch (error) {
-    console.error("Availability API error:", error);
-    return Response.json({ error: "Something went wrong loading availability." }, { status: 500 });
+    // Fail closed: never expose unchecked calendar times as bookable.
+    console.error(
+      "Google Calendar busy lookup failed:",
+      error?.message || error
+    );
+    throw new Error(
+      error?.message || "Google Calendar availability could not be checked."
+    );
   }
 }
