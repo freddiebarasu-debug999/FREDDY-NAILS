@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 // The chosen offer is remembered in the browser for 24 hours so it
@@ -8,6 +8,32 @@ import { supabase } from "@/lib/supabase";
 const CHOSEN_PROMO_KEY = "freddynails_chosen_promo";
 
 const OFFERS = [
+  // Black Friday 2026: shows automatically 24-30 Nov (South African time),
+  // then disappears by itself. Nothing to switch off.
+  {
+    title: "Black Friday Glow Deal",
+    code: "BLACKFRIDAY40",
+    discount: "40% OFF",
+    description:
+      "Exclusive to Freddy Nails account holders. Log in to claim your 40% off nail sets.",
+    note: "Nail sets only (Acrylic & Gel). Not soak offs or other services. Valid 24–30 Nov 2026.",
+    badge: "Account holders",
+    featured: true,
+    startsAt: "2026-11-24T00:00:00+02:00",
+    endsAt: "2026-12-01T00:00:00+02:00",
+  },
+  {
+    title: "Black Friday Glow Deal",
+    code: "BLACKFRIDAY30",
+    discount: "30% OFF",
+    description:
+      "30% off nail sets for all clients. Create a free account to unlock 40% off.",
+    note: "Nail sets only (Acrylic & Gel). Not soak offs or other services. Valid 24–30 Nov 2026.",
+    badge: "Everyone",
+    featured: true,
+    startsAt: "2026-11-24T00:00:00+02:00",
+    endsAt: "2026-12-01T00:00:00+02:00",
+  },
   {
     title: "Book Online",
     code: "WELCOME10",
@@ -34,6 +60,22 @@ const OFFERS = [
 export default function Offers() {
   const [copiedCode, setCopiedCode] =
     useState("");
+
+  // Offers with a date window only show while they are running. Worked out
+  // in the browser after the page loads so it is always right.
+  const [now, setNow] = useState(null);
+
+  useEffect(() => {
+    setNow(Date.now());
+  }, []);
+
+  const visibleOffers = OFFERS.filter((offer) => {
+    if (!offer.startsAt && !offer.endsAt) return true;
+    if (now === null) return false;
+    if (offer.startsAt && now < new Date(offer.startsAt).getTime()) return false;
+    if (offer.endsAt && now >= new Date(offer.endsAt).getTime()) return false;
+    return true;
+  });
 
   async function chooseOffer(code) {
     // Copy the code as a backup in case the client needs to paste it.
@@ -96,8 +138,8 @@ export default function Offers() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {OFFERS.map((offer) => {
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {visibleOffers.map((offer) => {
             const isCopied =
               copiedCode ===
               offer.code;
@@ -111,12 +153,21 @@ export default function Offers() {
                     offer.code
                   )
                 }
-                className="group relative overflow-hidden rounded-3xl border border-white/10 bg-black/30 p-7 text-left transition duration-300 hover:-translate-y-1 hover:border-yellow-500/50 hover:bg-black/50"
+                className={`group relative overflow-hidden rounded-3xl border p-7 text-left transition duration-300 hover:-translate-y-1 hover:border-yellow-500/50 hover:bg-black/50 ${
+                  offer.featured
+                    ? "border-yellow-500/40 bg-yellow-500/[0.07]"
+                    : "border-white/10 bg-black/30"
+                }`}
               >
                 <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-yellow-500/10 blur-2xl transition group-hover:bg-yellow-500/20" />
 
                 <p className="relative mb-3 text-xs uppercase tracking-[0.25em] text-yellow-500">
                   {offer.title}
+                  {offer.badge ? (
+                    <span className="ml-2 rounded-full border border-yellow-500/40 px-2 py-0.5 text-[10px] tracking-widest">
+                      {offer.badge}
+                    </span>
+                  ) : null}
                 </p>
 
                 <h3 className="relative text-2xl font-semibold">
@@ -126,6 +177,12 @@ export default function Offers() {
                 <p className="relative mt-4 text-sm leading-6 opacity-70">
                   {offer.description}
                 </p>
+
+                {offer.note ? (
+                  <p className="relative mt-3 text-xs leading-5 text-yellow-500/90">
+                    {offer.note}
+                  </p>
+                ) : null}
 
                 <div className="relative mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
                   <div className="flex items-center justify-between gap-3">

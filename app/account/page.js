@@ -1,5 +1,6 @@
 "use client";
 
+import { withBlackFridayFallback } from "@/lib/promoRules";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -370,11 +371,16 @@ export default function AccountPage() {
       });
 
       const data = await response.json();
-      if (response.ok && data?.success && Array.isArray(data.offers)) {
-        setOffers(data.offers);
-      }
+      setOffers(
+        withBlackFridayFallback(
+          response.ok && data?.success && Array.isArray(data.offers)
+            ? data.offers
+            : []
+        )
+      );
     } catch (err) {
       console.error("Offers load error:", err);
+      setOffers(withBlackFridayFallback([]));
     } finally {
       setOffersLoading(false);
     }

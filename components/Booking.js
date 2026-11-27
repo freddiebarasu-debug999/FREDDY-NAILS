@@ -12,6 +12,7 @@ import { BUFFER_MINUTES } from "@/lib/bookingRules";
 import {
   isNailSetOnlyCode,
   isNailSetService,
+  withBlackFridayFallback,
 } from "@/lib/promoRules";
 
 // The client portal remembers the offer a client tapped "Use offer" on
@@ -780,16 +781,21 @@ export default function Booking() {
           },
         });
         const data = await response.json();
-        if (
-          !cancelled &&
-          response.ok &&
-          data?.success &&
-          Array.isArray(data.offers)
-        ) {
-          setAccountOffers(data.offers);
+        if (!cancelled) {
+          setAccountOffers(
+            withBlackFridayFallback(
+              response.ok &&
+                data?.success &&
+                Array.isArray(data.offers)
+                ? data.offers
+                : []
+            )
+          );
         }
       } catch (e) {
-        // Offers are optional: ignore errors.
+        if (!cancelled) {
+          setAccountOffers(withBlackFridayFallback([]));
+        }
       }
     }
 
