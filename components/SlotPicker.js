@@ -113,7 +113,7 @@ export default function SlotPicker({
   for (let i = 0; i < offset; i += 1) cells.push(null);
   for (let d = 1; d <= daysInMonth; d += 1) cells.push(d);
 
-  // Prefer allSlots (available + unavailable) over the times-only fallback.
+  // Prefer allSlots (available + booked scratched out). Fall back to times-only list.
   const slotList =
     Array.isArray(allSlots) && allSlots.length > 0
       ? allSlots
